@@ -1,0 +1,9 @@
+worker-threads: 4
+worker-fs-threads: 2
+logger-level: warning
+
+is-testing: false
+
+server-port: 8080
+
+secdist-path: /configs/secure_data.json
