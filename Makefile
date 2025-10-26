@@ -69,5 +69,4 @@ dist-clean:
 .PHONY: format
 format:
 	find src -name '*pp' -type f | xargs $(CLANG_FORMAT) -i
-	find tests -name '*.py' -type f | xargs black -l 79
-
+	find include -name '*pp' -type f | xargs $(CLANG_FORMAT) -i

@@ -10,33 +10,15 @@ find_package(
   COMPONENTS core
   REQUIRED
 )
-
-# Common sources
-file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
-
+file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.*pp" "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp")
 list(FILTER SOURCES EXCLUDE REGEX ".*(_test|_benchmark)\\.cpp$")
-list(FILTER SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
 
-add_library(${PROJECT_NAME}_objs OBJECT ${SOURCES})
+add_library(
+  ${PROJECT_NAME} STATIC ${SOURCES})
 
-target_link_libraries(${PROJECT_NAME}_objs PUBLIC userver::core)
+add_library(userver::cassandra ALIAS userver-cql-driver)
 
-target_include_directories(${PROJECT_NAME}_objs PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(${PROJECT_NAME} PUBLIC userver::core)
 
-# The Service
-add_executable(${PROJECT_NAME} src/main.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_objs)
-
-# Unit Tests
-add_executable(${PROJECT_NAME}_unittest src/utils/generate_salt_test.cpp)
-
-target_link_libraries(${PROJECT_NAME}_unittest PRIVATE ${PROJECT_NAME}_objs userver::utest)
-add_google_tests(${PROJECT_NAME}_unittest)
-
-# Benchmarks
-add_executable(${PROJECT_NAME}_benchmark)
-target_link_libraries(${PROJECT_NAME}_benchmark PRIVATE ${PROJECT_NAME}_objs userver::ubench)
-add_google_benchmark_tests(${PROJECT_NAME}_benchmark)
-
-# Functional Tests
-userver_testsuite_add_simple(REQUIREMENTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/requirements.txt")
+target_include_directories(${PROJECT_NAME}
+                           PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

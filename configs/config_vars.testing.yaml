@@ -1,9 +1,0 @@
-worker-threads: 1
-worker-fs-threads: 1
-logger-level: debug
-
-is-testing: true
-
-server-port: 8080
-
-secdist-path: /configs/secure_data.json

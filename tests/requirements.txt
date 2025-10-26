@@ -1,7 +1,0 @@
-yandex-taxi-testsuite[postgresql-binary] >= 0.1.30
-pyjwt[crypto] >= 2.8.0
-grpcio
-grpcio-tools
-psycopg2
-bson
-pycodestyle
