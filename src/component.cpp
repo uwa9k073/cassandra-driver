@@ -1,5 +1,6 @@
 #include <cassandra/component.hpp>
 #include <cassandra/node_description.hpp>
+#include <string_view>
 #include <userver/clients/dns/resolver_utils.hpp>
 #include <userver/components/component.hpp>
 #include <userver/components/component_base.hpp>
@@ -11,23 +12,40 @@
 #include <userver/error_injection/settings.hpp>
 #include <userver/formats/parse/common_containers.hpp>
 #include <userver/logging/log.hpp>
+#include <userver/storages/secdist/component.hpp>
+#include <userver/storages/secdist/exceptions.hpp>
 #include <userver/testsuite/tasks.hpp>
 #include <userver/testsuite/testsuite_support.hpp>
 #include <userver/utils/enumerate.hpp>
+#include <userver/utils/zstring_view.hpp>
 #include <userver/yaml_config/fwd.hpp>
 #include <userver/yaml_config/merge_schemas.hpp>
 #include <userver/yaml_config/schema.hpp>
+#include <vector>
 
 namespace components {
 Cassandra::Cassandra(const userver::components::ComponentConfig& config,
                      const userver::components::ComponentContext& context)
     : userver::components::ComponentBase(config, context) {
-  auto* resolver = userver::clients::dns::GetResolverPtr(config, context);
+  // auto* resolver = userver::clients::dns::GetResolverPtr(config, context);
+
+  userver::utils::zstring_view keyspace =
+      config["keyspace"].As<std::string>("");
+  std::vector<cassandra::NodeDescription> cluster_desc;
+  try {
+    auto& secdist = context.FindComponent<userver::components::Secdist>();
+
+    cluster_desc = secdist.Get().Get<std::vector<cassandra::NodeDescription>>();
+  } catch (const userver::storages::secdist::SecdistError& e) {
+    LOG_ERROR() << "Failed to load Cassandra config for keyspace" << keyspace
+                << ": " << e;
+    throw;
+  }
 
   const auto& nodes_description =
       config["nodes"].As<std::vector<cassandra::NodeDescription>>();
 
-  for (const auto& node_description : nodes_description) {
+  for (const auto& _ : nodes_description) {
     LOG_DEBUG("CASSANDRA NODE INIT");
   }
 }
@@ -39,41 +57,9 @@ type: object
 description: Apache Cassandra client component
 additionalProperties: false
 properties:
-    nodes:
-        type: array
-        items:
-            type: object
-            additionalProperties: false
-            properties:
-                use-ssl:
-                    type: boolean
-                    description: use SSl for connect to node
-                use-compression:
-                    type: boolean
-                    description: use lz4 compression for read/write frames
-                allow-all:
-                    type: boolean
-                    description: allow all authentifiactor
-                    defaultDescription: true
-                auth:
-                    type: object
-                    additionProperties: false
-                    properties:
-                        username:
-                            type: string
-                        password:
-                            type: string
-                    defaultDescription: null
-                contact-point:
-                    type: string
-                    description: IPV4 address
-                port:
-                    type: integer
-                    description: Node port
-                    defaultDescription: 9042
     default-keyspace:
         type: string
-        description: default keyspace name
+        description: keyspace name
     default-consistency-level:
         type: string
         description: default consistency level

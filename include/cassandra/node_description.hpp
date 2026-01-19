@@ -2,7 +2,11 @@
 
 #include <cstdint>
 #include <optional>
+#include <userver/formats/json/value.hpp>
+#include <userver/formats/parse/common_containers.hpp>
 #include <userver/formats/parse/to.hpp>
+#include <userver/logging/log.hpp>
+#include <userver/storages/secdist/exceptions.hpp>
 #include <userver/utils/strong_typedef.hpp>
 
 namespace cassandra {
@@ -19,23 +23,32 @@ struct NodeDescription {
   std::string contact_point;
   std::uint64_t port;
 };
-template <class Value>
-NodeDescription Parse(const Value& value,
+
+inline PasswordAuthentificator Parse(
+    const userver::formats::json::Value& value,
+    userver::formats::parse::To<PasswordAuthentificator>) {
+  return {.username = value["username"].As<std::string>(),
+          .password = value["password"].As<Password>()};
+}
+inline NodeDescription Parse(const userver::formats::json::Value& value,
                       userver::formats::parse::To<NodeDescription>) {
   NodeDescription node_description;
-  node_description.use_ssl = value["use-ssl"].template As<bool>(false);
-  node_description.use_compression =
-      value["use-compression"].template As<bool>();
-  node_description.allow_all = value["allow-all"].template As<bool>(true);
-  if (!node_description.allow_all) {
-    node_description.password_authetificator = PasswordAuthentificator{
-        .username = value["auth"]["username"].template As<std::string>(),
-        .password = value["auht"]["password"].template As<Password>()};
+  node_description.use_ssl = value["use-ssl"].As<bool>(false);
+  node_description.use_compression = value["use-compression"].As<bool>();
+  node_description.allow_all = value["allow-all"].As<bool>(true);
+  auto creds = value["auth"].As<std::optional<PasswordAuthentificator>>();
+  
+  if (!node_description.allow_all && creds.has_value()) {
+    node_description.password_authetificator =
+        value["auth"].As<PasswordAuthentificator>();
+  } else if ((node_description.allow_all && creds) || (!node_description.allow_all && !creds)){
+      LOG_WARNING("Cassandra node configuration mistake");
+      throw userver::storages::secdist::SecdistError()
   }
   node_description.contact_point =
-      value["contact-point"].template As<std::string>();
+      value["contact-point"].As<std::string>();
   node_description.contact_point =
-      value["port"].template As<std::int64_t>(9042);
+      value["port"].As<std::int64_t>(9042);
   return node_description;
 }
 }  // namespace cassandra
