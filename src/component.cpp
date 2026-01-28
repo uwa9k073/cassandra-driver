@@ -22,6 +22,7 @@
 #include <userver/yaml_config/merge_schemas.hpp>
 #include <userver/yaml_config/schema.hpp>
 #include <vector>
+#include "cassandra/secdist.hpp"
 
 namespace components {
 Cassandra::Cassandra(const userver::components::ComponentConfig& config,
@@ -29,25 +30,14 @@ Cassandra::Cassandra(const userver::components::ComponentConfig& config,
     : userver::components::ComponentBase(config, context) {
   // auto* resolver = userver::clients::dns::GetResolverPtr(config, context);
 
-  userver::utils::zstring_view keyspace =
-      config["keyspace"].As<std::string>("");
-  std::vector<cassandra::NodeDescription> cluster_desc;
-  try {
+  // userver::utils::zstring_view keyspace =
+      // config["default-keyspace"].As<std::string>("");
     auto& secdist = context.FindComponent<userver::components::Secdist>();
+    auto cluster_desc = secdist.Get().Get<cassandra::CassandraSecdist>();
 
-    cluster_desc = secdist.Get().Get<std::vector<cassandra::NodeDescription>>();
-  } catch (const userver::storages::secdist::SecdistError& e) {
-    LOG_ERROR() << "Failed to load Cassandra config for keyspace" << keyspace
-                << ": " << e;
-    throw;
-  }
-
-  const auto& nodes_description =
-      config["nodes"].As<std::vector<cassandra::NodeDescription>>();
-
-  for (const auto& _ : nodes_description) {
+  // for (const auto& _ : cluster_desc) {
     LOG_DEBUG("CASSANDRA NODE INIT");
-  }
+  // }
 }
 
 userver::yaml_config::Schema Cassandra::GetStaticConfigSchema() {

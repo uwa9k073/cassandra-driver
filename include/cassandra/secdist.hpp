@@ -5,7 +5,7 @@
 #include <cassandra/node_description.hpp>
 namespace cassandra {
 struct CassandraSecdist {
-  CassandraSecdist(const userver::formats::json::Value& doc);
+  explicit CassandraSecdist(const userver::formats::json::Value& doc);
 
  private:
   std::vector<NodeDescription> _nodes;

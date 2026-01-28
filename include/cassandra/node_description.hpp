@@ -37,13 +37,12 @@ inline NodeDescription Parse(const userver::formats::json::Value& value,
   node_description.use_compression = value["use-compression"].As<bool>();
   node_description.allow_all = value["allow-all"].As<bool>(true);
   auto creds = value["auth"].As<std::optional<PasswordAuthentificator>>();
-  
+
   if (!node_description.allow_all && creds.has_value()) {
     node_description.password_authetificator =
         value["auth"].As<PasswordAuthentificator>();
   } else if ((node_description.allow_all && creds) || (!node_description.allow_all && !creds)){
-      LOG_WARNING("Cassandra node configuration mistake");
-      throw userver::storages::secdist::SecdistError()
+      throw userver::storages::secdist::SecdistError("Cassandra node auth configuration error");
   }
   node_description.contact_point =
       value["contact-point"].As<std::string>();

@@ -10,7 +10,7 @@ find_package(
   COMPONENTS core
   REQUIRED
 )
-file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.*pp" "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp")
+file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp")
 list(FILTER SOURCES EXCLUDE REGEX ".*(_test|_benchmark)\\.cpp$")
 
 add_library(
