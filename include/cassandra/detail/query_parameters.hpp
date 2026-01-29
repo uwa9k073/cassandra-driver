@@ -2,7 +2,7 @@
 
 #include <cassandra/cassandra_fwd.hpp>
 
-namespace cassandra::details {
+namespace cassandra::detail {
 class QueryParameters {
  public:
   QueryParameters() = default;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassandra/cassandra_fwd.hpp>
+#include <cassandra/database_fwd.hpp>
 #include <userver/components/component_base.hpp>
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
@@ -17,5 +18,6 @@ class Cassandra final : public userver::components::ComponentBase {
   static userver::yaml_config::Schema GetStaticConfigSchema();
 
  private:
+  cassandra::DatabasePtr _database;
 };
 }  // namespace components

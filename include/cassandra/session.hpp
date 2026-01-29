@@ -3,6 +3,11 @@
 #include <cassandra/query.hpp>
 #include <cassandra/result_set.hpp>
 #include <memory>
+#include <userver/clients/dns/resolver_fwd.hpp>
+#include <userver/dynamic_config/source.hpp>
+#include <userver/engine/task/task_processor_fwd.hpp>
+#include <userver/utils/statistics/fwd.hpp>
+#include "cassandra/node_description.hpp"
 
 namespace cassandra {
 namespace detail {
@@ -11,7 +16,10 @@ using SessionImplPtr = std::unique_ptr<SessionImpl>;
 }  // namespace detail
 class Session {
  public:
-  virtual ~Session() = default;
+  Session(std::vector<NodeDescription> node_description,
+          userver::clients::dns::Resolver* resolver,
+          userver::engine::TaskProcessor& task_processor,
+          userver::utils::statistics::MetricsStoragePtr metrics_storage);
 
   /// Execute a query
   template <typename... T>
@@ -33,6 +41,6 @@ class Session {
   bool IsConnected() const;
 
  private:
-  detail::SessionImplPtr pimpl_;
+  detail::SessionImplPtr _pimpl;
 };
 }  // namespace cassandra

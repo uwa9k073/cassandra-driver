@@ -13,12 +13,9 @@ namespace cassandra {
 class Database {
  public:
   SessionPtr GetSession() const;
-  SessionPtr GetSessionForShard(std::size_t shard) const;
-
-  std::size_t GetShardCount() const;
 
  private:
   friend class components::Cassandra;
-  std::vector<SessionPtr> _sessions;
+  SessionPtr _session;
 };
 }  // namespace cassandra

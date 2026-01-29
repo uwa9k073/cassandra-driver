@@ -21,7 +21,7 @@ struct NodeDescription {
   bool allow_all;
   std::optional<PasswordAuthentificator> password_authetificator = std::nullopt;
   std::string contact_point;
-  std::uint64_t port;
+  std::int64_t port;
 };
 
 inline PasswordAuthentificator Parse(
@@ -31,23 +31,24 @@ inline PasswordAuthentificator Parse(
           .password = value["password"].As<Password>()};
 }
 inline NodeDescription Parse(const userver::formats::json::Value& value,
-                      userver::formats::parse::To<NodeDescription>) {
+                             userver::formats::parse::To<NodeDescription>) {
   NodeDescription node_description;
   node_description.use_ssl = value["use-ssl"].As<bool>(false);
-  node_description.use_compression = value["use-compression"].As<bool>();
+  node_description.use_compression = value["use-compression"].As<bool>(false);
   node_description.allow_all = value["allow-all"].As<bool>(true);
-  auto creds = value["auth"].As<std::optional<PasswordAuthentificator>>();
+  auto creds =
+      value["auth"].As<std::optional<PasswordAuthentificator>>(std::nullopt);
 
   if (!node_description.allow_all && creds.has_value()) {
-    node_description.password_authetificator =
-        value["auth"].As<PasswordAuthentificator>();
-  } else if ((node_description.allow_all && creds) || (!node_description.allow_all && !creds)){
-      throw userver::storages::secdist::SecdistError("Cassandra node auth configuration error");
+    node_description.password_authetificator = creds;
+  } else if ((node_description.allow_all && creds) ||
+             (!node_description.allow_all && !creds)) {
+    throw userver::storages::secdist::SecdistError(
+        "Cassandra node auth configuration error");
   }
   node_description.contact_point =
-      value["contact-point"].As<std::string>();
-  node_description.contact_point =
-      value["port"].As<std::int64_t>(9042);
+      value["contact-point"].As<std::string>("127.0.0.1");
+  node_description.contact_point = value["port"].As<std::int64_t>(9042);
   return node_description;
 }
 }  // namespace cassandra
