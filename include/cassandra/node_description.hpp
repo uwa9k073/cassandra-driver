@@ -12,43 +12,40 @@
 namespace cassandra {
 using Password = userver::utils::NonLoggable<class PasswordTag, std::string>;
 struct PasswordAuthentificator {
-  std::string username;
-  Password password;
+    std::string username;
+    Password password;
 };
+
+using ContactPoint = userver::utils::NonLoggable<class ContactPointTag, std::string>;
+using Port = userver::utils::NonLoggable<class PortTag, std::uint16_t>;
+
 struct NodeDescription {
-  bool use_ssl;
-  bool use_compression;
-  bool allow_all;
-  std::optional<PasswordAuthentificator> password_authetificator = std::nullopt;
-  std::string contact_point;
-  std::int64_t port;
+    bool use_ssl;
+    bool use_compression;
+    bool allow_all;
+    std::optional<PasswordAuthentificator> password_authetificator = std::nullopt;
+    ContactPoint contact_point;
+    Port port;
 };
 
-inline PasswordAuthentificator Parse(
-    const userver::formats::json::Value& value,
-    userver::formats::parse::To<PasswordAuthentificator>) {
-  return {.username = value["username"].As<std::string>(),
-          .password = value["password"].As<Password>()};
+inline PasswordAuthentificator
+Parse(const userver::formats::json::Value& value, userver::formats::parse::To<PasswordAuthentificator>) {
+    return {.username = value["username"].As<std::string>(), .password = value["password"].As<Password>()};
 }
-inline NodeDescription Parse(const userver::formats::json::Value& value,
-                             userver::formats::parse::To<NodeDescription>) {
-  NodeDescription node_description;
-  node_description.use_ssl = value["use-ssl"].As<bool>(false);
-  node_description.use_compression = value["use-compression"].As<bool>(false);
-  node_description.allow_all = value["allow-all"].As<bool>(true);
-  auto creds =
-      value["auth"].As<std::optional<PasswordAuthentificator>>(std::nullopt);
+inline NodeDescription Parse(const userver::formats::json::Value& value, userver::formats::parse::To<NodeDescription>) {
+    NodeDescription node_description;
+    node_description.use_ssl = value["use-ssl"].As<bool>(false);
+    node_description.use_compression = value["use-compression"].As<bool>(false);
+    node_description.allow_all = value["allow-all"].As<bool>(true);
+    auto creds = value["auth"].As<std::optional<PasswordAuthentificator>>(std::nullopt);
 
-  if (!node_description.allow_all && creds.has_value()) {
-    node_description.password_authetificator = creds;
-  } else if ((node_description.allow_all && creds) ||
-             (!node_description.allow_all && !creds)) {
-    throw userver::storages::secdist::SecdistError(
-        "Cassandra node auth configuration error");
-  }
-  node_description.contact_point =
-      value["contact-point"].As<std::string>("127.0.0.1");
-  node_description.contact_point = value["port"].As<std::int64_t>(9042);
-  return node_description;
+    if (!node_description.allow_all && creds.has_value()) {
+        node_description.password_authetificator = creds;
+    } else if ((node_description.allow_all && creds) || (!node_description.allow_all && !creds)) {
+        throw userver::storages::secdist::SecdistError("Cassandra node auth configuration error");
+    }
+    node_description.contact_point = value["contact-point"].As<ContactPoint>("127.0.0.1");
+    node_description.port = value["port"].As<Port>(9042);
+    return node_description;
 }
 }  // namespace cassandra

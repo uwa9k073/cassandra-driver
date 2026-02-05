@@ -9,15 +9,14 @@
 
 namespace components {
 class Cassandra final : public userver::components::ComponentBase {
- public:
-  Cassandra(const userver::components::ComponentConfig& config,
-            const userver::components::ComponentContext& context);
+public:
+    Cassandra(const userver::components::ComponentConfig& config, const userver::components::ComponentContext& context);
 
-  cassandra::SessionPtr GetSessionPtr() const;
+    cassandra::SessionPtr GetSessionPtr() const;
 
-  static userver::yaml_config::Schema GetStaticConfigSchema();
+    static userver::yaml_config::Schema GetStaticConfigSchema();
 
- private:
-  cassandra::DatabasePtr _database;
+private:
+    cassandra::DatabasePtr _database;
 };
 }  // namespace components

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <functional>
 #include <memory>
 
 namespace cassandra {
@@ -14,9 +13,8 @@ using SessionPtr = std::shared_ptr<Session>;
 
 namespace detail {
 class Connection;
-class ConnectionImpl;
+class ConnectionPool;
 class ConnectionPtr;
-using ConnectionCallback = std::function<void(Connection*)>;
 
 class ResultWrapper;
 using ResultWrapperPtr = std::shared_ptr<const ResultWrapper>;

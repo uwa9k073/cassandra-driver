@@ -8,13 +8,11 @@
 #include <vector>
 namespace cassandra {
 struct CassandraSecdist {
-  explicit CassandraSecdist(const userver::formats::json::Value& doc);
+    explicit CassandraSecdist(const userver::formats::json::Value& doc);
 
-  std::vector<NodeDescription> GetShardedClusterDescription(
-      const std::string& keyspace) const;
+    std::vector<NodeDescription> GetShardedClusterDescription(const std::string& keyspace) const;
 
- private:
-  std::unordered_map<std::string, std::vector<NodeDescription>>
-      _sharded_cluster_descs;
+private:
+    std::unordered_map<std::string, std::vector<NodeDescription>> _sharded_cluster_descs;
 };
 }  // namespace cassandra

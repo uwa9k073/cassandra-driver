@@ -4,7 +4,7 @@ namespace cassandra {
 class ResultSet;
 
 class Row {
- public:
- private:
+public:
+private:
 };
 }  // namespace cassandra
