@@ -1,4 +1,5 @@
 #include "connection_stream.hpp"
+#include <userver/logging/log.hpp>
 
 namespace cassandra::detail {
 
@@ -11,6 +12,11 @@ StreamPool::StreamPool()
 }
 std::int16_t StreamPool::Acquire() {
     std::int16_t value;
-    return _consumer.PopNoblock(value);
+    if (!_consumer.PopNoblock(value)) {
+        LOG_WARNING("FAILED TO ACQUIRE STREAM");
+        return -2;
+    }
+
+    return value;
 }
 }  // namespace cassandra::detail
