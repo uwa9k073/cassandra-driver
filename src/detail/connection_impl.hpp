@@ -35,5 +35,8 @@ private:
 
     void StartAsyncConnect(ContactPoint contact_point, Port port);
     void WaitAsyncConnect(userver::engine::Deadline deadline, ContactPoint contact_point, Port port);
+
+    void SendMessage() const;
+    void WaitForResult() const;
 };
 }  // namespace cassandra::detail

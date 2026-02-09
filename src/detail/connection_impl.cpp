@@ -37,9 +37,25 @@ void ConnectionImpl::AsyncConnect(userver::clients::dns::AddrVector addresses, u
     }
 
     if (!_socket.IsValid()) {
-        LOG_DEBUG("CONNECTION NOT READY");
+        LOG_DEBUG("SOCKET NOT READY");
         return;
     }
-    LOG_DEBUG("CONNECTION READY");
+    LOG_DEBUG("CASSANDRA SOCKET READY");
+    
+    // SENDING OPTIONS
+    // RECEIVE SUPPORT
+    // CONFIGURE COMPRESSION
+    // SEND STARTUP
+    // PERFORM AUTHENTICATION
 }
+
+
+void ConnectionImpl::SendMessage() const {
+    // Implementation of SendMessage
+}
+
+void ConnectionImpl::WaitForResult() const {
+    // Implementation of WaitForResult
+}
+
 }  // namespace cassandra::detail
