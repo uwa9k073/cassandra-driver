@@ -10,6 +10,7 @@
 #include <userver/engine/task/task_processor_fwd.hpp>
 #include <userver/rcu/rcu.hpp>
 #include <userver/utils/statistics/fwd.hpp>
+#include <cassandra/cassandra_fwd.hpp>
 
 namespace cassandra::detail {
 class ConnectionPool {
@@ -34,6 +35,8 @@ public:
         ConnectionSettings connection_settings,
         userver::utils::statistics::MetricsStoragePtr metrics
     );
+    
+    std::shared_ptr<StreamPool> GetStreamPool();
 
 private:
     void Init(InitMode mode);
@@ -57,6 +60,8 @@ private:
     using ConnectionQueue = userver::concurrent::NonFifoMpmcQueue<Connection*>;
     using Consumer = ConnectionQueue::MultiConsumer;
     using Producer = ConnectionQueue::MultiProducer;
+    
+    std::shared_ptr<StreamPool> _stream_pool_ptr;
     std::shared_ptr<ConnectionQueue> _queue;
     Consumer _conn_consumer;
     Producer _conn_producer;

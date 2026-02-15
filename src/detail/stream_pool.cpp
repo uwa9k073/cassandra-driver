@@ -1,4 +1,4 @@
-#include "connection_stream.hpp"
+#include "stream_pool.hpp"
 #include <userver/logging/log.hpp>
 
 namespace cassandra::detail {
@@ -19,4 +19,9 @@ std::int16_t StreamPool::Acquire() {
 
     return value;
 }
+
+void StreamPool::Release(std::int16_t id) {
+    [[maybe_unused]] auto _ = _producer.PushNoblock(std::move(id));
+}
+
 }  // namespace cassandra::detail

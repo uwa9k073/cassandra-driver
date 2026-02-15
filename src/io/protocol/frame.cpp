@@ -1,4 +1,4 @@
-#include <cassandra/protocol/frame.hpp>
+#include <cassandra/io/protocol/frame.hpp>
 
 namespace cassandra::protocol {
 void FrameHeader::Serialize(std::vector<uint8_t>& buffer) const {

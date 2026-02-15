@@ -1,4 +1,4 @@
-#include <cassandra/protocol/message.hpp>
+#include <cassandra/io/protocol/message.hpp>
 
 #include <cstdint>
 #include <stdexcept>

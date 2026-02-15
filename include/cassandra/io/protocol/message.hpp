@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include <cassandra/protocol/frame.hpp>
+#include <cassandra/io/protocol/frame.hpp>
 
 namespace cassandra::protocol {
 

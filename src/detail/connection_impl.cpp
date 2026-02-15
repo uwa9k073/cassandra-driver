@@ -43,6 +43,7 @@ void ConnectionImpl::AsyncConnect(userver::clients::dns::AddrVector addresses, u
     LOG_DEBUG("CASSANDRA SOCKET READY");
     
     // SENDING OPTIONS
+    SendMessage();
     // RECEIVE SUPPORT
     // CONFIGURE COMPRESSION
     // SEND STARTUP

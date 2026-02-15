@@ -10,8 +10,13 @@
 #include "cassandra/exception.hpp"
 #include "cassandra/options.hpp"
 #include "connection.hpp"
+#include "stream_pool.hpp"
 
 namespace cassandra::detail {
+
+std::shared_ptr<StreamPool> ConnectionPool::GetStreamPool(){
+    return _stream_pool_ptr;
+}
 
 constexpr auto kUnlimitedConnecting = std::numeric_limits<std::size_t>::max();
 
@@ -170,7 +175,7 @@ Connection* ConnectionPool::Pop(userver::engine::Deadline deadline) {
     }
     Connection* connection = nullptr;
     auto conn_settings = _connection_settings.Read();
-
+    //get connection from pool
     return connection;
 }
 }  // namespace cassandra::detail

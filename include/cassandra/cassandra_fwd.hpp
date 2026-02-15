@@ -15,6 +15,7 @@ using SessionPtr = std::shared_ptr<Session>;
 namespace detail {
 class Connection;
 class ConnectionPool;
+class StreamPool;
 class ConnectionPtr;
 
 class ResultWrapper;
