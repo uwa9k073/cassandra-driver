@@ -6,14 +6,14 @@
 namespace cassandra::io::protocol {
 class ResponseMessage : public Message{
     public:
-    ResponseMessage(void* data) : Message(DeserializeHeader(data)) {};
+    ResponseMessage(std::string_view data) : Message(DeserializeHeader(data)) {};
 
-    static FrameHeader DeserializeHeader(void* data){
+    static FrameHeader DeserializeHeader(std::string_view data){
         FrameHeader header;
-        header.Deserialize(reinterpret_cast<uint8_t*>(data));
+        header.Deserialize(reinterpret_cast<const uint8_t*>(data.data()));
         return header;
     }
-    
-    static void DeserializeBody(void* data);
+
+    static void DeserializeBody(std::string_view data);
 };
 }
