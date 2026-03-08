@@ -89,6 +89,7 @@ struct PoolSettings final {
 
 struct ConnectionSettings {
     std::optional<std::chrono::seconds> max_ttl;
+    std::size_t recent_errors_threshold = 2;
 };
 
 struct SessionSettings {

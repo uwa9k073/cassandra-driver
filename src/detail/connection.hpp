@@ -29,6 +29,8 @@ public:
 
     ~Connection();
 
+    bool IsExpired() const;
+
 private:
     Connection();
     std::unique_ptr<ConnectionImpl> _pimpl;

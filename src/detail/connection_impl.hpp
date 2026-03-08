@@ -9,6 +9,7 @@
 #include <userver/engine/semaphore.hpp>
 #include <userver/engine/task/task.hpp>
 #include <userver/engine/task/task_processor_fwd.hpp>
+#include <userver/utils/datetime_light.hpp>
 #include <userver/utils/statistics/fwd.hpp>
 #include "../io/protocol/request_message.hpp"
 #include "../io/protocol/response_message.hpp"
@@ -26,6 +27,7 @@ public:
 
     void AsyncConnect(userver::clients::dns::AddrVector addresses, userver::engine::Deadline deadline);
 
+    bool IsExpired() const {return expires_at_.has_value() && userver::utils::datetime::SteadyNow() > expires_at_;}
 private:
     userver::engine::io::Socket _socket;
     userver::engine::TaskProcessor& bg_task_processor_;
