@@ -1,0 +1,17 @@
+{
+  "cassandra_settings": {
+    "keyspaces": {
+      "store": {
+        "nodes": [
+          {
+            "use-ssl": false,
+            "use-compression": false,
+            "allow-all": true,
+            "contact-point": "localhost",
+            "port": 9042
+          }
+        ]
+      }
+    }
+  }
+}

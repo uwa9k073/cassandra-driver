@@ -22,3 +22,9 @@ target_link_libraries(${PROJECT_NAME} PUBLIC userver::core)
 
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+option(CASSANDRA_BUILD_SAMPLES "Build userver samples" OFF)
+
+if(CASSANDRA_BUILD_SAMPLES)
+    add_subdirectory(samples)
+endif()
