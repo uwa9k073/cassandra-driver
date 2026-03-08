@@ -3,6 +3,7 @@
 #include <cassandra/io/protocol/frame.hpp>
 #include <cassandra/io/protocol/message.hpp>
 #include <cassandra/node_description.hpp>
+#include <cstdint>
 #include <userver/clients/dns/common.hpp>
 #include <userver/engine/deadline.hpp>
 #include <userver/engine/io/common.hpp>
@@ -12,7 +13,6 @@
 #include <userver/logging/log.hpp>
 #include <userver/tracing/span.hpp>
 #include <userver/tracing/tags.hpp>
-#include <cstdint>
 
 namespace cassandra::detail {
 ConnectionImpl::ConnectionImpl(
@@ -62,17 +62,19 @@ void ConnectionImpl::SendMessage(io::protocol::RequestMessage&& message) {
 
     auto* data = reinterpret_cast<void*>(buffer.data());
     size_t size = buffer.length();
-    auto returned_len =_socket.SendAll(data, size, userver::engine::Deadline{});
-    if(returned_len!=size){
+    auto returned_len = _socket.SendAll(data, size, userver::engine::Deadline{});
+    if (returned_len != size) {
         LOG_ERROR("Failed to send message");
     }
 }
 
-io::protocol::ResponseMessage  ConnectionImpl::WaitForResult() {
+io::protocol::ResponseMessage ConnectionImpl::WaitForResult() {
+    std::string buf;
+    buf.reserve(io::protocol::FrameHeader::kHeaderSize);
+    auto _ = _socket.RecvAll(
+        reinterpret_cast<void*>(buf.data()), io::protocol::FrameHeader::kHeaderSize, userver::engine::Deadline{}
+    );
 
-    std::uint8_t* buf = nullptr;
-    auto _ = _socket.RecvAll(buf, io::protocol::FrameHeader::kHeaderSize, userver::engine::Deadline{});
-    
     return io::protocol::ResponseMessage(buf);
 }
 
