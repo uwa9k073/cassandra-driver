@@ -20,8 +20,6 @@ std::int16_t StreamPool::Acquire() {
     return value;
 }
 
-void StreamPool::Release(std::int16_t id) {
-    [[maybe_unused]] auto _ = _producer.PushNoblock(std::move(id));
-}
+void StreamPool::Release(std::int16_t id) { [[maybe_unused]] auto _ = _producer.PushNoblock(std::move(id)); }
 
 }  // namespace cassandra::detail

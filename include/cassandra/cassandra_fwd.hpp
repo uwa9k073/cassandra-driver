@@ -1,7 +1,7 @@
 #pragma once
 
-#include <memory>
 #include <chrono>
+#include <memory>
 
 namespace cassandra {
 class QueryParameters;

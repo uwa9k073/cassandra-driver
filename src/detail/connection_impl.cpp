@@ -1,14 +1,17 @@
 #include "connection_impl.hpp"
 #include <netinet/tcp.h>
+#include <cassandra/io/protocol/frame.hpp>
+#include <cassandra/io/protocol/message.hpp>
+#include <cassandra/node_description.hpp>
 #include <userver/clients/dns/common.hpp>
 #include <userver/engine/deadline.hpp>
+#include <userver/engine/io/common.hpp>
 #include <userver/engine/io/exception.hpp>
 #include <userver/engine/io/sockaddr.hpp>
 #include <userver/engine/io/socket.hpp>
 #include <userver/logging/log.hpp>
 #include <userver/tracing/span.hpp>
 #include <userver/tracing/tags.hpp>
-#include "cassandra/node_description.hpp"
 
 namespace cassandra::detail {
 ConnectionImpl::ConnectionImpl(
@@ -41,22 +44,34 @@ void ConnectionImpl::AsyncConnect(userver::clients::dns::AddrVector addresses, u
         return;
     }
     LOG_DEBUG("CASSANDRA SOCKET READY");
-    
+
     // SENDING OPTIONS
-    SendMessage();
+    SendMessage(io::protocol::OptionsMessage{});
     // RECEIVE SUPPORT
     // CONFIGURE COMPRESSION
     // SEND STARTUP
     // PERFORM AUTHENTICATION
 }
 
+void ConnectionImpl::SendMessage(io::protocol::RequestMessage&& message) {
+    std::string buffer;
+    message.Serialize(buffer);
 
-void ConnectionImpl::SendMessage() const {
-    // Implementation of SendMessage
+    auto* data = reinterpret_cast<void*>(buffer.data());
+    size_t size = buffer.length();
+    auto returned_len =_socket.SendAll(data, size, userver::engine::Deadline{});
+    if(returned_len!=size){
+        LOG_ERROR("Failed to send message");
+    }
 }
 
-void ConnectionImpl::WaitForResult() const {
+void ConnectionImpl::WaitForResult() {
+
+    // ResponseMessage message;
     // Implementation of WaitForResult
+    // RECEIVE and Deserialize header
+    // RECEIVE and Deserialize body
+    // PROCESS RESPONSE
 }
 
 }  // namespace cassandra::detail

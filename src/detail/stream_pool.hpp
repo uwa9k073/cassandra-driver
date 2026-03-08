@@ -1,10 +1,10 @@
 #pragma once
 
 #include <bitset>
+#include <cassandra/cassandra_fwd.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <queue>
-#include <cassandra/cassandra_fwd.hpp>
 #include <userver/concurrent/queue.hpp>
 #include <userver/engine/mutex.hpp>
 #include <userver/engine/semaphore.hpp>
