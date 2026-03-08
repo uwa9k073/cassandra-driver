@@ -4,6 +4,7 @@
 #include <cassandra/io/protocol/message.hpp>
 #include <cassandra/node_description.hpp>
 #include <cstdint>
+#include <memory>
 #include <userver/clients/dns/common.hpp>
 #include <userver/engine/deadline.hpp>
 #include <userver/engine/io/common.hpp>
@@ -13,6 +14,7 @@
 #include <userver/logging/log.hpp>
 #include <userver/tracing/span.hpp>
 #include <userver/tracing/tags.hpp>
+#include <utility>
 
 namespace cassandra::detail {
 ConnectionImpl::ConnectionImpl(
@@ -50,7 +52,7 @@ void ConnectionImpl::AsyncConnect(userver::clients::dns::AddrVector addresses, u
     SendMessage(io::protocol::OptionsMessage{});
     // RECEIVE SUPPORT
     auto message = WaitForResult();
-    LOG_DEBUG() << "Received cassandra message opcode: " << static_cast<uint8_t>(message.GetOpcode());
+    LOG_DEBUG() << "Received cassandra message opcode: " << static_cast<uint8_t>(message->GetOpcode());
     // CONFIGURE COMPRESSION
     // SEND STARTUP
     // PERFORM AUTHENTICATION
@@ -68,14 +70,45 @@ void ConnectionImpl::SendMessage(io::protocol::RequestMessage&& message) {
     }
 }
 
-io::protocol::ResponseMessage ConnectionImpl::WaitForResult() {
+std::shared_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(io::protocol::FrameHeader&& header) {
+    auto opcode = header.opcode;
+    switch (opcode) {
+        case io::protocol::Opcode::kSupported:
+            return std::make_shared<io::protocol::SupportMessage>(std::move(header));
+        case io::protocol::Opcode::kError:
+        case io::protocol::Opcode::kStartup:
+        case io::protocol::Opcode::kReady:
+        case io::protocol::Opcode::kAuthenticate:
+        case io::protocol::Opcode::kCredentials:
+        case io::protocol::Opcode::kOptions:
+        case io::protocol::Opcode::kQuery:
+        case io::protocol::Opcode::kResult:
+        case io::protocol::Opcode::kPrepare:
+        case io::protocol::Opcode::kExecute:
+        case io::protocol::Opcode::kRegister:
+        case io::protocol::Opcode::kEvent:
+        case io::protocol::Opcode::kBatch:
+        case io::protocol::Opcode::kAuthChallenge:
+        case io::protocol::Opcode::kAuthResponse:
+        case io::protocol::Opcode::kAuthSuccess:
+            return nullptr;
+    }
+}
+
+std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::WaitForResult() {
     std::string buf;
     buf.reserve(io::protocol::FrameHeader::kHeaderSize);
-    auto _ = _socket.RecvAll(
-        reinterpret_cast<void*>(buf.data()), io::protocol::FrameHeader::kHeaderSize, userver::engine::Deadline{}
-    );
+    auto _ = _socket.RecvAll(reinterpret_cast<void*>(buf.data()), buf.capacity(), userver::engine::Deadline{});
 
-    return io::protocol::ResponseMessage(buf);
+    auto header = io::protocol::ResponseMessage::DeserializeHeader(buf);
+    buf.clear();
+    buf.reserve(header.length);
+    _ = _socket.RecvAll(reinterpret_cast<void*>(buf.data()), buf.capacity(), userver::engine::Deadline{});
+    // io::protocol::SupportMessage message(std::move(header));
+    auto message = GetResponseMessageFromHeader(std::move(header));
+
+    message->DeserializeBody(buf);
+    return message;
 }
 
 }  // namespace cassandra::detail

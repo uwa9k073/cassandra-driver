@@ -15,9 +15,9 @@ public:
 
     Message(FrameHeader&& header) : _header(std::move(header)) {}
     Message(const Message&) = delete;
-    Message(Message&&) = delete;
+    Message(Message&&) = default;
     Message& operator=(const Message&) = delete;
-    Message& operator=(Message&&) = delete;
+    Message& operator=(Message&&) = default;
 
 protected:
     FrameHeader _header;

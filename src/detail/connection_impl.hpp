@@ -39,6 +39,6 @@ private:
     void WaitAsyncConnect(userver::engine::Deadline deadline, ContactPoint contact_point, Port port);
 
     void SendMessage(io::protocol::RequestMessage&& message);
-    io::protocol::ResponseMessage WaitForResult();
+    std::shared_ptr<io::protocol::ResponseMessage> WaitForResult();
 };
 }  // namespace cassandra::detail
