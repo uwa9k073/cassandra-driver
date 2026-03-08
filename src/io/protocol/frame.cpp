@@ -21,11 +21,11 @@ void FrameHeader::Serialize(std::string& buffer) const {
 }
 
 void FrameHeader::Deserialize(const uint8_t* data) {
-    version = data[0];
-    flags = data[1];
-    stream = (static_cast<int16_t>(data[2]) << 8) | data[3];
-    opcode = static_cast<Opcode>(data[4]);
-    length = (static_cast<int32_t>(data[5]) << 24) | (static_cast<int32_t>(data[6]) << 16) |
+    this->version = data[0];
+    this->flags = data[1];
+    this->stream = (static_cast<int16_t>(data[2]) << 8) | data[3];
+    this->opcode = static_cast<Opcode>(data[4]);
+    this->length = (static_cast<int32_t>(data[5]) << 24) | (static_cast<int32_t>(data[6]) << 16) |
              (static_cast<int32_t>(data[7]) << 8) | data[8];
 }
 }  // namespace cassandra::io::protocol

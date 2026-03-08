@@ -12,6 +12,7 @@
 #include <userver/logging/log.hpp>
 #include <userver/tracing/span.hpp>
 #include <userver/tracing/tags.hpp>
+#include <cstdint>
 
 namespace cassandra::detail {
 ConnectionImpl::ConnectionImpl(
@@ -48,6 +49,8 @@ void ConnectionImpl::AsyncConnect(userver::clients::dns::AddrVector addresses, u
     // SENDING OPTIONS
     SendMessage(io::protocol::OptionsMessage{});
     // RECEIVE SUPPORT
+    auto message = WaitForResult();
+    LOG_DEBUG() << "Received cassandra message opcode: " << static_cast<uint8_t>(message.GetOpcode());
     // CONFIGURE COMPRESSION
     // SEND STARTUP
     // PERFORM AUTHENTICATION
@@ -65,13 +68,12 @@ void ConnectionImpl::SendMessage(io::protocol::RequestMessage&& message) {
     }
 }
 
-void ConnectionImpl::WaitForResult() {
+io::protocol::ResponseMessage  ConnectionImpl::WaitForResult() {
 
-    // ResponseMessage message;
-    // Implementation of WaitForResult
-    // RECEIVE and Deserialize header
-    // RECEIVE and Deserialize body
-    // PROCESS RESPONSE
+    std::uint8_t* buf = nullptr;
+    auto _ = _socket.RecvAll(buf, io::protocol::FrameHeader::kHeaderSize, userver::engine::Deadline{});
+    
+    return io::protocol::ResponseMessage(buf);
 }
 
 }  // namespace cassandra::detail

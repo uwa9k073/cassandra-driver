@@ -11,6 +11,7 @@
 #include <userver/engine/task/task_processor_fwd.hpp>
 #include <userver/utils/statistics/fwd.hpp>
 #include "../io/protocol/request_message.hpp"
+#include "../io/protocol/response_message.hpp"
 
 namespace cassandra::detail {
 class ConnectionImpl {
@@ -38,6 +39,6 @@ private:
     void WaitAsyncConnect(userver::engine::Deadline deadline, ContactPoint contact_point, Port port);
 
     void SendMessage(io::protocol::RequestMessage&& message);
-    void WaitForResult();
+    io::protocol::ResponseMessage WaitForResult();
 };
 }  // namespace cassandra::detail
