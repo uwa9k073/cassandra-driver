@@ -1,25 +1,33 @@
 #include <cassandra/io/protocol/frame.hpp>
 #include <cstdint>
 #include "cassandra/io/buffer_reader.hpp"
+#include "cassandra/io/buffer_writer.hpp"
 
 namespace cassandra::io::protocol {
 void FrameHeader::Serialize(RawBuffer& buffer) const {
     buffer.reserve(buffer.size() + kHeaderSize);
 
-    buffer.push_back(static_cast<std::byte>(version));
-    buffer.push_back(static_cast<std::byte>(flags));
+    BufferWriter writer(buffer);
+    writer.WriteIntBE(version);
+    writer.WriteIntBE(flags);
+    writer.WriteIntBE(stream);
+    writer.WriteIntBE(static_cast<uint8_t>(opcode));
+    writer.WriteIntBE(length);
 
-    // Big-endian для stream (int16_t)
-    buffer.push_back(static_cast<std::byte>((stream >> 8) & 0xFF));
-    buffer.push_back(static_cast<std::byte>(stream & 0xFF));
+    // buffer.push_back(static_cast<std::byte>(version));
+    // buffer.push_back(static_cast<std::byte>(flags));
 
-    buffer.push_back(static_cast<std::byte>(opcode));
+    // // Big-endian для stream (int16_t)
+    // buffer.push_back(static_cast<std::byte>((stream >> 8) & 0xFF));
+    // buffer.push_back(static_cast<std::byte>(stream & 0xFF));
 
-    // Big-endian для length (int32_t)
-    buffer.push_back(static_cast<std::byte>((length >> 24) & 0xFF));
-    buffer.push_back(static_cast<std::byte>((length >> 16) & 0xFF));
-    buffer.push_back(static_cast<std::byte>((length >> 8) & 0xFF));
-    buffer.push_back(static_cast<std::byte>(length & 0xFF));
+    // buffer.push_back(static_cast<std::byte>(opcode));
+
+    // // Big-endian для length (int32_t)
+    // buffer.push_back(static_cast<std::byte>((length >> 24) & 0xFF));
+    // buffer.push_back(static_cast<std::byte>((length >> 16) & 0xFF));
+    // buffer.push_back(static_cast<std::byte>((length >> 8) & 0xFF));
+    // buffer.push_back(static_cast<std::byte>(length & 0xFF));
 }
 
 void FrameHeader::Parse(RawBufferView data) {

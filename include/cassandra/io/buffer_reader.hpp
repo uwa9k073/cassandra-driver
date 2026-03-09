@@ -36,7 +36,16 @@ public:
         return res;
     }
     [[nodiscard]] std::optional<std::span<const std::byte>> ReadBytes();
-    [[nodiscard]] std::vector<std::string> ReadStringList();
+    [[nodiscard]] std::vector<std::string> ReadStringList() {
+        auto value_count = ReadSmallInt();
+        std::vector<std::string> values;
+        values.reserve(value_count);
+        for (SmallInt i = 0; i < value_count; ++i) {
+            values.push_back(ReadString());
+        }
+
+        return values;
+    }
     [[nodiscard]] std::unordered_map<std::string, std::vector<std::string>> ReadStringMultiMap() {
         // count of pairs
         auto count = ReadSmallInt();
@@ -46,12 +55,7 @@ public:
 
         for (SmallInt i = 0; i < count; ++i) {
             std::string key = ReadString();
-            auto value_count = ReadSmallInt();
-            std::vector<std::string> values;
-            values.reserve(value_count);
-            for (SmallInt j = 0; j < value_count; ++j) {
-                values.push_back(ReadString());
-            }
+            auto values = ReadStringList();
             result.emplace(std::move(key), std::move(values));
         }
 
