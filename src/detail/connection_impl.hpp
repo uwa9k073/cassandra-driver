@@ -27,7 +27,10 @@ public:
 
     void AsyncConnect(userver::clients::dns::AddrVector addresses, userver::engine::Deadline deadline);
 
-    bool IsExpired() const {return expires_at_.has_value() && userver::utils::datetime::SteadyNow() > expires_at_;}
+    bool IsExpired() const { return expires_at_.has_value() && userver::utils::datetime::SteadyNow() > expires_at_; }
+
+    ~ConnectionImpl();
+
 private:
     userver::engine::io::Socket _socket;
     userver::engine::TaskProcessor& bg_task_processor_;
@@ -42,5 +45,7 @@ private:
 
     void SendMessage(io::protocol::RequestMessage&& message);
     std::shared_ptr<io::protocol::ResponseMessage> WaitForResult();
+
+    userver::engine::Task Close();
 };
 }  // namespace cassandra::detail

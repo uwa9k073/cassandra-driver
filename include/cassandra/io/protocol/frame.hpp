@@ -43,16 +43,17 @@ enum class ResultKind : int32_t {
     kSchemaChange = 0x0005
 };
 
+enum class MessageDirection : uint8_t { kRequest = 0x04, kResponse = 0x84 };
+
 /// CQL Protocol Version 4 frame header format
 struct FrameHeader {
     static constexpr std::size_t kHeaderSize = 9;  // version(1) + flags(1) + stream(2) + opcode(1) + length(4)
-    static constexpr uint8_t kProtocolV4 = 0x04;
 
-    uint8_t version{kProtocolV4};  // Protocol version
-    uint8_t flags{0};              // Frame flags
-    int16_t stream{0};             // Stream identifier
-    Opcode opcode{0};              // Operation code
-    int32_t length{0};             // Body length
+    uint8_t version{(uint8_t)MessageDirection::kRequest};  // Protocol version
+    uint8_t flags{0};                                      // Frame flags
+    int16_t stream{0};                                     // Stream identifier
+    Opcode opcode{0};                                      // Operation code
+    int32_t length{0};                                     // Body length
 
     void Serialize(std::string& buffer) const;
     void Deserialize(const uint8_t* data);

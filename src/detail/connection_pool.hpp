@@ -37,13 +37,13 @@ public:
         userver::utils::statistics::MetricsStoragePtr metrics
     );
 
-
     ~ConnectionPool();
 
     std::shared_ptr<StreamPool> GetStreamPool();
 
 private:
-using RecentCounter = userver::utils::statistics::RecentPeriod<userver::utils::statistics::RelaxedCounter<size_t>, size_t>;
+    using RecentCounter =
+        userver::utils::statistics::RecentPeriod<userver::utils::statistics::RelaxedCounter<size_t>, size_t>;
 
     void Init(InitMode mode);
     void Clear();
@@ -72,7 +72,6 @@ using RecentCounter = userver::utils::statistics::RecentPeriod<userver::utils::s
 
     std::atomic<size_t> wait_count_;
     RecentCounter recent_conn_errors_;
-
 
     void TryCreateConnectionAsync();
     using ConnectionQueue = userver::concurrent::NonFifoMpmcQueue<Connection*>;

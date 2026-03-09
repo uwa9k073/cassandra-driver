@@ -159,7 +159,7 @@ void ConnectionPool::Push(Connection* conn) {
     // Some cheks for validate connecetion
 
     auto conn_settings = _connection_settings.Read();
-    if(conn->IsExpired()){
+    if (conn->IsExpired()) {
         DropExpiredConnection(conn);
         return;
     }
@@ -227,9 +227,7 @@ Connection* ConnectionPool::Pop(userver::engine::Deadline deadline) {
     );
 }
 
-ConnectionPool::~ConnectionPool(){
-    Clear();
-}
+ConnectionPool::~ConnectionPool() { Clear(); }
 
 void ConnectionPool::Clear() {
     Connection* connection = nullptr;
@@ -239,9 +237,8 @@ void ConnectionPool::Clear() {
     _close_task_storage.CancelAndWait();
 }
 
-
 void ConnectionPool::DeleteConnection(Connection* connection) {
-    //stats incrementing
+    // stats incrementing
     delete connection;
 }
 
