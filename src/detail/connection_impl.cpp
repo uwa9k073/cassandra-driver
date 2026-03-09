@@ -130,42 +130,35 @@ std::shared_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(io::
 }
 
 std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::WaitForResult() {
-    auto ReadExact = [this](std::vector<char>& buf, size_t size, auto duration) {
-        size_t total_read = 0;
-        while (total_read < size) {
-            auto len = _socket.RecvSome(
-                buf.data() + total_read, size - total_read, userver::engine::Deadline::FromDuration(duration)
-            );
-
-            if (IsExpired()) {
-                throw std::runtime_error("Connection expired");
-            }
-
-            if (len <= 0) {
-                LOG_ERROR() << "Socket closed or timeout. Read: " << total_read << "/" << size;
-                throw std::runtime_error("Socket read failed");
-            }
-            total_read += len;
-            LOG_DEBUG() << "Read chunk: " << len << " bytes, total: " << total_read << "/" << size;
-        }
-    };
-
     constexpr size_t kHeaderSize = io::protocol::FrameHeader::kHeaderSize;
-    std::vector<char> header_buffer(kHeaderSize);
+    std::string header_buffer;
+    header_buffer.resize(kHeaderSize);
 
-    ReadExact(header_buffer, kHeaderSize, std::chrono::seconds{15});
+    auto len = _socket.RecvSome(header_buffer.data(), kHeaderSize, userver::engine::Deadline::FromDuration(std::chrono::seconds{15}));
+    if (len <= 0) {
+        LOG_ERROR() << "Socket closed or timeout";
+        throw std::runtime_error("Socket read failed");
+    }
 
     auto header =
-        io::protocol::ResponseMessage::DeserializeHeader(std::string_view(header_buffer.data(), header_buffer.size()));
+        io::protocol::ResponseMessage::DeserializeHeader(header_buffer);
+
     auto message = GetResponseMessageFromHeader(std::move(header));
     LOG_DEBUG("MESSAGE NOT EMPTY: {}", message != nullptr);
 
     LOG_DEBUG() << "Received cassandra message opcode: " << static_cast<uint8_t>(message->GetOpcode());
     LOG_DEBUG() << "Received cassandra body len: " << message->GetHeader().length;
-    auto body_length = message->GetHeader().length;
-    std::vector<char> body_buffer(body_length);
 
-    ReadExact(body_buffer, body_length, std::chrono::seconds{15});
+    auto body_length = message->GetHeader().length;
+    std::string body_buffer;
+    body_buffer.resize(body_length);
+
+    len = _socket.RecvSome(body_buffer.data(), body_length, userver::engine::Deadline::FromDuration(std::chrono::seconds{15}));
+    if (len <= 0) {
+        LOG_ERROR() << "Socket closed or timeout";
+        throw std::runtime_error("Socket read failed");
+    }
+
 
     LOG_DEBUG() << "BUFFER SIZE: " << body_buffer.size();  // Will now correctly print 102
     message->DeserializeBody(body_buffer);
