@@ -54,7 +54,8 @@ public:
         for (SmallInt i = 0; i < count; ++i) {
             std::string key = ReadString();
             auto value_count = ReadSmallInt();
-            std::vector<std::string> values(value_count);
+            std::vector<std::string> values;
+            values.reserve(value_count);
             for (SmallInt j = 0; j < value_count; ++j) {
                 values.push_back(ReadString());
             }
