@@ -10,6 +10,8 @@
 #include <userver/engine/task/task_processor_fwd.hpp>
 #include <userver/rcu/rcu.hpp>
 #include <userver/utils/statistics/fwd.hpp>
+#include <userver/utils/statistics/recentperiod.hpp>
+#include <userver/utils/statistics/relaxed_counter.hpp>
 
 namespace cassandra::detail {
 class ConnectionPool {
@@ -35,12 +37,24 @@ public:
         userver::utils::statistics::MetricsStoragePtr metrics
     );
 
+    ~ConnectionPool();
+
     std::shared_ptr<StreamPool> GetStreamPool();
 
 private:
+    using RecentCounter =
+        userver::utils::statistics::RecentPeriod<userver::utils::statistics::RelaxedCounter<size_t>, size_t>;
+
     void Init(InitMode mode);
+    void Clear();
+
     void Push(Connection* connection);
     Connection* Pop(userver::engine::Deadline);
+
+    void DeleteConnection(Connection* connection);
+    void DeleteBrokenConnection(Connection* connection);
+    void DropExpiredConnection(Connection* connection);
+    void DropOutdatedConnection(Connection* connection);
 
     [[nodiscard]] userver::engine::TaskWithResult<bool>
     Connect(userver::engine::SemaphoreLock lock, ConnectionSettings&& conn_settings);
@@ -56,6 +70,10 @@ private:
     userver::concurrent::BackgroundTaskStorageCore _connect_task_storage;
     userver::concurrent::BackgroundTaskStorageCore _close_task_storage;
 
+    std::atomic<size_t> wait_count_;
+    RecentCounter recent_conn_errors_;
+
+    void TryCreateConnectionAsync();
     using ConnectionQueue = userver::concurrent::NonFifoMpmcQueue<Connection*>;
     using Consumer = ConnectionQueue::MultiConsumer;
     using Producer = ConnectionQueue::MultiProducer;

@@ -6,6 +6,7 @@
 #include <userver/engine/semaphore.hpp>
 #include <userver/engine/task/cancel.hpp>
 #include <userver/engine/task/task_with_result.hpp>
+#include <userver/logging/log.hpp>
 #include <vector>
 #include "cassandra/exception.hpp"
 #include "cassandra/options.hpp"
@@ -156,9 +157,32 @@ bool ConnectionPool::DoConnect(userver::engine::SemaphoreLock size_lock, Connect
 
 void ConnectionPool::Push(Connection* conn) {
     // Some cheks for validate connecetion
-    //
+
+    auto conn_settings = _connection_settings.Read();
+    if (conn->IsExpired()) {
+        DropExpiredConnection(conn);
+        return;
+    }
+
     if (!_conn_producer.PushNoblock(std::move(conn))) {
+        LOG_WARNING("Couldn't push connection back to the pool. Deleting...");
         delete conn;
+    }
+}
+
+constexpr std::chrono::seconds kRecentErrorPeriod{15};
+constexpr auto kPendingConnectsMax{1};
+void ConnectionPool::TryCreateConnectionAsync() {
+    auto conn_settings = _connection_settings.ReadCopy();
+    // Checking errors is more expensive than incrementing an atomic, so we
+    // check it only if we can start a new connection.
+    if (recent_conn_errors_.GetStatsForPeriod(kRecentErrorPeriod, true) < conn_settings.recent_errors_threshold) {
+        userver::engine::SemaphoreLock size_lock{size_semaphore_, std::try_to_lock};
+        if (size_lock || _connect_task_storage.ActiveTasksApprox() <= kPendingConnectsMax) {
+            _connect_task_storage.Detach(Connect(std::move(size_lock), std::move(conn_settings)));
+        }
+    } else {
+        LOG_DEBUG() << "Too many connection errors in recent period";
     }
 }
 
@@ -173,7 +197,64 @@ Connection* ConnectionPool::Pop(userver::engine::Deadline deadline) {
     }
     Connection* connection = nullptr;
     auto conn_settings = _connection_settings.Read();
-    // get connection from pool
-    return connection;
+
+    while (_conn_consumer.PopNoblock(connection)) {
+        if (connection->IsExpired()) {
+            DropExpiredConnection(connection);
+            continue;
+        }
+        return connection;
+    }
+
+    TryCreateConnectionAsync();
+    if (_conn_consumer.Pop(connection, deadline)) {
+        return connection;
+    }
+    if (userver::engine::current_task::ShouldCancel()) {
+        throw exceptions::PoolError("Task was cancelled while waiting for connection");
+    }
+
+    throw exceptions::PoolError(
+        fmt::format(
+            "No available connections found. Connecting: {}. Max concurrent "
+            "connecting: {}. Active: {}. Max active {}",
+            connecting_semaphore_.UsedApprox(),
+            connecting_semaphore_.GetCapacity(),
+            size_semaphore_.UsedApprox(),
+            size_semaphore_.GetCapacity()
+        ),
+        _keyspace
+    );
 }
+
+ConnectionPool::~ConnectionPool() { Clear(); }
+
+void ConnectionPool::Clear() {
+    Connection* connection = nullptr;
+    while (_conn_consumer.PopNoblock(connection)) {
+        delete connection;
+    }
+    _close_task_storage.CancelAndWait();
+}
+
+void ConnectionPool::DeleteConnection(Connection* connection) {
+    // stats incrementing
+    delete connection;
+}
+
+void ConnectionPool::DeleteBrokenConnection(Connection* connection) {
+    LOG_WARNING("Released connection in closed state. Deleting...");
+    DeleteConnection(connection);
+}
+
+void ConnectionPool::DropExpiredConnection(Connection* connection) {
+    LOG_INFO("Dropping expired connection");
+    DeleteConnection(connection);
+}
+
+void ConnectionPool::DropOutdatedConnection(Connection* connection) {
+    LOG_INFO("Dropping outdated connection");
+    DeleteConnection(connection);
+}
+
 }  // namespace cassandra::detail

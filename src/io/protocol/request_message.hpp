@@ -18,7 +18,6 @@ public:
     void Serialize(std::string& buffer) const override {
         // Serialize the message header
         _header.Serialize(buffer);
-        //
     }
 };
 }  // namespace cassandra::io::protocol

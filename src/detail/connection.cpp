@@ -112,4 +112,7 @@ std::unique_ptr<Connection> Connection::Connect(
 
     return conn;
 }
+
+bool Connection::IsExpired() const { return _pimpl->IsExpired(); }
+
 }  // namespace cassandra::detail
