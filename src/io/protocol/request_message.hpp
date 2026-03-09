@@ -22,12 +22,9 @@ public:
     }
 };
 
-
 class StartupMessage final : public RequestMessage {
 public:
-    StartupMessage() : RequestMessage(FrameHeader{.opcode = Opcode::kStartup}) {
-        options["CQL_VERSION"] = "3.0.0";
-    }
+    StartupMessage() : RequestMessage(FrameHeader{.opcode = Opcode::kStartup}) { options["CQL_VERSION"] = "3.0.0"; }
     StartupMessage(std::string_view compression_protocol) : RequestMessage(FrameHeader{.opcode = Opcode::kStartup}) {
         options["CQL_VERSION"] = "3.0.0";
         options["COMPRESSION"] = std::string(compression_protocol);
@@ -40,11 +37,9 @@ public:
         // update body length cause we don't know the final body size on the first pass
         _header.length = 20102;
         _header.Serialize(buffer);
-
     }
 
-
 private:
-std::unordered_map<std::string, std::string> options;
+    std::unordered_map<std::string, std::string> options;
 };
 }  // namespace cassandra::io::protocol

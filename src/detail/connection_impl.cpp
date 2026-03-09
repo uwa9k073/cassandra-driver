@@ -132,14 +132,15 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::WaitForResult() {
     constexpr size_t kHeaderSize = io::protocol::FrameHeader::kHeaderSize;
     io::protocol::RawBuffer header_buffer(kHeaderSize);
 
-    auto len = _socket.RecvSome(header_buffer.data(), kHeaderSize, userver::engine::Deadline::FromDuration(std::chrono::seconds{15}));
+    auto len = _socket.RecvSome(
+        header_buffer.data(), kHeaderSize, userver::engine::Deadline::FromDuration(std::chrono::seconds{15})
+    );
     if (len <= 0) {
         LOG_ERROR() << "Socket closed or timeout";
         throw std::runtime_error("Socket read failed");
     }
 
-    auto header =
-        io::protocol::ResponseMessage::DeserializeHeader(header_buffer);
+    auto header = io::protocol::ResponseMessage::DeserializeHeader(header_buffer);
 
     auto message = GetResponseMessageFromHeader(std::move(header));
     LOG_DEBUG("MESSAGE NOT EMPTY: {}", message != nullptr);
@@ -151,12 +152,13 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::WaitForResult() {
     io::protocol::RawBuffer body_buffer;
     body_buffer.resize(body_length);
 
-    len = _socket.RecvSome(body_buffer.data(), body_length, userver::engine::Deadline::FromDuration(std::chrono::seconds{15}));
+    len = _socket.RecvSome(
+        body_buffer.data(), body_length, userver::engine::Deadline::FromDuration(std::chrono::seconds{15})
+    );
     if (len <= 0) {
         LOG_ERROR() << "Socket closed or timeout";
         throw std::runtime_error("Socket read failed");
     }
-
 
     LOG_DEBUG() << "BUFFER SIZE: " << body_buffer.size();  // Will now correctly print 102
     message->DeserializeBody(body_buffer);
