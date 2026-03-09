@@ -26,5 +26,5 @@ target_include_directories(${PROJECT_NAME}
 option(CASSANDRA_BUILD_SAMPLES "Build userver samples" OFF)
 
 if(CASSANDRA_BUILD_SAMPLES)
-    add_subdirectory(samples)
+add_subdirectory(samples)
 endif()

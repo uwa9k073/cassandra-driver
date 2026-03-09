@@ -22,6 +22,7 @@
 #include <userver/tracing/span.hpp>
 #include <userver/tracing/tags.hpp>
 #include <utility>
+#include <vector>
 
 namespace cassandra::detail {
 ConnectionImpl::ConnectionImpl(
@@ -88,13 +89,11 @@ void ConnectionImpl::AsyncConnect(userver::clients::dns::AddrVector addresses, u
 }
 
 void ConnectionImpl::SendMessage(io::protocol::RequestMessage&& message) {
-    std::string buffer;
+    io::protocol::RawBuffer buffer;
     message.Serialize(buffer);
 
-    auto* data = reinterpret_cast<void*>(buffer.data());
-    size_t size = buffer.length();
-    auto returned_len = _socket.SendAll(data, size, userver::engine::Deadline{});
-    if (returned_len != size) {
+    auto returned_len = _socket.SendAll(buffer.data(), buffer.size(), userver::engine::Deadline{});
+    if (returned_len != buffer.size()) {
         LOG_ERROR("Failed to send message");
     }
 }
@@ -131,8 +130,7 @@ std::shared_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(io::
 
 std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::WaitForResult() {
     constexpr size_t kHeaderSize = io::protocol::FrameHeader::kHeaderSize;
-    std::string header_buffer;
-    header_buffer.resize(kHeaderSize);
+    io::protocol::RawBuffer header_buffer(kHeaderSize);
 
     auto len = _socket.RecvSome(header_buffer.data(), kHeaderSize, userver::engine::Deadline::FromDuration(std::chrono::seconds{15}));
     if (len <= 0) {
@@ -150,7 +148,7 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::WaitForResult() {
     LOG_DEBUG() << "Received cassandra body len: " << message->GetHeader().length;
 
     auto body_length = message->GetHeader().length;
-    std::string body_buffer;
+    io::protocol::RawBuffer body_buffer;
     body_buffer.resize(body_length);
 
     len = _socket.RecvSome(body_buffer.data(), body_length, userver::engine::Deadline::FromDuration(std::chrono::seconds{15}));

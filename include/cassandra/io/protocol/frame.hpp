@@ -1,7 +1,10 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
+#include <span>
 #include <string>
+#include <vector>
 
 namespace cassandra::io::protocol {
 /// CQL Protocol flags
@@ -45,6 +48,9 @@ enum class ResultKind : int32_t {
 
 enum class MessageDirection : uint8_t { kRequest = 0x04, kResponse = 0x84 };
 
+using RawBuffer = std::vector<std::byte>;
+using RawBufferView = std::span<std::byte>;
+
 /// CQL Protocol Version 4 frame header format
 struct FrameHeader {
     static constexpr std::size_t kHeaderSize = 9;  // version(1) + flags(1) + stream(2) + opcode(1) + length(4)
@@ -55,7 +61,7 @@ struct FrameHeader {
     Opcode opcode{0};                                      // Operation code
     int32_t length{0};                                     // Body length
 
-    void Serialize(std::string& buffer) const;
-    void Deserialize(const uint8_t* data);
+    void Serialize(RawBuffer& buffer) const;
+    void Deserialize(RawBufferView data);
 };
 }  // namespace cassandra::io::protocol

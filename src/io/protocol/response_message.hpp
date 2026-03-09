@@ -15,13 +15,13 @@ class ResponseMessage : public Message {
 public:
     ResponseMessage(FrameHeader&& header) : Message(std::move(header)){};
 
-    static FrameHeader DeserializeHeader(std::string_view data) {
+    static FrameHeader DeserializeHeader(std::span<std::byte> data) {
         FrameHeader header;
-        header.Deserialize(reinterpret_cast<const uint8_t*>(data.data()));
+        header.Deserialize(data);
         return header;
     }
 
-    virtual void DeserializeBody(std::span<char> data_buffer) = 0;
+    virtual void DeserializeBody(std::span<std::byte> data_buffer) = 0;
 };
 
 class SupportMessage : public ResponseMessage {
@@ -30,7 +30,7 @@ public:
 
     std::unordered_map<std::string, std::vector<std::string>> GetOptions() const { return options; }
 
-    void DeserializeBody(std::span<char> buffer) override {
+    void DeserializeBody(std::span<std::byte> buffer) override {
         size_t offset = 0;
 
         // Helper to read Big-Endian short (2 bytes)
@@ -43,7 +43,7 @@ public:
         // Helper to read string (length-prefixed)
         auto readString = [&buffer, &offset, &readShort]() -> std::string {
             uint16_t len = readShort();
-            std::string str(buffer.data() + offset, len);
+            std::string str(reinterpret_cast<char*>(buffer.data()) + offset, len);
             offset += len;
             return str;
         };

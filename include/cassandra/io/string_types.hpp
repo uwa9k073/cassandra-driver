@@ -2,7 +2,7 @@
 
 #include <cassandra/io/buffer_io_base.hpp>
 #include <string>
-#include "cassandra/io/cassandra_types.hpp"
+#include <cassandra/io/cassandra_types.hpp>
 
 namespace cassandra::io::detail {
 template <>
