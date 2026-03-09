@@ -62,6 +62,6 @@ struct FrameHeader {
     int32_t length{0};                                     // Body length
 
     void Serialize(RawBuffer& buffer) const;
-    void Deserialize(RawBufferView data);
+    void Parse(RawBufferView data);
 };
 }  // namespace cassandra::io::protocol

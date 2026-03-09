@@ -1,19 +1,12 @@
 #pragma once
 
-#include <iterator>
+#include <cassandra/io/cassandra_types.hpp>
 #include <span>
 #include <unordered_map>
-#include "cassandra/io/cassandra_types.hpp"
 namespace cassandra::io {
 
 class BufferReader {
 public:
-    // Accept any contiguous byte buffer (vector, array, etc.)
-    // template <typename T>
-    // requires std::contiguous_iterator<typename std::decay_t<T>::iterator> &&
-    //          (sizeof(typename std::decay_t<T>::value_type) == 1)
-    // explicit BufferReader(T&& buffer) noexcept : data_(std::as_bytes(std::span<std::decay_t<T>>(buffer))) {}
-
     explicit BufferReader(std::span<const std::byte> data) noexcept : data_(data), offset_(0) {}
 
     // ===== Core API =====
@@ -65,13 +58,6 @@ public:
         return result;
     }
 
-private:
-    void EnsureSize(size_t required) const {
-        if (offset_ + required > data_.size()) {
-            throw std::runtime_error("Buffer underread");
-        }
-    }
-
     template <std::integral T>
     [[nodiscard]] T ReadIntBE() {
         EnsureSize(sizeof(T));
@@ -81,6 +67,13 @@ private:
         }
         offset_ += sizeof(T);
         return value;
+    }
+
+private:
+    void EnsureSize(size_t required) const {
+        if (offset_ + required > data_.size()) {
+            throw std::runtime_error("Buffer underread");
+        }
     }
 
     std::span<const std::byte> data_;

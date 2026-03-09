@@ -16,13 +16,13 @@ class ResponseMessage : public Message {
 public:
     ResponseMessage(FrameHeader&& header) : Message(std::move(header)){};
 
-    static FrameHeader DeserializeHeader(std::span<std::byte> data) {
+    static FrameHeader ParseHeader(RawBufferView data) {
         FrameHeader header;
-        header.Deserialize(data);
+        header.Parse(data);
         return header;
     }
 
-    virtual void DeserializeBody(std::span<std::byte> data_buffer) = 0;
+    virtual void ParseBody(RawBufferView data_buffer) = 0;
 };
 
 class SupportMessage : public ResponseMessage {
@@ -31,7 +31,7 @@ public:
 
     std::unordered_map<std::string, std::vector<std::string>> GetOptions() const { return options; }
 
-    void DeserializeBody(std::span<std::byte> buffer) override { options = BufferReader{buffer}.ReadStringMultiMap(); }
+    void ParseBody(RawBufferView buffer) override { options = BufferReader{buffer}.ReadStringMultiMap(); }
 
 private:
     std::unordered_map<std::string, std::vector<std::string>> options;

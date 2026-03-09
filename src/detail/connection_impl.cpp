@@ -140,7 +140,7 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::WaitForResult() {
         throw std::runtime_error("Socket read failed");
     }
 
-    auto header = io::protocol::ResponseMessage::DeserializeHeader(header_buffer);
+    auto header = io::protocol::ResponseMessage::ParseHeader(header_buffer);
 
     auto message = GetResponseMessageFromHeader(std::move(header));
     LOG_DEBUG("MESSAGE NOT EMPTY: {}", message != nullptr);
@@ -161,7 +161,7 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::WaitForResult() {
     }
 
     LOG_DEBUG() << "BUFFER SIZE: " << body_buffer.size();  // Will now correctly print 102
-    message->DeserializeBody(body_buffer);
+    message->ParseBody(body_buffer);
     return message;
 }
 
