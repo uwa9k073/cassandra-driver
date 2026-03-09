@@ -9,10 +9,10 @@ namespace cassandra::io {
 class BufferReader {
 public:
     // Accept any contiguous byte buffer (vector, array, etc.)
-    template <typename T>
-    requires std::contiguous_iterator<typename std::decay_t<T>::iterator> &&
-             (sizeof(typename std::decay_t<T>::value_type) == 1)
-    explicit BufferReader(T&& buffer) noexcept : data_(std::as_bytes(std::span<std::decay_t<T>>(buffer))) {}
+    // template <typename T>
+    // requires std::contiguous_iterator<typename std::decay_t<T>::iterator> &&
+    //          (sizeof(typename std::decay_t<T>::value_type) == 1)
+    // explicit BufferReader(T&& buffer) noexcept : data_(std::as_bytes(std::span<std::decay_t<T>>(buffer))) {}
 
     explicit BufferReader(std::span<const std::byte> data) noexcept : data_(data), offset_(0) {}
 
