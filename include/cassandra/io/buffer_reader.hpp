@@ -48,7 +48,8 @@ public:
         // count of pairs
         auto count = ReadSmallInt();
 
-        std::unordered_map<std::string, std::vector<std::string>> result(count);
+        std::unordered_map<std::string, std::vector<std::string>> result;
+        result.reserve(count);
 
         for (SmallInt i = 0; i < count; ++i) {
             std::string key = ReadString();
