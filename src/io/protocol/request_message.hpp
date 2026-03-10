@@ -3,24 +3,37 @@
 #include <cassandra/io/protocol/frame.hpp>
 #include <cassandra/io/protocol/message.hpp>
 #include <unordered_map>
-
+#include <userver/logging/log.hpp>
 namespace cassandra::io::protocol {
 
 class RequestMessage : public Message {
 public:
     RequestMessage(FrameHeader&& frame) : Message(std::move(frame)) {}
 
-    virtual void Serialize(RawBuffer& buffer) = 0;
+    void Serialize(RawBuffer& buffer) {
+        // Serialize the message header
+        _header.Serialize(buffer);
+        // Serialize the message body
+        SerializeBody(buffer);
+        // write body length if length is not null
+        if (auto body_length = buffer.size() - _header.length; body_length > 0) {
+            _header.length = body_length;
+            _header.Serialize(buffer);
+        }
+    }
+
+protected:
+    // we only need to implement SerializeBody in derived classes,
+    // and it should append to the buffer and rewrite the header length if necessary
+    virtual void SerializeBody(RawBuffer& buffer) = 0;
 };
 
 class OptionsMessage final : public RequestMessage {
 public:
     OptionsMessage() : RequestMessage(FrameHeader{.opcode = Opcode::kOptions}) {}
 
-    void Serialize(RawBuffer& buffer) override {
-        // Serialize the message header
-        _header.Serialize(buffer);
-    }
+private:
+    void SerializeBody(RawBuffer& /*buffer*/) override {}
 };
 
 class StartupMessage final : public RequestMessage {
@@ -33,19 +46,18 @@ public:
         options[String("COMPRESSION")] = String(compression_protocol.data(), compression_protocol.size());
     }
 
-    void Serialize(RawBuffer& buffer) override {
+private:
+    void SerializeBody(RawBuffer& buffer) override {
         // Serialize the message body
-        std::vector<std::byte> body_buffer;
-        BufferWriter writer(body_buffer);
+        // serialize message header
+        _header.Serialize(buffer);
+        BufferWriter writer(buffer);
         writer.Write(options);
 
-        // serialize message header
-        _header.length = body_buffer.size();
+        // write body length
+        auto body_length = buffer.size() - _header.length;
+        _header.length = body_length;
         _header.Serialize(buffer);
-        // concat body buffer to the end of the buffer
-        for (auto b : body_buffer) {
-            buffer.push_back(b);
-        }
     }
 
 private:

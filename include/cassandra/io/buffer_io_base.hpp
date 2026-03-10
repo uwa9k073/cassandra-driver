@@ -82,6 +82,17 @@ void Write(protocol::RawBuffer& data, const T& value) {
     formatter(data);
 }
 
+template <class It, class T>
+void WriteIntBE(It begin, It end, const T value) {
+    auto size = sizeof(T);
+    if (end - begin < size) {
+        throw std::out_of_range("buffer is too small");
+    }
+    auto tmp = boost::endian::native_to_big(value);
+    auto* ptr = reinterpret_cast<std::byte*>(&tmp);
+    // auto* end = ptr + size;
+    std::memcpy(begin, ptr, size);
+}
 // template <class T>
 // void Write(protocol::RawBuffer& data, T&& value) {
 //     using Formatter = typename IO<T>::FormatterType;

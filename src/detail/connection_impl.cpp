@@ -151,14 +151,14 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::WaitForResult() {
     LOG_DEBUG("MESSAGE NOT EMPTY: {}", message != nullptr);
     LOG_DEBUG() << "Received cassandra body len: " << message->GetHeader().length;
 
-    auto body_length = message->GetHeader().length;
+    size_t body_length = message->GetHeader().length;
     io::protocol::RawBuffer body_buffer;
     body_buffer.resize(body_length);
 
     len = _socket.RecvSome(
         body_buffer.data(), body_length, userver::engine::Deadline::FromDuration(std::chrono::seconds{15})
     );
-    if (len <= 0) {
+    if (len <= body_length) {
         LOG_ERROR() << "Socket closed or timeout";
         throw std::runtime_error("Socket read failed");
     }
