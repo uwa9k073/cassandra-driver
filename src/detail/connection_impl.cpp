@@ -110,7 +110,7 @@ std::shared_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(io::
     auto direction = static_cast<io::protocol::MessageDirection>(header.version);
     if (direction != io::protocol::MessageDirection::kResponse) {
         LOG_ERROR("Unexpected message direction");
-        return nullptr;
+        throw std::runtime_error("Unexpected message direction");
     }
     switch (opcode) {
         case io::protocol::Opcode::kSupported:
@@ -120,7 +120,7 @@ std::shared_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(io::
         case io::protocol::Opcode::kAuthenticate:
             return std::make_shared<io::protocol::AuthentificateMessage>(std::move(header));
         default:
-            return nullptr;
+            throw std::runtime_error("Unexpected opcode");
     }
 }
 
@@ -138,10 +138,9 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::WaitForResult() {
 
     auto header = io::protocol::ResponseMessage::ParseHeader(header_buffer);
 
+    LOG_DEBUG() << "Received cassandra message opcode: " << static_cast<uint8_t>(header.opcode);
     auto message = GetResponseMessageFromHeader(std::move(header));
     LOG_DEBUG("MESSAGE NOT EMPTY: {}", message != nullptr);
-
-    LOG_DEBUG() << "Received cassandra message opcode: " << static_cast<uint8_t>(message->GetOpcode());
     LOG_DEBUG() << "Received cassandra body len: " << message->GetHeader().length;
 
     auto body_length = message->GetHeader().length;

@@ -50,10 +50,9 @@ struct StringBinaryFormatter {
 
     void operator()(protocol::RawBuffer& buffer) const {
         auto size = static_cast<SizeType>(value.GetUnderlying().size());
-        auto total_size = size + sizeof(SizeType);
-        buffer.reserve(buffer.size() + total_size);
         Write<SizeType>(buffer, size);
-        std::memcpy(buffer.data() + size, value.GetUnderlying().data(), size);
+        buffer.reserve(buffer.size() + size);
+        std::memcpy(buffer.data() + sizeof(SizeType), value.GetUnderlying().data(), size);
         buffer.resize(buffer.size() + size);
     }
 };
@@ -68,7 +67,7 @@ struct CommonStringBinaryFormatter {
         auto total_size = size + sizeof(SizeType);
         buffer.reserve(buffer.size() + total_size);
         Write<SizeType>(buffer, size);
-        std::memcpy(buffer.data() + size, value.data(), size);
+        std::memcpy(buffer.data() + sizeof(SizeType), value.data(), size);
         buffer.resize(buffer.size() + size);
     }
 };

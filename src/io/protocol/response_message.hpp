@@ -21,6 +21,21 @@ public:
     virtual void ParseBody(RawBufferView data_buffer) = 0;
 };
 
+class ErrorMessage : public ResponseMessage {
+public:
+    ErrorMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
+
+    void ParseBody(RawBufferView buffer) override {
+        auto reader = BufferReader{buffer};
+        error_code = reader.Read<Int>();
+        error_message = reader.Read<String>();
+    }
+
+private:
+    Int error_code;
+    String error_message;
+};
+
 class ReadyMessage : public ResponseMessage {
 public:
     ReadyMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
