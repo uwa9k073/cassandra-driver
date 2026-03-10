@@ -43,16 +43,8 @@ public:
     }
 
     void SerializeBody(RawBuffer& buffer) override {
-        // Serialize the message body
-        // serialize message header
-        _header.Serialize(buffer);
         BufferWriter writer(buffer);
         writer.Write(options);
-
-        // write body length
-        auto body_length = buffer.size() - _header.length;
-        _header.length = body_length;
-        _header.Serialize(buffer);
     }
 
 private:
