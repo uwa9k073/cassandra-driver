@@ -19,11 +19,12 @@ struct StringBinaryParser : BufferParserBase<T> {
 
     void operator()(std::span<const std::byte> data, size_t& offset) {
         auto size = Read<SizeType>(data, offset);
-        Underlying& res = this->value.GetUnderlying();
+        Underlying res;
         res.reserve(size);
         res.resize(size);
         std::memcpy(res.data(), data.data() + offset, size);
         offset += size;
+        this->value = std::move(T{res});
     }
 };
 
