@@ -22,7 +22,6 @@
 #include <userver/tracing/span.hpp>
 #include <userver/tracing/tags.hpp>
 #include <utility>
-#include <vector>
 
 namespace cassandra::detail {
 ConnectionImpl::ConnectionImpl(
@@ -76,16 +75,24 @@ void ConnectionImpl::AsyncConnect(userver::clients::dns::AddrVector addresses, u
     SendMessage(io::protocol::OptionsMessage{});
     LOG_DEBUG("SENDED OPTIONS MESSAGE");
     // RECEIVE SUPPORT
-    auto message = WaitForResult();
+    auto support_message = std::dynamic_pointer_cast<io::protocol::SupportMessage>(WaitForResult());
 
-    auto options = std::dynamic_pointer_cast<io::protocol::SupportMessage>(message)->GetOptions();
+    auto options = support_message->GetOptions();
 
     auto json = userver::formats::json::ValueBuilder{options}.ExtractValue();
 
     LOG_DEBUG("CASSANDRA OPTIONS: {}", userver::formats::json::ToString(json));
     // CONFIGURE COMPRESSION
     // SEND STARTUP
-    // PERFORM AUTHENTICATION
+    SendMessage(io::protocol::StartupMessage{});
+
+    auto message = WaitForResult();
+
+    if (message->GetOpcode() == io::protocol::Opcode::kReady) {
+        LOG_DEBUG("RECEIVED READY MESSAGE");
+    } else {
+        LOG_ERROR("RECEIVED AUTH MESSAGE");
+    }
 }
 
 void ConnectionImpl::SendMessage(io::protocol::RequestMessage&& message) {
@@ -108,22 +115,11 @@ std::shared_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(io::
     switch (opcode) {
         case io::protocol::Opcode::kSupported:
             return std::make_shared<io::protocol::SupportMessage>(std::move(header));
-        case io::protocol::Opcode::kError:
-        case io::protocol::Opcode::kStartup:
         case io::protocol::Opcode::kReady:
+            return std::make_shared<io::protocol::ReadyMessage>(std::move(header));
         case io::protocol::Opcode::kAuthenticate:
-        case io::protocol::Opcode::kCredentials:
-        case io::protocol::Opcode::kOptions:
-        case io::protocol::Opcode::kQuery:
-        case io::protocol::Opcode::kResult:
-        case io::protocol::Opcode::kPrepare:
-        case io::protocol::Opcode::kExecute:
-        case io::protocol::Opcode::kRegister:
-        case io::protocol::Opcode::kEvent:
-        case io::protocol::Opcode::kBatch:
-        case io::protocol::Opcode::kAuthChallenge:
-        case io::protocol::Opcode::kAuthResponse:
-        case io::protocol::Opcode::kAuthSuccess:
+            return std::make_shared<io::protocol::AuthentificateMessage>(std::move(header));
+        default:
             return nullptr;
     }
 }

@@ -5,10 +5,7 @@
 #include <cassandra/io/protocol/frame.hpp>
 #include <cassandra/io/protocol/message.hpp>
 #include <span>
-#include <string>
-#include <unordered_map>
 #include <userver/logging/log.hpp>
-#include <vector>
 
 namespace cassandra::io::protocol {
 class ResponseMessage : public Message {
@@ -22,6 +19,27 @@ public:
     }
 
     virtual void ParseBody(RawBufferView data_buffer) = 0;
+};
+
+class ReadyMessage : public ResponseMessage {
+public:
+    ReadyMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
+
+    // Ready message does not have a body
+    void ParseBody(RawBufferView /*buffer*/) override {}
+};
+
+class AuthentificateMessage : public ResponseMessage {
+public:
+    AuthentificateMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
+
+    void ParseBody(RawBufferView buffer) override {
+        auth_challenge = BufferReader{buffer}.Read<String>();
+        LOG_DEBUG("Auth challenge: {}", auth_challenge.GetUnderlying());
+    }
+
+private:
+    String auth_challenge;
 };
 
 class SupportMessage : public ResponseMessage {

@@ -26,6 +26,20 @@ struct StringMapBinaryParser : BufferParserBase<StringMap> {
         }
     }
 };
+
+struct StringMapBinaryFormatter {
+    using SizeType = Short;
+    const StringMap& value;
+    explicit StringMapBinaryFormatter(const StringMap& value) : value(value) {}
+    void operator()(protocol::RawBuffer& data) const {
+        Write<SizeType>(data, value.size());
+        for (const auto& [key, val] : value) {
+            Write<String>(data, key);
+            Write<String>(data, val);
+        }
+    }
+};
+
 struct StringMultimapBinaryParser : BufferParserBase<StringMultiMap> {
     using BaseType = BufferParserBase<StringMultiMap>;
     using BaseType::BaseType;
@@ -44,6 +58,11 @@ struct StringMultimapBinaryParser : BufferParserBase<StringMultiMap> {
 template <>
 struct BufferParser<StringMap> : StringMapBinaryParser {
     explicit BufferParser(StringMap& value) : StringMapBinaryParser(value) {}
+};
+
+template <>
+struct BufferFormatter<StringMap> : StringMapBinaryFormatter {
+    explicit BufferFormatter(const StringMap& value) : StringMapBinaryFormatter(value) {}
 };
 
 template <>

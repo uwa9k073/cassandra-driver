@@ -6,6 +6,7 @@
 #include <cassandra/io/protocol/types.hpp>
 #include <cstddef>
 #include <cstring>
+#include <userver/utils/strong_typedef.hpp>
 
 namespace cassandra::io::detail {
 
@@ -14,10 +15,13 @@ struct StringBinaryParser : BufferParserBase<T> {
     using BaseType = BufferParserBase<T>;
     using BaseType::BaseType;
     using SizeType = typename T::TagType;
+    using Underlying = typename T::UnderlyingType;
 
     void operator()(std::span<const std::byte> data, size_t& offset) {
         auto size = Read<SizeType>(data, offset);
-        typename T::UnderlyingType res(reinterpret_cast<const char*>(data.data()) + offset, size);
+        Underlying res;
+        res.reserve(size);
+        std::memcpy(res.data(), data.data() + offset, size);
         offset += size;
         this->value = std::move(T{res});
     }
@@ -40,15 +44,15 @@ struct CommonStringBinaryParser : BufferParserBase<std::string> {
 template <typename T>
 struct StringBinaryFormatter {
     using SizeType = typename T::TagType;
-    T value;
-    explicit StringBinaryFormatter(T val) : value(val) {}
+    const T& value;
+    explicit StringBinaryFormatter(const T& val) : value(val) {}
 
     void operator()(protocol::RawBuffer& buffer) const {
         auto size = static_cast<SizeType>(value.GetUnderlying().size());
         auto total_size = size + sizeof(SizeType);
         buffer.reserve(buffer.size() + total_size);
         Write<SizeType>(buffer, size);
-        std::memcpy(buffer.data() + size, value.GetUnderlying(), size);
+        std::memcpy(buffer.data() + size, value.GetUnderlying().data(), size);
         buffer.resize(buffer.size() + size);
     }
 };
@@ -56,7 +60,7 @@ struct StringBinaryFormatter {
 struct CommonStringBinaryFormatter {
     using SizeType = Short;
     std::string value;
-    explicit CommonStringBinaryFormatter(std::string& val) : value(val.data(), val.size()) {}
+    explicit CommonStringBinaryFormatter(const std::string& val) : value(val.data(), val.size()) {}
 
     void operator()(protocol::RawBuffer& buffer) const {
         auto size = static_cast<SizeType>(value.size());
@@ -75,7 +79,7 @@ struct BufferParser<String> : StringBinaryParser<String> {
 
 template <>
 struct BufferFormatter<String> : StringBinaryFormatter<String> {
-    explicit BufferFormatter(String& val) : StringBinaryFormatter(val) {}
+    explicit BufferFormatter(const String& val) : StringBinaryFormatter(val) {}
 };
 
 template <>
@@ -85,7 +89,7 @@ struct BufferParser<LongString> : StringBinaryParser<LongString> {
 
 template <>
 struct BufferFormatter<LongString> : StringBinaryFormatter<LongString> {
-    explicit BufferFormatter(LongString& val) : StringBinaryFormatter(val) {}
+    explicit BufferFormatter(const LongString& val) : StringBinaryFormatter(val) {}
 };
 
 template <>
@@ -95,7 +99,7 @@ struct BufferParser<std::string> : CommonStringBinaryParser {
 
 template <>
 struct BufferFormatter<std::string> : CommonStringBinaryFormatter {
-    explicit BufferFormatter(std::string& val) : CommonStringBinaryFormatter(val) {}
+    explicit BufferFormatter(const std::string& val) : CommonStringBinaryFormatter(val) {}
 };
 
 }  // namespace cassandra::io::detail

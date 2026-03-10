@@ -82,11 +82,11 @@ void Write(protocol::RawBuffer& data, const T& value) {
     formatter(data);
 }
 
-template <class T>
-void Write(protocol::RawBuffer& data, T&& value) {
-    using Formatter = typename IO<T>::FormatterType;
-    Formatter formatter(value);
-    formatter(data);
-}
+// template <class T>
+// void Write(protocol::RawBuffer& data, T&& value) {
+//     using Formatter = typename IO<T>::FormatterType;
+//     Formatter formatter(value);
+//     formatter(data);
+// }
 
 }  // namespace cassandra::io::detail

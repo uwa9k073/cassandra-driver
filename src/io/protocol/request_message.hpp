@@ -2,7 +2,6 @@
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/protocol/frame.hpp>
 #include <cassandra/io/protocol/message.hpp>
-#include <string>
 #include <unordered_map>
 
 namespace cassandra::io::protocol {
@@ -26,26 +25,30 @@ public:
 
 class StartupMessage final : public RequestMessage {
 public:
-    StartupMessage() : RequestMessage(FrameHeader{.opcode = Opcode::kStartup}) { options["CQL_VERSION"] = "3.0.0"; }
+    StartupMessage() : RequestMessage(FrameHeader{.opcode = Opcode::kStartup}) {
+        options[String("CQL_VERSION")] = String("3.0.0");
+    }
     StartupMessage(std::string_view compression_protocol) : RequestMessage(FrameHeader{.opcode = Opcode::kStartup}) {
-        options["CQL_VERSION"] = "3.0.0";
-        options["COMPRESSION"] = std::string(compression_protocol);
+        options[String("CQL_VERSION")] = String("3.0.0");
+        options[String("COMPRESSION")] = String(compression_protocol.data(), compression_protocol.size());
     }
 
-    void Serialize(RawBuffer& /*buffer*/) override {
-        // Serialize the message header
-        // std::vector<std::byte> body_buffer;
-        // BufferWriter writer(body_buffer);
-        // // writer.WriteMap(options);
+    void Serialize(RawBuffer& buffer) override {
+        // Serialize the message body
+        std::vector<std::byte> body_buffer;
+        BufferWriter writer(body_buffer);
+        writer.Write(options);
 
-        // _header.Serialize(buffer);
-
-        // // update body length cause we don't know the final body size on the first pass
-        // _header.length = 20102;
-        // _header.Serialize(buffer);
+        // serialize message header
+        _header.length = body_buffer.size();
+        _header.Serialize(buffer);
+        // concat body buffer to the end of the buffer
+        buffer.reserve(buffer.size() + _header.length);
+        std::memcpy(buffer.data() + buffer.size(), body_buffer.data(), _header.length);
+        buffer.resize(buffer.size() + _header.length);
     }
 
 private:
-    std::unordered_map<std::string, std::string> options;
+    StringMap options;
 };
 }  // namespace cassandra::io::protocol
