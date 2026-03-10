@@ -1,7 +1,5 @@
 #pragma once
 
-#include <vector>
-
 #include <cassandra/io/protocol/frame.hpp>
 
 namespace cassandra::io::protocol {

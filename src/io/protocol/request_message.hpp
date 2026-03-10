@@ -2,6 +2,7 @@
 #include <cassandra/io/protocol/message.hpp>
 #include <string>
 #include <unordered_map>
+#include "cassandra/io/buffer_writer.hpp"
 
 namespace cassandra::io::protocol {
 
@@ -32,6 +33,10 @@ public:
 
     void Serialize(RawBuffer& buffer) override {
         // Serialize the message header
+        std::vector<std::byte> body_buffer;
+        BufferWriter writer(body_buffer);
+        // writer.WriteMap(options);
+
         _header.Serialize(buffer);
 
         // update body length cause we don't know the final body size on the first pass

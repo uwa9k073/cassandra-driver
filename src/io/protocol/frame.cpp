@@ -1,41 +1,24 @@
 #include <cassandra/io/protocol/frame.hpp>
 #include <cstdint>
-#include "cassandra/io/buffer_reader.hpp"
-#include "cassandra/io/buffer_writer.hpp"
+#include "cassandra/io/buffer_io_base.hpp"
 
 namespace cassandra::io::protocol {
 void FrameHeader::Serialize(RawBuffer& buffer) const {
     buffer.reserve(buffer.size() + kHeaderSize);
 
-    BufferWriter writer(buffer);
-    writer.WriteIntBE(version);
-    writer.WriteIntBE(flags);
-    writer.WriteIntBE(stream);
-    writer.WriteIntBE(static_cast<uint8_t>(opcode));
-    writer.WriteIntBE(length);
-
-    // buffer.push_back(static_cast<std::byte>(version));
-    // buffer.push_back(static_cast<std::byte>(flags));
-
-    // // Big-endian для stream (int16_t)
-    // buffer.push_back(static_cast<std::byte>((stream >> 8) & 0xFF));
-    // buffer.push_back(static_cast<std::byte>(stream & 0xFF));
-
-    // buffer.push_back(static_cast<std::byte>(opcode));
-
-    // // Big-endian для length (int32_t)
-    // buffer.push_back(static_cast<std::byte>((length >> 24) & 0xFF));
-    // buffer.push_back(static_cast<std::byte>((length >> 16) & 0xFF));
-    // buffer.push_back(static_cast<std::byte>((length >> 8) & 0xFF));
-    // buffer.push_back(static_cast<std::byte>(length & 0xFF));
+    detail::WriteIntBE(buffer,version);
+    detail::WriteIntBE(buffer,flags);
+    detail::WriteIntBE(buffer,stream);
+    detail::WriteIntBE(buffer,static_cast<uint8_t>(opcode));
+    detail::WriteIntBE(buffer,length);
 }
 
 void FrameHeader::Parse(RawBufferView data) {
-    BufferReader reader(data);
-    this->version = reader.ReadIntBE<decltype(this->version)>();
-    this->flags = reader.ReadIntBE<decltype(this->flags)>();
-    this->stream = reader.ReadIntBE<decltype(this->stream)>();
-    this->opcode = static_cast<Opcode>(reader.ReadIntBE<uint8_t>());
-    this->length = reader.ReadIntBE<decltype(this->length)>();
+    size_t offset = 0;
+    this->version = detail::ReadIntBE<decltype(this->version)>(data, offset);
+    this->flags = detail::ReadIntBE<decltype(this->flags)>(data, offset);
+    this->stream = detail::ReadIntBE<decltype(this->stream)>(data, offset);
+    this->opcode = static_cast<Opcode>(detail::ReadIntBE<uint8_t>(data, offset));
+    this->length = detail::ReadIntBE<decltype(this->length)>(data, offset);
 }
 }  // namespace cassandra::io::protocol

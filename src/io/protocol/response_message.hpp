@@ -4,7 +4,6 @@
 #include <cassandra/io/map_types.hpp>
 #include <cassandra/io/protocol/frame.hpp>
 #include <cassandra/io/protocol/message.hpp>
-#include <cassandra/io/string_types.hpp>
 #include <span>
 #include <string>
 #include <unordered_map>
@@ -31,7 +30,7 @@ public:
 
     std::unordered_map<std::string, std::vector<std::string>> GetOptions() const { return options; }
 
-    void ParseBody(RawBufferView buffer) override { options = BufferReader{buffer}.ReadStringMultiMap(); }
+    void ParseBody(RawBufferView buffer) override { options = {}; }
 
 private:
     std::unordered_map<std::string, std::vector<std::string>> options;

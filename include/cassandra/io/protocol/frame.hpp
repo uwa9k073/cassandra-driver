@@ -2,9 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <span>
-#include <string>
-#include <vector>
+#include <cassandra/io/protocol/types.hpp>
 
 namespace cassandra::io::protocol {
 /// CQL Protocol flags
@@ -47,9 +45,6 @@ enum class ResultKind : int32_t {
 };
 
 enum class MessageDirection : uint8_t { kRequest = 0x04, kResponse = 0x84 };
-
-using RawBuffer = std::vector<std::byte>;
-using RawBufferView = std::span<std::byte>;
 
 /// CQL Protocol Version 4 frame header format
 struct FrameHeader {
