@@ -3,6 +3,7 @@
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/integral_types.hpp>
 #include <cassandra/io/string_types.hpp>
+#include <iterator>
 namespace cassandra::io::detail {
 
 //  [list]          A [int] n indicating the number of elements in the list, followed by n
@@ -12,8 +13,26 @@ namespace cassandra::io::detail {
 //  [string list]   A [short] n, followed by n [string].
 //  [short bytes]   A [short] n, followed by n bytes if n >= 0.
 //
+//
+template <typename T>
+concept SequenceContainerConcept = requires(T container) {
+    typename T::value_type;
+    typename T::iterator;
+    typename T::const_iterator;
+    typename T::size_type;
 
-template <class Container>
+    { container.begin() } -> std::same_as<typename T::iterator>;
+    { container.end() } -> std::same_as<typename T::iterator>;
+    { container.cbegin() } -> std::same_as<typename T::const_iterator>;
+    { container.cend() } -> std::same_as<typename T::const_iterator>;
+    { container.size() } -> std::convertible_to<typename T::size_type>;
+    { container.empty() } -> std::convertible_to<bool>;
+
+    { container.front() } -> std::same_as<typename T::value_type&>;
+    { container.back() } -> std::same_as<typename T::value_type&>;
+};
+
+template <SequenceContainerConcept Container>
 struct ListBinaryParser : BufferParserBase<Container> {
     using BaseType = BufferParserBase<Container>;
     using BaseType::BaseType;
@@ -22,7 +41,8 @@ struct ListBinaryParser : BufferParserBase<Container> {
         auto count = Read<Int>(data, offset);
         this->value.reserve(count);
         for (size_t i = 0; i < count; ++i) {
-            this->value.push_back(Read<ElementType>(data, offset));
+            auto inserter = std::inserter(this->value, this->value.end());
+            *inserter = Read<ElementType>(data, offset);
         }
     }
 };
@@ -40,6 +60,9 @@ struct StringListBinaryParser : BufferParserBase<StringList> {
         }
     }
 };
+
+// template<class T>
+// struct Input<T>;
 
 template <>
 struct BufferParser<StringList> : StringListBinaryParser {

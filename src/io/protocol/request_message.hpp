@@ -1,8 +1,9 @@
+#include <cassandra/io/buffer_writer.hpp>
+#include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/protocol/frame.hpp>
 #include <cassandra/io/protocol/message.hpp>
 #include <string>
 #include <unordered_map>
-// #include "cassandra/io/buffer_writer.hpp"
 
 namespace cassandra::io::protocol {
 
@@ -31,7 +32,7 @@ public:
         options["COMPRESSION"] = std::string(compression_protocol);
     }
 
-    void Serialize(RawBuffer& buffer) override {
+    void Serialize(RawBuffer& /*buffer*/) override {
         // Serialize the message header
         // std::vector<std::byte> body_buffer;
         // BufferWriter writer(body_buffer);

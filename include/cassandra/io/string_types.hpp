@@ -5,6 +5,7 @@
 #include <cassandra/io/integral_types.hpp>
 #include <cassandra/io/protocol/types.hpp>
 #include <cstddef>
+#include <cstring>
 
 namespace cassandra::io::detail {
 
@@ -18,7 +19,21 @@ struct StringBinaryParser : BufferParserBase<T> {
         auto size = Read<SizeType>(data, offset);
         typename T::UnderlyingType res(reinterpret_cast<const char*>(data.data()) + offset, size);
         offset += size;
-        this->value = T{res};
+        this->value = std::move(T{res});
+    }
+};
+
+struct CommonStringBinaryParser : BufferParserBase<std::string> {
+    using BaseType = BufferParserBase<std::string>;
+    using BaseType::BaseType;
+    using SizeType = Short;
+
+    void operator()(std::span<const std::byte> data, size_t& offset) {
+        auto size = Read<SizeType>(data, offset);
+        this->value.reserve(size);
+        std::memcpy(this->value.data(), reinterpret_cast<const char*>(data.data()) + offset, size);
+        this->value.resize(size);
+        offset += size;
     }
 };
 
@@ -38,13 +53,49 @@ struct StringBinaryFormatter {
     }
 };
 
+struct CommonStringBinaryFormatter {
+    using SizeType = Short;
+    std::string value;
+    explicit CommonStringBinaryFormatter(std::string& val) : value(val.data(), val.size()) {}
+
+    void operator()(protocol::RawBuffer& buffer) const {
+        auto size = static_cast<SizeType>(value.size());
+        auto total_size = size + sizeof(SizeType);
+        buffer.reserve(buffer.size() + total_size);
+        Write<SizeType>(buffer, size);
+        std::memcpy(buffer.data() + size, value.data(), size);
+        buffer.resize(buffer.size() + size);
+    }
+};
+
 template <>
 struct BufferParser<String> : StringBinaryParser<String> {
     explicit BufferParser(String& val) : StringBinaryParser(val) {}
 };
 
 template <>
+struct BufferFormatter<String> : StringBinaryFormatter<String> {
+    explicit BufferFormatter(String& val) : StringBinaryFormatter(val) {}
+};
+
+template <>
 struct BufferParser<LongString> : StringBinaryParser<LongString> {
     explicit BufferParser(LongString& val) : StringBinaryParser(val) {}
 };
+
+template <>
+struct BufferFormatter<LongString> : StringBinaryFormatter<LongString> {
+    explicit BufferFormatter(LongString& val) : StringBinaryFormatter(val) {}
+};
+
+template <>
+struct BufferParser<std::string> : CommonStringBinaryParser {
+    explicit BufferParser(std::string& val) : CommonStringBinaryParser(val) {}
+};
+
+template <>
+struct BufferFormatter<std::string> : CommonStringBinaryFormatter {
+    explicit BufferFormatter(std::string& val) : CommonStringBinaryFormatter(val) {}
+};
+
 }  // namespace cassandra::io::detail

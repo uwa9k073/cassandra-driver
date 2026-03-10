@@ -7,8 +7,8 @@
 #include <cassandra/io/map_types.hpp>
 #include <cassandra/io/string_types.hpp>
 #include <cstddef>
-#include <span>
 #include <vector>
+
 namespace cassandra::io {
 class BufferWriter {
 public:
@@ -39,14 +39,9 @@ public:
     // ===== Write raw span (zero-copy append) =====
     // void WriteRaw(std::span<const std::byte> data) { buffer_.insert(buffer_.end(), data.begin(), data.end()); }
 
-    // template <std::integral T>
-    // void WriteIntBE(T value) {
-    //     detail::WriteIntBE(buffer_, value);
-    // }
-
     template <class T>
     void Write(const T& value) {
-        detail::Write(buffer_, value);
+        detail::Write<T>(buffer_, value);
     }
 
     // template <class T>
