@@ -2,6 +2,7 @@
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/protocol/frame.hpp>
 #include <cassandra/io/protocol/message.hpp>
+#include <cstdint>
 #include <unordered_map>
 #include <userver/logging/log.hpp>
 namespace cassandra::io::protocol {
@@ -16,13 +17,10 @@ public:
         // Serialize the message body
         SerializeBody(buffer);
         // write body length if length is not null
-        if (auto body_length = buffer.size() - _header.length; body_length > 0) {
-            _header.length = body_length;
-            _header.Serialize(buffer);
+        if (int32_t body_length = buffer.size() - FrameHeader::kHeaderSize; body_length > 0) {
+            _header.UpdateLength(buffer, body_length);
         }
     }
-
-protected:
     // we only need to implement SerializeBody in derived classes,
     // and it should append to the buffer and rewrite the header length if necessary
     virtual void SerializeBody(RawBuffer& buffer) = 0;
@@ -31,8 +29,6 @@ protected:
 class OptionsMessage final : public RequestMessage {
 public:
     OptionsMessage() : RequestMessage(FrameHeader{.opcode = Opcode::kOptions}) {}
-
-private:
     void SerializeBody(RawBuffer& /*buffer*/) override {}
 };
 
@@ -46,7 +42,6 @@ public:
         options[String("COMPRESSION")] = String(compression_protocol.data(), compression_protocol.size());
     }
 
-private:
     void SerializeBody(RawBuffer& buffer) override {
         // Serialize the message body
         // serialize message header
