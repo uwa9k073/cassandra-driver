@@ -158,7 +158,7 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::WaitForResult() {
     len = _socket.RecvSome(
         body_buffer.data(), body_length, userver::engine::Deadline::FromDuration(std::chrono::seconds{15})
     );
-    if (len <= body_length) {
+    if (len < body_length) {
         LOG_ERROR() << "Socket closed or timeout";
         throw std::runtime_error("Socket read failed");
     }
