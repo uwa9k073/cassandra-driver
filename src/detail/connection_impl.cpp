@@ -75,9 +75,9 @@ void ConnectionImpl::AsyncConnect(userver::clients::dns::AddrVector addresses, u
     SendMessage(io::protocol::OptionsMessage{});
     LOG_DEBUG("SENDED OPTIONS MESSAGE");
     // RECEIVE SUPPORT
-    auto support_message = std::dynamic_pointer_cast<io::protocol::SupportMessage>(WaitForResult());
+    auto support_message = WaitForResult();
 
-    auto options = support_message->GetOptions();
+    auto options = reinterpret_cast<io::protocol::SupportMessage*>(support_message.get())->GetOptions();
 
     auto json = userver::formats::json::ValueBuilder{options}.ExtractValue();
 
