@@ -6,11 +6,11 @@ namespace cassandra::io::protocol {
 void FrameHeader::Serialize(RawBuffer& buffer) const {
     buffer.reserve(buffer.size() + kHeaderSize);
 
-    detail::WriteIntBE(buffer,version);
-    detail::WriteIntBE(buffer,flags);
-    detail::WriteIntBE(buffer,stream);
-    detail::WriteIntBE(buffer,static_cast<uint8_t>(opcode));
-    detail::WriteIntBE(buffer,length);
+    detail::WriteIntBE(buffer, version);
+    detail::WriteIntBE(buffer, flags);
+    detail::WriteIntBE(buffer, stream);
+    detail::WriteIntBE(buffer, static_cast<uint8_t>(opcode));
+    detail::WriteIntBE(buffer, length);
 }
 
 void FrameHeader::Parse(RawBufferView data) {

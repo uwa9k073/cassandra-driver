@@ -1,8 +1,8 @@
 #pragma once
 
+#include <cassandra/io/protocol/types.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <cassandra/io/protocol/types.hpp>
 
 namespace cassandra::io::protocol {
 /// CQL Protocol flags
