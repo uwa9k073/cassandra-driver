@@ -90,8 +90,14 @@ void ConnectionImpl::AsyncConnect(userver::clients::dns::AddrVector addresses, u
 
     if (message->GetOpcode() == io::protocol::Opcode::kReady) {
         LOG_DEBUG("RECEIVED READY MESSAGE");
-    } else {
-        LOG_ERROR("RECEIVED AUTH MESSAGE");
+    } else if (message->GetOpcode() == io::protocol::Opcode::kError) {
+        auto error_message = reinterpret_cast<io::protocol::ErrorMessage*>(message.get());
+        LOG_ERROR(
+            "RECEIVED ERROR MESSAGE: code={}, message={}",
+            error_message->GetErrorCode(),
+            error_message->GetErrorMessage()
+        );
+        throw std::runtime_error("Received error message");
     }
 }
 
@@ -119,6 +125,8 @@ std::shared_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(io::
             return std::make_shared<io::protocol::ReadyMessage>(std::move(header));
         case io::protocol::Opcode::kAuthenticate:
             return std::make_shared<io::protocol::AuthentificateMessage>(std::move(header));
+        case io::protocol::Opcode::kError:
+            return std::make_shared<io::protocol::ErrorMessage>(std::move(header));
         default:
             throw std::runtime_error("Unexpected opcode");
     }

@@ -25,6 +25,9 @@ class ErrorMessage : public ResponseMessage {
 public:
     ErrorMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
 
+    Int GetErrorCode() const { return error_code; }
+    String GetErrorMessage() const { return error_message; }
+
     void ParseBody(RawBufferView buffer) override {
         auto reader = BufferReader{buffer};
         error_code = reader.Read<Int>();
