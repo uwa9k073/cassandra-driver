@@ -43,9 +43,9 @@ public:
         _header.length = body_buffer.size();
         _header.Serialize(buffer);
         // concat body buffer to the end of the buffer
-        buffer.reserve(buffer.size() + _header.length);
-        std::memcpy(buffer.data() + buffer.size(), body_buffer.data(), _header.length);
-        buffer.resize(buffer.size() + _header.length);
+        for (auto b : body_buffer) {
+            buffer.push_back(b);
+        }
     }
 
 private:
