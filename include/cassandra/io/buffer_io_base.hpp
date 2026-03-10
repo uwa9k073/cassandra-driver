@@ -49,7 +49,7 @@ template <std::integral T>
 [[nodiscard]] T ReadIntBE(protocol::RawBufferView data, size_t& offset) {
     EnsureSize(offset, sizeof(T), data.size());
     T value;
-    std::memcpy(&value, reinterpret_cast<const T*>(data.data()) + offset, sizeof(T));
+    std::memcpy(&value, data.data() + offset, sizeof(T));
     offset += sizeof(T);
     return boost::endian::big_to_native(value);
 }
