@@ -28,11 +28,11 @@ class SupportMessage : public ResponseMessage {
 public:
     SupportMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
 
-    std::unordered_map<std::string, std::vector<std::string>> GetOptions() const { return options; }
+    StringMultiMap GetOptions() const { return options; }
 
-    void ParseBody(RawBufferView buffer) override { options = {}; }
+    void ParseBody(RawBufferView buffer) override { options = BufferReader{buffer}.Read<StringMultiMap>(); }
 
 private:
-    std::unordered_map<std::string, std::vector<std::string>> options;
+    StringMultiMap options;
 };
 }  // namespace cassandra::io::protocol

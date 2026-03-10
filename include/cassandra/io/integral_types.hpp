@@ -62,4 +62,14 @@ struct BufferFormatter<BigInt> : detail::IntegralBinaryFormatter<BigInt> {
     explicit BufferFormatter(BigInt& val) : IntegralBinaryFormatter(val) {}
 };
 
+template <>
+struct BufferParser<Short> : detail::IntegralBinaryParser<Short> {
+    explicit BufferParser(Short& val) : IntegralBinaryParser(val) {}
+};
+
+template <>
+struct BufferFormatter<Short> : detail::IntegralBinaryFormatter<Short> {
+    explicit BufferFormatter(Short& val) : IntegralBinaryFormatter(val) {}
+};
+
 }  // namespace cassandra::io::detail

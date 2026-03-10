@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <unordered_map>
 #include <userver/utils/datetime/date.hpp>
 #include <userver/utils/ip.hpp>
 #include <userver/utils/strong_typedef.hpp>
@@ -30,4 +31,9 @@ using Blob = std::vector<std::byte>;
 
 using String = userver::utils::StrongTypedef<Short, std::string>;
 using LongString = userver::utils::StrongTypedef<Int, std::string>;
+
+using StringList = std::vector<String>;
+
+using StringMap = std::unordered_map<String, String>;
+using StringMultiMap = std::unordered_map<String, StringList>;
 }  // namespace cassandra::io

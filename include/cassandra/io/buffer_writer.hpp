@@ -5,9 +5,9 @@
 #include <cassandra/io/integral_types.hpp>
 #include <cassandra/io/map_types.hpp>
 #include <cassandra/io/string_types.hpp>
+#include <cassandra/io/list_types.hpp>
 #include <cstddef>
 #include <span>
-#include <unordered_map>
 #include <vector>
 namespace cassandra::io {
 class BufferWriter {
@@ -37,22 +37,22 @@ public:
     // void WriteStringMultiMap(const std::unordered_map<std::string, std::vector<std::string>>& map);
 
     // ===== Write raw span (zero-copy append) =====
-    void WriteRaw(std::span<const std::byte> data) { buffer_.insert(buffer_.end(), data.begin(), data.end()); }
+    // void WriteRaw(std::span<const std::byte> data) { buffer_.insert(buffer_.end(), data.begin(), data.end()); }
 
-    template <std::integral T>
-    void WriteIntBE(T value) {
-        detail::WriteIntBE(buffer_, value);
-    }
+    // template <std::integral T>
+    // void WriteIntBE(T value) {
+    //     detail::WriteIntBE(buffer_, value);
+    // }
 
     template <class T>
     void Write(const T& value) {
         detail::Write(buffer_, value);
     }
 
-    template <class T>
-    void Write(T&& value) {
-        detail::Write(buffer_, std::move(value));
-    }
+    // template <class T>
+    // void Write(T&& value) {
+    //     detail::Write(buffer_, std::move(value));
+    // }
 
 private:
     std::vector<std::byte>& buffer_;

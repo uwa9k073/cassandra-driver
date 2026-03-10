@@ -5,8 +5,8 @@
 #include <cassandra/io/integral_types.hpp>
 #include <cassandra/io/map_types.hpp>
 #include <cassandra/io/string_types.hpp>
+#include <cassandra/io/list_types.hpp>
 #include <span>
-#include <unordered_map>
 namespace cassandra::io {
 class BufferReader {
 public:
