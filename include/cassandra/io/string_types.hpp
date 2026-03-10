@@ -2,8 +2,8 @@
 
 #include <cassandra/io/buffer_io_base.hpp>
 #include <cassandra/io/cassandra_types.hpp>
-#include <cassandra/io/protocol/types.hpp>
 #include <cassandra/io/integral_types.hpp>
+#include <cassandra/io/protocol/types.hpp>
 #include <cstddef>
 
 namespace cassandra::io::detail {

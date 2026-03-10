@@ -3,9 +3,9 @@
 #include <cassandra/io/buffer_io_base.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/integral_types.hpp>
+#include <cassandra/io/list_types.hpp>
 #include <cassandra/io/map_types.hpp>
 #include <cassandra/io/string_types.hpp>
-#include <cassandra/io/list_types.hpp>
 #include <cstddef>
 #include <span>
 #include <vector>
