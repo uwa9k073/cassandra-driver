@@ -48,10 +48,12 @@ inline void EnsureSize(size_t offset, size_t required, size_t data_size) {
 template <std::integral T>
 [[nodiscard]] T ReadIntBE(protocol::RawBufferView data, size_t& offset) {
     EnsureSize(offset, sizeof(T), data.size());
-    T value;
-    std::memcpy(&value, data.data(), sizeof(T));
+    T value = 0;
+    for (size_t i = 0; i < sizeof(T); ++i) {
+        value = (value << 8) | static_cast<std::make_unsigned_t<T>>(data[offset + i]);
+    }
     offset += sizeof(T);
-    return boost::endian::big_to_native(value);
+    return value;
 }
 
 template <std::integral T>
@@ -60,10 +62,9 @@ void WriteIntBE(protocol::RawBuffer& data, T value) {
     if (data.capacity() < data.size() + size) {
         data.reserve(data.size() + size);
     }
-    auto tmp = boost::endian::native_to_big(value);
-    auto* ptr = reinterpret_cast<std::byte*>(&tmp);
-    auto* end = ptr + size;
-    std::copy(ptr, end, std::back_inserter(data));
+    for (size_t i = 0; i < size; ++i) {
+        data.push_back(static_cast<std::byte>((value >> ((size - i - 1) * 8)) & 0xFF));
+    }
 }
 
 template <class T>
