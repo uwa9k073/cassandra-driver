@@ -13,9 +13,8 @@ void FrameHeader::Serialize(RawBuffer& buffer) const {
     detail::WriteIntBE(buffer, length);
 }
 
-
 void FrameHeader::UpdateLength(RawBuffer& buffer, int32_t body_length) const {
-    detail::WriteIntBE(buffer.data()+5, buffer.data()+9, body_length);
+    detail::WriteIntBE(buffer.data() + 5, buffer.data() + 9, body_length);
 }
 
 void FrameHeader::Parse(RawBufferView data) {

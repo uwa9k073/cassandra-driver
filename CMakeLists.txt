@@ -16,7 +16,7 @@ list(FILTER SOURCES EXCLUDE REGEX ".*(_test|_benchmark)\\.cpp$")
 add_library(
   ${PROJECT_NAME} STATIC ${SOURCES})
 
-add_library(userver::cassandra ALIAS userver-cql-driver)
+add_library(userver::cassandra ALIAS ${PROJECT_NAME})
 
 target_link_libraries(${PROJECT_NAME} PUBLIC userver::core)
 
@@ -24,7 +24,14 @@ target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 option(CASSANDRA_BUILD_SAMPLES "Build userver samples" OFF)
+option(CASSANDRA_BUILD_TESTS "Build userver tests" ON)
 
-if(CASSANDRA_BUILD_SAMPLES)
-add_subdirectory(samples)
+# if(CASSANDRA_BUILD_SAMPLES)
+#     add_subdirectory(samples)
+# endif()
+
+
+if(CASSANDRA_BUILD_TESTS)
+enable_testing()
+add_subdirectory(unittests)
 endif()

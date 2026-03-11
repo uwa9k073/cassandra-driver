@@ -29,6 +29,8 @@ using Date = userver::utils::datetime::Date;
 
 using Blob = std::vector<std::byte>;
 
+// we highly recommend usage of this string types for cassandra string fields and rows cause they have protocol accurate
+// IO-operations
 using String = userver::utils::StrongTypedef<Short, std::string>;
 using LongString = userver::utils::StrongTypedef<Int, std::string>;
 

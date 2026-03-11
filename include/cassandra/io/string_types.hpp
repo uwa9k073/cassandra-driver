@@ -65,11 +65,11 @@ struct CommonStringBinaryFormatter {
 
     void operator()(protocol::RawBuffer& buffer) const {
         auto size = static_cast<SizeType>(value.size());
-        auto total_size = size + sizeof(SizeType);
-        buffer.reserve(buffer.size() + total_size);
         Write<SizeType>(buffer, size);
-        std::memcpy(buffer.data() + sizeof(SizeType), value.data(), size);
-        buffer.resize(buffer.size() + size);
+        auto offset = buffer.size();
+        buffer.reserve(offset + size);
+        buffer.resize(offset + size);
+        std::memcpy(buffer.data() + offset, reinterpret_cast<const std::byte*>(value.data()), size);
     }
 };
 
