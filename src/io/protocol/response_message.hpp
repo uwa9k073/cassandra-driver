@@ -6,12 +6,13 @@
 #include <cassandra/io/protocol/lz4_utils.hpp>
 #include <cassandra/io/protocol/message.hpp>
 #include <cassandra/io/protocol/types.hpp>
+#include <io/protocol/column_option.hpp>
+#include <io/protocol/events/schema_change.hpp>
 #include <span>
 #include <userver/logging/log.hpp>
 #include <utility>
 #include <variant>
-#include "column_option.hpp"
-#include "events/schema_change.hpp"
+#include "cassandra/result_set.hpp"
 
 namespace cassandra::io::protocol {
 class ResponseMessage : public Message {
@@ -222,6 +223,9 @@ public:
                 break;
         }
     }
+
+
+    ResultSet GetResultSet();
 
 private:
     ResultKind _kind;

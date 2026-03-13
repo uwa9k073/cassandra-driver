@@ -1,7 +1,8 @@
-#include "session_impl.hpp"
-#include "cassandra/exception.hpp"
-#include "cassandra/options.hpp"
-#include "detail/connection_pool.hpp"
+#include <cassandra/exception.hpp>
+#include <cassandra/options.hpp>
+#include <detail/connection_pool.hpp>
+#include <memory>
+#include <session_impl.hpp>
 
 namespace cassandra::detail {
 
@@ -46,4 +47,17 @@ void SessionImpl::CreateTopology(std::vector<NodeDescription> node_description) 
     }
     LOG_DEBUG("Pool initialize");
 }
+
+std::shared_ptr<ConnectionPool> SessionImpl::FindPool() { return _pools.front(); }
+
+ResultSet SessionImpl::Execute(
+    Consistency level,
+    const Query& query,
+    const QueryParameters& params,
+    OptionalCommandControl statement_cmd_ctl
+
+) {
+    return FindPool()->Execute(level, query, params, statement_cmd_ctl);
+}
+
 }  // namespace cassandra::detail

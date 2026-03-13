@@ -1,11 +1,14 @@
-#include "connection.hpp"
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <poll.h>
 #include <sys/socket.h>
+#include <detail/connection.hpp>
 
 #include <algorithm>
+#include <cassandra/exception.hpp>
+#include <cassandra/node_description.hpp>
+#include <detail/connection_impl.hpp>
 #include <exception>
 #include <memory>
 #include <string>
@@ -14,9 +17,6 @@
 #include <userver/engine/deadline.hpp>
 #include <userver/engine/io/sockaddr.hpp>
 #include <userver/utils/zstring_view.hpp>
-#include "cassandra/exception.hpp"
-#include "cassandra/node_description.hpp"
-#include "connection_impl.hpp"
 
 namespace cassandra::detail {
 namespace {
@@ -129,5 +129,14 @@ std::unique_ptr<Connection> Connection::Connect(
 }
 
 bool Connection::IsExpired() const { return _pimpl->IsExpired(); }
+
+ResultSet Connection::Execute(
+    Consistency level,
+    const Query& query,
+    const QueryParameters& params,
+    OptionalCommandControl statement_cmd_ctl
+) {
+    return _pimpl->Execute(level, query, params, statement_cmd_ctl);
+}
 
 }  // namespace cassandra::detail

@@ -1,4 +1,4 @@
-#include "schema_change.hpp"
+#include <io/protocol/events/schema_change.hpp>
 
 namespace cassandra::io::protocol::events {
 

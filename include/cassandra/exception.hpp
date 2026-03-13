@@ -1,5 +1,6 @@
 #pragma once
 
+#include <fmt/core.h>
 #include <stdexcept>
 #include <string_view>
 namespace cassandra::exceptions {
@@ -23,8 +24,10 @@ class ConnectionError : public RuntimeError {
 };
 class PoolError : public RuntimeError {
 public:
-    PoolError(std::string_view msg, std::string_view keyspace);
-    PoolError(std::string_view msg);
+    using RuntimeError::RuntimeError;
+    PoolError(std::string_view msg, std::string_view keyspace)
+        : RuntimeError(fmt::format("{} (keyspace: {})", msg, keyspace)) {}
+    PoolError(std::string_view msg) : RuntimeError({msg.data(), msg.size()}) {}
 };
 
 }  // namespace cassandra::exceptions

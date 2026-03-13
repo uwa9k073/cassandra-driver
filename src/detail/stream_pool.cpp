@@ -1,4 +1,4 @@
-#include "stream_pool.hpp"
+#include <detail/stream_pool.hpp>
 #include <userver/logging/log.hpp>
 
 namespace cassandra::detail {

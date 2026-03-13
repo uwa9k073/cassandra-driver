@@ -23,4 +23,13 @@ Session::Session(
 }
 
 Session::~Session() = default;
+
+ResultSet Session::DoExecute(
+    Consistency level,
+    const Query& query,
+    const QueryParameters& params,
+    OptionalCommandControl statement_cmd_ctl
+) {
+    return _pimpl->Execute(level, query, params, statement_cmd_ctl);
+}
 }  // namespace cassandra

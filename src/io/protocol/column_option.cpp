@@ -1,5 +1,5 @@
-#include "column_option.hpp"
 #include <cassandra/io/protocol/frame.hpp>
+#include <io/protocol/column_option.hpp>
 #include <memory>
 
 namespace cassandra::io::protocol {

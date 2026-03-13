@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <unordered_map>
 #include <userver/logging/log.hpp>
+#include "cassandra/detail/query_parameters.hpp"
+#include "cassandra/options.hpp"
 
 namespace cassandra::io::protocol {
 class RequestMessage : public Message {
@@ -72,15 +74,35 @@ private:
 
 class QueryMessage final : public RequestMessage {
 public:
-    QueryMessage() : RequestMessage(FrameHeader{.opcode = Opcode::kQuery}) {}
+    QueryMessage(Consistency level, const LongString& query)
+        : RequestMessage(FrameHeader{.opcode = Opcode::kQuery}),
+          consistency_level(level),
+          query(query) {}
+    QueryMessage(
+        Consistency level, const LongString& query, QueryParameters&& params
+    )
+        : RequestMessage(FrameHeader{.opcode = Opcode::kQuery}),
+          consistency_level(level),
+          query(query),
+          params(std::move(params)) {}
 
     void SerializeBody(RawBuffer& buffer) override {
         BufferWriter writer(buffer);
         writer.Write(query);
+        writer.Write(static_cast<Short>(consistency_level));
+        if (!params.Empty()) {
+            writer.Write<Short>(params.Size());
+            auto* buffers = params.ParamBuffers();
+            for (std::size_t i = 0; i < params.Size(); ++i) {
+                writer.AddBuffer(buffers[i]);
+            }
+        }
     }
 
 private:
+    Consistency consistency_level;
     LongString query;
+    QueryParameters params;
 };
 
 }  // namespace cassandra::io::protocol

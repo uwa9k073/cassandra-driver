@@ -1,9 +1,9 @@
+#include <gtest/gtest.h>
 #include <cassandra/io/protocol/lz4_utils.hpp>
 #include "cassandra/io/buffer_reader.hpp"
 #include "cassandra/io/buffer_writer.hpp"
 #include "cassandra/io/cassandra_types.hpp"
 #include "cassandra/io/protocol/types.hpp"
-#include <gtest/gtest.h>
 
 TEST(Lz4Compressor, Compress) {
     cassandra::io::String input("Hello, World!");
@@ -12,7 +12,7 @@ TEST(Lz4Compressor, Compress) {
 
     writer.Write(input);
     cassandra::io::protocol::Lz4Compressor compressor;
-    auto ret =compressor.Compress(input_buffer, output_buffer);
+    auto ret = compressor.Compress(input_buffer, output_buffer);
     cassandra::io::BufferReader reader(output_buffer);
     auto compressed_size = reader.Read<cassandra::io::Int>();
     EXPECT_EQ(compressed_size, ret);

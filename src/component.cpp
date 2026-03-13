@@ -1,6 +1,9 @@
+#include <cassandra/cassandra_fwd.hpp>
 #include <cassandra/component.hpp>
 #include <cassandra/database.hpp>
+#include <cassandra/database_fwd.hpp>
 #include <cassandra/node_description.hpp>
+#include <cassandra/options.hpp>
 #include <cassandra/secdist.hpp>
 #include <cassandra/session.hpp>
 #include <memory>
@@ -25,9 +28,6 @@
 #include <userver/yaml_config/fwd.hpp>
 #include <userver/yaml_config/merge_schemas.hpp>
 #include <userver/yaml_config/schema.hpp>
-#include "cassandra/cassandra_fwd.hpp"
-#include "cassandra/database_fwd.hpp"
-#include "cassandra/options.hpp"
 
 namespace components {
 

@@ -1,6 +1,6 @@
+#include <cassandra/io/buffer_io_base.hpp>
 #include <cassandra/io/protocol/frame.hpp>
 #include <cstdint>
-#include "cassandra/io/buffer_io_base.hpp"
 
 namespace cassandra::io::protocol {
 void FrameHeader::Serialize(RawBuffer& buffer) const {

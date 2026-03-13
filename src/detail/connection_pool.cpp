@@ -1,5 +1,11 @@
-#include "connection_pool.hpp"
+#include <cassandra/detail/connection_ptr.hpp>
+#include <cassandra/exception.hpp>
+#include <cassandra/options.hpp>
+#include <cassandra/result_set.hpp>
 #include <cstddef>
+#include <detail/connection.hpp>
+#include <detail/connection_pool.hpp>
+#include <detail/stream_pool.hpp>
 #include <memory>
 #include <userver/engine/async.hpp>
 #include <userver/engine/deadline.hpp>
@@ -8,10 +14,6 @@
 #include <userver/engine/task/task_with_result.hpp>
 #include <userver/logging/log.hpp>
 #include <vector>
-#include "cassandra/exception.hpp"
-#include "cassandra/options.hpp"
-#include "connection.hpp"
-#include "stream_pool.hpp"
 
 namespace cassandra::detail {
 
@@ -293,6 +295,68 @@ void ConnectionPool::DropExpiredConnection(Connection* connection) {
 void ConnectionPool::DropOutdatedConnection(Connection* connection) {
     LOG_INFO("Dropping outdated connection");
     DeleteConnection(connection);
+}
+
+[[nodiscard]] ConnectionPtr ConnectionPool::Acquire(
+    userver::engine::Deadline deadline
+) {
+    auto shared_this = shared_from_this();
+
+    // auto config = GetConfigSource().GetSnapshot();
+    // CheckDeadlineIsExpired(config);
+    ConnectionPtr connection{Pop(deadline), std::move(shared_this)};
+    // ++stats_.connection.used;
+    // CheckDeadlineIsExpired(config);
+
+    // connection->UpdateDefaultCommandControl();
+    return connection;
+}
+
+void ConnectionPool::Release(Connection* connection) {
+    // UASSERT(connection);
+    // using DecGuard =
+    // storages::postgres::SizeGuard<USERVER_NAMESPACE::utils::statistics::RelaxedCounter<uint32_t>>;
+    // DecGuard dg{stats_.connection.used, DecGuard::DontIncrement{}};
+
+    // std::optional<Connection::Statistics> connection_stats{};
+    // // Grab stats only if connection is not in transaction
+    // if (!connection->IsInTransaction()) {
+    //     connection_stats.emplace(connection->GetStatsAndReset());
+    // }
+
+    // if (!connection->IsConnected() || connection->IsBroken()) {
+    //     DeleteBrokenConnection(connection);
+    // } else if (connection->IsIdle()) {
+    //     Push(connection);
+    // } else {
+    //     // Connection cleanup is done asynchronously while returning control to
+    //     // the user
+    //     close_task_storage_.Detach(USERVER_NAMESPACE::utils::CriticalAsync(
+    //         "clear_conn_after_cancel",
+    //         [this, connection, dec_cnt = std::move(dg)] {
+    //             LOG_LIMITED_WARNING() << "Released connection in busy state.
+    //             Trying to clean up..."; TESTPOINT("pg_cleanup",
+    //             formats::json::Value{}); CleanupConnection(connection);
+    //         }
+    //     ));
+    // }
+
+    // // We want to account the stats AFTER the connection is returned to the pool,
+    // // because the procedure is somewhat heavy and there's no point to prevent the
+    // // connection from being reused
+    // if (connection_stats.has_value()) {
+    //     AccountConnectionStats(std::move(*connection_stats));
+    // }
+}
+
+ResultSet ConnectionPool::Execute(
+    Consistency level,
+    const Query& query,
+    const QueryParameters& params,
+    OptionalCommandControl statement_cmd_ctl
+) {
+    auto conn = Acquire(userver::engine::Deadline{});
+    return conn->Execute(level, query, params, statement_cmd_ctl);
 }
 
 }  // namespace cassandra::detail

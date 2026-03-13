@@ -1,3 +1,4 @@
+#include <cassandra/node_description.hpp>
 #include <cassandra/secdist.hpp>
 #include <string_view>
 #include <userver/formats/json/value.hpp>
@@ -6,7 +7,6 @@
 #include <userver/storages/secdist/exceptions.hpp>
 #include <userver/storages/secdist/helpers.hpp>
 #include <vector>
-#include "cassandra/node_description.hpp"
 
 namespace cassandra {
 CassandraSecdist::CassandraSecdist(const userver::formats::json::Value& doc) {

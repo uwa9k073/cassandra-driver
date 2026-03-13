@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cassandra/node_description.hpp>
+#include <cassandra/options.hpp>
 #include <memory>
 #include <userver/clients/dns/resolver_fwd.hpp>
 #include <userver/concurrent/background_task_storage_fwd.hpp>
@@ -8,8 +10,6 @@
 #include <userver/engine/task/task_processor_fwd.hpp>
 #include <userver/tracing/scope_time.hpp>
 #include <userver/utils/statistics/fwd.hpp>
-#include "cassandra/node_description.hpp"
-#include "cassandra/options.hpp"
 
 namespace cassandra::detail {
 
@@ -30,6 +30,13 @@ public:
     ~Connection();
 
     bool IsExpired() const;
+
+    ResultSet Execute(
+        Consistency level,
+        const Query& query,
+        const QueryParameters& params,
+        OptionalCommandControl statement_cmd_ctl
+    );
 
 private:
     Connection();

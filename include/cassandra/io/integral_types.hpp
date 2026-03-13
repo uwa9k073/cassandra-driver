@@ -35,6 +35,16 @@ struct BufferFormatter<Boolean> : detail::IntegralBinaryFormatter<Boolean> {
 };
 
 template <>
+struct BufferParser<Byte> : detail::IntegralBinaryParser<Byte> {
+    explicit BufferParser(Byte& val) : IntegralBinaryParser(val) {}
+};
+
+template <>
+struct BufferFormatter<Byte> : detail::IntegralBinaryFormatter<Byte> {
+    explicit BufferFormatter(Byte val) : IntegralBinaryFormatter(val) {}
+};
+
+template <>
 struct BufferParser<TinyInt> : detail::IntegralBinaryParser<TinyInt> {
     explicit BufferParser(TinyInt& val) : IntegralBinaryParser(val) {}
 };

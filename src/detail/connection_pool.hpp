@@ -14,7 +14,7 @@
 #include <userver/utils/statistics/relaxed_counter.hpp>
 
 namespace cassandra::detail {
-class ConnectionPool {
+class ConnectionPool : public std::enable_shared_from_this<ConnectionPool> {
 public:
     ConnectionPool(
         NodeDescription description,
@@ -40,6 +40,16 @@ public:
     ~ConnectionPool();
 
     std::shared_ptr<StreamPool> GetStreamPool();
+
+    [[nodiscard]] ConnectionPtr Acquire(userver::engine::Deadline);
+    void Release(Connection* connection);
+
+    ResultSet Execute(
+        Consistency level,
+        const Query& query,
+        const QueryParameters& params,
+        OptionalCommandControl statement_cmd_ctl
+    );
 
 private:
     using RecentCounter = userver::utils::statistics::

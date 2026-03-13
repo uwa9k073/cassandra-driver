@@ -1,6 +1,6 @@
 #include <cassandra/detail/connection_ptr.hpp>
-#include "connection.hpp"
-#include "connection_pool.hpp"
+#include <detail/connection.hpp>
+#include <detail/connection_pool.hpp>
 
 namespace cassandra::detail {
 ConnectionPtr::ConnectionPtr(std::unique_ptr<Connection>&& conn)

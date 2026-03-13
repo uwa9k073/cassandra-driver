@@ -1,6 +1,3 @@
-[submodule "proto/handlers/userver-cql-driver"]
-	path = proto/handlers/userver-cql-driver
-	url = git@gitlab.com:orlov-ikbo-16-22-mirea/courseworksixthsem/proto/userver-cql-driver.git
 [submodule "third_party/doxygen-awesome-css"]
 	path = third_party/doxygen-awesome-css
 	url = https://github.com/jothepro/doxygen-awesome-css.git

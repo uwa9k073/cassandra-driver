@@ -6,8 +6,8 @@
 #include <userver/concurrent/queue.hpp>
 #include <userver/engine/mutex.hpp>
 #include <userver/engine/semaphore.hpp>
-namespace cassandra::detail {
 
+namespace cassandra::detail {
 class StreamPool final {
 public:
     static constexpr int16_t kMinClientStreamId = 0;

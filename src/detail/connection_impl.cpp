@@ -1,4 +1,3 @@
-#include "connection_impl.hpp"
 #include <netinet/tcp.h>
 #include <algorithm>
 #include <cassandra/io/protocol/frame.hpp>
@@ -7,6 +6,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <detail/connection_impl.hpp>
 #include <memory>
 #include <userver/clients/dns/common.hpp>
 #include <userver/concurrent/background_task_storage.hpp>
@@ -109,15 +109,6 @@ void ConnectionImpl::AsyncConnect(
 
     if (message->GetOpcode() == io::protocol::Opcode::kReady) {
         LOG_DEBUG("RECEIVED READY MESSAGE");
-    } else if (message->GetOpcode() == io::protocol::Opcode::kError) {
-        auto error_message =
-            reinterpret_cast<io::protocol::ErrorMessage*>(message.get());
-        LOG_ERROR(
-            "RECEIVED ERROR MESSAGE: code={}, message={}",
-            error_message->GetErrorCode(),
-            error_message->GetErrorMessage()
-        );
-        throw std::runtime_error("Received error message");
     }
 }
 
@@ -196,7 +187,33 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::WaitForResult() {
     LOG_DEBUG() << "BUFFER SIZE: "
                 << body_buffer.size();  // Will now correctly print 102
     message->ParseBody(body_buffer);
+
+    if (message->GetOpcode() == io::protocol::Opcode::kError) {
+        auto error_message =
+            reinterpret_cast<io::protocol::ErrorMessage*>(message.get());
+        LOG_WARNING(
+            "RECEIVED ERROR MESSAGE: code={}, message={}",
+            error_message->GetErrorCode(),
+            error_message->GetErrorMessage()
+        );
+        throw std::runtime_error("Received error message");
+    }
+
     return message;
+}
+
+ResultSet ConnectionImpl::Execute(
+    Consistency level,
+    const Query& query,
+    const QueryParameters& params,
+    OptionalCommandControl statement_cmd_ctl
+) {
+    io::protocol::QueryMessage message;
+
+    if (statement_cmd_ctl.has_value()) {
+    }
+
+    return {};
 }
 
 }  // namespace cassandra::detail

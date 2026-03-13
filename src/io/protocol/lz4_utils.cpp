@@ -2,12 +2,12 @@
 #include <lz4.h>
 #include <boost/endian/conversion.hpp>
 #include <cassandra/exception.hpp>
+#include <cassandra/io/buffer_io_base.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/protocol/lz4_utils.hpp>
 #include <cassandra/io/protocol/types.hpp>
 #include <cstring>
 #include <userver/logging/log.hpp>
-#include "cassandra/io/buffer_io_base.hpp"
 
 namespace cassandra::io::protocol {
 

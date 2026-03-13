@@ -2,9 +2,9 @@
 
 #include <cassandra/options.hpp>
 #include <cassandra/session.hpp>
+#include <detail/connection_pool.hpp>
 #include <memory>
 #include <userver/rcu/rcu.hpp>
-#include "detail/connection_pool.hpp"
 
 namespace cassandra::detail {
 class SessionImpl {
@@ -17,7 +17,15 @@ public:
         userver::utils::statistics::MetricsStoragePtr metrics_storage
     );
 
+    ResultSet Execute(
+        Consistency level,
+        const Query& query,
+        const QueryParameters& params,
+        OptionalCommandControl statement_cmd_ctl
+    );
+
 private:
+    std::shared_ptr<ConnectionPool> FindPool();
     void CreateTopology(std::vector<NodeDescription> node_description);
     userver::clients::dns::Resolver* resolver_{};
     userver::engine::TaskProcessor& bg_task_processor_;
