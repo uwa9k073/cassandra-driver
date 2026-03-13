@@ -8,9 +8,11 @@
 
 namespace cassandra::io::detail {
 
-//  [string map]        A [short] n, followed by n pair <k><v> where <k> and <v>
+//  [string map]        A [short] n, followed by n pair <k><v> where
+//  <k> and <v>
 //                      are [string].
-//  [string multimap]   A [short] n, followed by n pair <k><v> where <k> is a
+//  [string multimap]   A [short] n, followed by n pair <k><v> where
+//  <k> is a
 //                      [string] and <v> is a [string list].
 
 template <size_t Size>
@@ -45,20 +47,28 @@ concept MapConcept =
         { container.empty() } -> std::convertible_to<bool>;
         {
             typename T::value_type{}
-        } -> std::convertible_to<std::pair<const typename T::key_type, typename T::mapped_type>>;
+        } -> std::convertible_to<
+              std::pair<const typename T::key_type, typename T::mapped_type>>;
     } &&
     (
         // --- Emplace Logic: OR Condition ---
         // Case 1: Associative Maps (returns iterator)
         requires(T container) {
             {
-                container.emplace(std::declval<typename T::key_type>(), std::declval<typename T::mapped_type>())
+                container.emplace(
+                    std::declval<typename T::key_type>(),
+                    std::declval<typename T::mapped_type>()
+                )
             } -> std::same_as<typename T::iterator>;
         } ||
-        // Case 2: Unordered Associative Maps (returns pair<iterator, bool>)
+        // Case 2: Unordered Associative Maps (returns pair<iterator,
+        // bool>)
         requires(T container) {
             {
-                container.emplace(std::declval<typename T::key_type>(), std::declval<typename T::mapped_type>())
+                container.emplace(
+                    std::declval<typename T::key_type>(),
+                    std::declval<typename T::mapped_type>()
+                )
             } -> std::same_as<std::pair<typename T::iterator, bool>>;
         }
     );
@@ -130,4 +140,13 @@ struct Output<Map> {
     using type = MapBinaryFormatter<Map>;
 };
 
+template <>
+struct Input<BytesMap> {
+    using type = MapBinaryParser<BytesMap, 2>;
+};
+
+template <>
+struct Output<BytesMap> {
+    using type = MapBinaryFormatter<BytesMap, 2>;
+};
 }  // namespace cassandra::io::detail

@@ -19,7 +19,9 @@ public:
     Connection* operator->() const noexcept;
 
 private:
-    void Reset(std::unique_ptr<Connection> conn, std::shared_ptr<ConnectionPool> pool);
+    void Reset(
+        std::unique_ptr<Connection> conn, std::shared_ptr<ConnectionPool> pool
+    );
     void Release();
     std::shared_ptr<ConnectionPool> _pool_ptr;
     std::unique_ptr<Connection> _connection_ptr;

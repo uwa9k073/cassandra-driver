@@ -2,14 +2,14 @@ BasedOnStyle: Google
 DerivePointerAlignment: false
 IncludeBlocks: Preserve
 AttributeMacros: ["noexcept"]
-IndentRequires: false
-ColumnLimit: 120
+IndentRequires: true
+ColumnLimit: 85
 IndentWidth: 4
 TabWidth: 4
 AccessModifierOffset: -4
 BinPackParameters: false
 BinPackArguments: false
-AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: true
 AlignAfterOpenBracket: BlockIndent
 AlwaysBreakAfterDefinitionReturnType: None
 PenaltyReturnTypeOnItsOwnLine: 200

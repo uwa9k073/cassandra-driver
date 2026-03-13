@@ -64,7 +64,9 @@ struct FloatingPointBinaryFormatter {
 
     explicit FloatingPointBinaryFormatter(T value) : value_(value) {}
 
-    void operator()(protocol::RawBuffer& buf) { FloatingPointBySizeFormatter<sizeof(T)>::FormatBuffer(buf, value_); }
+    void operator()(protocol::RawBuffer& buf) {
+        FloatingPointBySizeFormatter<sizeof(T)>::FormatBuffer(buf, value_);
+    }
 };
 
 template <>

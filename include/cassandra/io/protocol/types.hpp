@@ -12,7 +12,9 @@ struct Buffer {
     RawBuffer data;
     size_t offset = 0;
 
-    RawBufferView view() const { return RawBufferView{data.data() + offset, data.size() - offset}; }
+    RawBufferView view() const {
+        return RawBufferView{data.data() + offset, data.size() - offset};
+    }
 };
 
 }  // namespace cassandra::io::protocol

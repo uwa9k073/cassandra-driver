@@ -8,8 +8,9 @@
 #include <userver/utils/strong_typedef.hpp>
 #include <vector>
 
-// here we declare scalar types described in the Cassandra Native Protocol V4
-// here we dont declare such types as string list, string map and etc described in the protocol notations
+// here we declare scalar types described in the Cassandra Native
+// Protocol V4 here we dont declare such types as string list, string
+// map and etc described in the protocol notations
 namespace cassandra::io {
 using BigInt = std::int64_t;
 using Int = std::int32_t;
@@ -27,10 +28,14 @@ using Inet = userver::utils::ip::InetNetwork;
 
 using Date = userver::utils::datetime::Date;
 
+// any sequence of bytes
 using Blob = std::vector<std::byte>;
 
-// we highly recommend usage of this string types for cassandra string fields and rows cause they have protocol accurate
-// IO-operations
+// we highly recommend usage of this types for cassandra string fields
+// and rows cause they have protocol accurate IO-operations
+using ShortBytes = userver::utils::StrongTypedef<Short, std::vector<std::byte>>;
+using Bytes = userver::utils::StrongTypedef<Int, std::vector<std::byte>>;
+
 using String = userver::utils::StrongTypedef<Short, std::string>;
 using LongString = userver::utils::StrongTypedef<Int, std::string>;
 
@@ -38,4 +43,6 @@ using StringList = std::vector<String>;
 
 using StringMap = std::unordered_map<String, String>;
 using StringMultiMap = std::unordered_map<String, StringList>;
+
+using BytesMap = std::unordered_map<String, Bytes>;
 }  // namespace cassandra::io

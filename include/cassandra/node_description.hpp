@@ -30,21 +30,30 @@ struct NodeDescription {
 
 inline PasswordAuthentificator
 Parse(const userver::formats::json::Value& value, userver::formats::parse::To<PasswordAuthentificator>) {
-    return {.username = value["username"].As<std::string>(), .password = value["password"].As<Password>()};
+    return {
+        .username = value["username"].As<std::string>(),
+        .password = value["password"].As<Password>()
+    };
 }
-inline NodeDescription Parse(const userver::formats::json::Value& value, userver::formats::parse::To<NodeDescription>) {
+inline NodeDescription
+Parse(const userver::formats::json::Value& value, userver::formats::parse::To<NodeDescription>) {
     NodeDescription node_description;
     node_description.use_ssl = value["use-ssl"].As<bool>(false);
     node_description.use_compression = value["use-compression"].As<bool>(false);
     node_description.allow_all = value["allow-all"].As<bool>(true);
-    auto creds = value["auth"].As<std::optional<PasswordAuthentificator>>(std::nullopt);
+    auto creds =
+        value["auth"].As<std::optional<PasswordAuthentificator>>(std::nullopt);
 
     if (!node_description.allow_all && creds.has_value()) {
         node_description.password_authetificator = creds;
-    } else if ((node_description.allow_all && creds) || (!node_description.allow_all && !creds)) {
-        throw userver::storages::secdist::SecdistError("Cassandra node auth configuration error");
+    } else if ((node_description.allow_all && creds) ||
+               (!node_description.allow_all && !creds)) {
+        throw userver::storages::secdist::SecdistError(
+            "Cassandra node auth configuration error"
+        );
     }
-    node_description.contact_point = value["contact-point"].As<ContactPoint>("127.0.0.1");
+    node_description.contact_point =
+        value["contact-point"].As<ContactPoint>("127.0.0.1");
     node_description.port = value["port"].As<Port>(9042);
     return node_description;
 }

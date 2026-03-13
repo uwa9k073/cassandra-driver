@@ -3,6 +3,7 @@
 #include <cassandra/node_description.hpp>
 #include "connection.hpp"
 
+#include <cassandra/io/protocol/lz4_utils.hpp>
 #include <userver/clients/dns/common.hpp>
 #include <userver/engine/deadline.hpp>
 #include <userver/engine/io/socket.hpp>
@@ -25,9 +26,16 @@ public:
         userver::utils::statistics::MetricsStoragePtr metrics
     );
 
-    void AsyncConnect(userver::clients::dns::AddrVector addresses, userver::engine::Deadline deadline);
+    void AsyncConnect(
+        userver::clients::dns::AddrVector addresses,
+        bool use_compression,
+        userver::engine::Deadline deadline
+    );
 
-    bool IsExpired() const { return expires_at_.has_value() && userver::utils::datetime::SteadyNow() > expires_at_; }
+    bool IsExpired() const {
+        return expires_at_.has_value() &&
+               userver::utils::datetime::SteadyNow() > expires_at_;
+    }
 
     ~ConnectionImpl();
 
@@ -41,11 +49,15 @@ private:
     userver::utils::statistics::MetricsStoragePtr _metrics;
 
     void StartAsyncConnect(ContactPoint contact_point, Port port);
-    void WaitAsyncConnect(userver::engine::Deadline deadline, ContactPoint contact_point, Port port);
+    void WaitAsyncConnect(
+        userver::engine::Deadline deadline, ContactPoint contact_point, Port port
+    );
 
     void SendMessage(io::protocol::RequestMessage&& message);
     std::shared_ptr<io::protocol::ResponseMessage> WaitForResult();
 
     userver::engine::Task Close();
+
+    io::protocol::CompressorPtr _compressor_ptr;
 };
 }  // namespace cassandra::detail

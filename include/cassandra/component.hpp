@@ -10,7 +10,10 @@
 namespace components {
 class Cassandra final : public userver::components::ComponentBase {
 public:
-    Cassandra(const userver::components::ComponentConfig& config, const userver::components::ComponentContext& context);
+    Cassandra(
+        const userver::components::ComponentConfig& config,
+        const userver::components::ComponentContext& context
+    );
 
     cassandra::SessionPtr GetSessionPtr() const;
 

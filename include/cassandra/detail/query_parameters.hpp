@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cassandra/cassandra_fwd.hpp>
+#include <cassandra/io/protocol/types.hpp>
+#include <cstddef>
 
 namespace cassandra::detail {
 class QueryParameters {
@@ -9,23 +11,37 @@ public:
 
     template <class ParamsHolder>
     explicit QueryParameters(ParamsHolder& ph)
-        : size_(ph.Size()),
-          values_(ph.ParamBuffers()),
-          lengths_(ph.ParamLengthsBuffer()),
-          formats_(ph.ParamFormatsBuffer()) {}
+        : _values(ph.ParamBuffers()), _names(ph.ParamNames()) {}
 
-    bool Empty() const { return size_ == 0; }
-    std::size_t Size() const { return size_; }
-    const char* const* ParamBuffers() const { return values_; }
-    const int* ParamLengthsBuffer() const { return lengths_; }
-    const int* ParamFormatsBuffer() const { return formats_; }
-
-    std::size_t TypeHash() const;
+    bool Empty() const { return !_size; }
+    std::size_t Size() const { return _size; }
 
 private:
-    std::size_t size_ = 0;
-    const char* const* values_ = nullptr;
-    const int* lengths_ = nullptr;
-    const int* formats_ = nullptr;
+    std::size_t _size = 0;
+    const std::byte* const* _values = nullptr;
+    const char* const* _names = nullptr;
+};
+
+template <std::size_t ParamsCount>
+class StaticQueryParameters {
+public:
+    StaticQueryParameters() = default;
+    StaticQueryParameters(const StaticQueryParameters&) = delete;
+    StaticQueryParameters(StaticQueryParameters&&) = delete;
+    StaticQueryParameters& operator=(const StaticQueryParameters&) = delete;
+    StaticQueryParameters& operator=(StaticQueryParameters&&) = delete;
+    
+    template <typename T>
+    void Write(std::size_t index,  const T& arg) {
+        
+    }
+    
+    template<typename... Args>
+    void Write(const Args&... args){
+        std::size_t index = 0;
+        (Write(index++, args),...);
+    }
+
+private:
 };
 }  // namespace cassandra::detail

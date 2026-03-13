@@ -21,7 +21,9 @@ SessionImpl::SessionImpl(
 
 void SessionImpl::CreateTopology(std::vector<NodeDescription> node_description) {
     if (node_description.empty()) {
-        throw exceptions::SessionError{"Cannont create session from an empty node list"};
+        throw exceptions::SessionError{
+            "Cannont create session from an empty node list"
+        };
     }
 
     auto session_settings = _session_settings.Read();

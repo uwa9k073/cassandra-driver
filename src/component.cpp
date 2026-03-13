@@ -127,25 +127,41 @@ Cassandra::Cassandra(
     const userver::components::ComponentConfig& config,
     const userver::components::ComponentContext& context
 )
-    : userver::components::ComponentBase(config, context), _database(std::make_shared<cassandra::Database>()) {
+    : userver::components::ComponentBase(config, context),
+      _database(std::make_shared<cassandra::Database>()) {
     auto* resolver = userver::clients::dns::GetResolverPtr(config, context);
 
     std::string keyspace = config["keyspace"].As<std::string>();
     auto& secdist = context.FindComponent<userver::components::Secdist>();
-    auto cluster_desc = secdist.Get().Get<cassandra::CassandraSecdist>().GetShardedClusterDescription(keyspace);
+    auto cluster_desc = secdist.Get()
+                            .Get<cassandra::CassandraSecdist>()
+                            .GetShardedClusterDescription(keyspace);
 
-    const auto task_processor_name = config["blocking_task_processor"].As<std::optional<std::string>>();
-    auto& bg_task_processor = task_processor_name ? context.GetTaskProcessor(*task_processor_name)
-                                                  : userver::engine::current_task::GetBlockingTaskProcessor();
+    const auto task_processor_name =
+        config["blocking_task_processor"].As<std::optional<std::string>>();
+    auto& bg_task_processor =
+        task_processor_name
+            ? context.GetTaskProcessor(*task_processor_name)
+            : userver::engine::current_task::GetBlockingTaskProcessor();
 
-    auto metrics = context.FindComponent<userver::components::StatisticsStorage>().GetMetricsStorage();
+    auto metrics = context.FindComponent<userver::components::StatisticsStorage>()
+                       .GetMetricsStorage();
 
-    cassandra::SessionSettings session_settings{.keyspace_name = keyspace, .pool_settings = {}};
-    _database->_session =
-        std::make_shared<cassandra::Session>(cluster_desc, resolver, bg_task_processor, session_settings, metrics);
+    cassandra::SessionSettings session_settings{
+        .keyspace_name = keyspace, .pool_settings = {}
+    };
+    _database->_session = std::make_shared<cassandra::Session>(
+        cluster_desc, resolver, bg_task_processor, session_settings, metrics
+    );
     LOG_DEBUG("Component ready");
 }
 userver::yaml_config::Schema Cassandra::GetStaticConfigSchema() {
-    return userver::yaml_config::MergeSchemas<userver::components::ComponentBase>(kSimpleStaticConfigSchema);
+    return userver::yaml_config::MergeSchemas<userver::components::ComponentBase>(
+        kSimpleStaticConfigSchema
+    );
+}
+
+cassandra::SessionPtr Cassandra::GetSessionPtr() const {
+    return _database->GetSessionPtr();
 }
 }  // namespace components

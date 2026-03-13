@@ -35,16 +35,24 @@ struct AddrinfoDeleter {
 };
 using AddrinfoPtr = std::unique_ptr<struct addrinfo, AddrinfoDeleter>;
 
-userver::clients::dns::AddrVector GetAddrInfo(ContactPoint contact_point, Port port) {
+userver::clients::dns::AddrVector GetAddrInfo(
+    ContactPoint contact_point, Port port
+) {
     struct addrinfo hints {
     }, *ai_result_raw = nullptr;
 
-    hints.ai_family = static_cast<int>(userver::engine::io::AddrDomain::kUnspecified);
+    hints.ai_family =
+        static_cast<int>(userver::engine::io::AddrDomain::kUnspecified);
     hints.ai_socktype = SOCK_STREAM;
 
     userver::utils::zstring_view port_string = std::to_string(port.GetUnderlying());
 
-    if (getaddrinfo(contact_point.GetUnderlying().c_str(), port_string.c_str(), &hints, &ai_result_raw)) {
+    if (getaddrinfo(
+            contact_point.GetUnderlying().c_str(),
+            port_string.c_str(),
+            &hints,
+            &ai_result_raw
+        )) {
         LOG_DEBUG("Unknown Host: {}", contact_point.GetUnderlying());
         return {};
     }
@@ -100,15 +108,22 @@ std::unique_ptr<Connection> Connection::Connect(
     userver::engine::SemaphoreLock&& size_lock,
     userver::utils::statistics::MetricsStoragePtr metrics
 ) {
-    const auto deadline = userver::engine::Deadline::FromDuration(kMinConnectTimeout);
+    const auto deadline =
+        userver::engine::Deadline::FromDuration(kMinConnectTimeout);
     std::unique_ptr<Connection> conn(new Connection());
 
     conn->_pimpl = std::make_unique<ConnectionImpl>(
-        bg_task_processor, bg_task_storage, settings, std::move(size_lock), std::move(metrics)
+        bg_task_processor,
+        bg_task_storage,
+        settings,
+        std::move(size_lock),
+        std::move(metrics)
     );
 
-    auto resolved = TryResolveContactPoint(description.contact_point, description.port, resolver, deadline);
-    conn->_pimpl->AsyncConnect(resolved, deadline);
+    auto resolved = TryResolveContactPoint(
+        description.contact_point, description.port, resolver, deadline
+    );
+    conn->_pimpl->AsyncConnect(resolved, description.use_compression, deadline);
 
     return conn;
 }

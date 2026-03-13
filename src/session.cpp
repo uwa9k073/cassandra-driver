@@ -14,7 +14,11 @@ Session::Session(
     userver::utils::statistics::MetricsStoragePtr metrics_storage
 ) {
     _pimpl = std::make_unique<detail::SessionImpl>(
-        std::move(node_description), resolver, task_processor, session_settings, std::move(metrics_storage)
+        std::move(node_description),
+        resolver,
+        task_processor,
+        session_settings,
+        std::move(metrics_storage)
     );
 }
 

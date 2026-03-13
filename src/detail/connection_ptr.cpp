@@ -3,9 +3,12 @@
 #include "connection_pool.hpp"
 
 namespace cassandra::detail {
-ConnectionPtr::ConnectionPtr(std::unique_ptr<Connection>&& conn) : _connection_ptr(std::move(conn)) {}
+ConnectionPtr::ConnectionPtr(std::unique_ptr<Connection>&& conn)
+    : _connection_ptr(std::move(conn)) {}
 
-ConnectionPtr::ConnectionPtr(Connection* conn, std::shared_ptr<ConnectionPool>&& pool)
+ConnectionPtr::ConnectionPtr(
+    Connection* conn, std::shared_ptr<ConnectionPool>&& pool
+)
     : _pool_ptr(std::move(pool)), _connection_ptr(conn) {
     UASSERT_MSG(_pool_ptr, "This constructor requires non-empty parent pool");
 }
@@ -30,9 +33,13 @@ Connection& ConnectionPtr::operator*() const {
     return *_connection_ptr;
 }
 
-Connection* ConnectionPtr::operator->() const noexcept { return _connection_ptr.get(); }
+Connection* ConnectionPtr::operator->() const noexcept {
+    return _connection_ptr.get();
+}
 
-void ConnectionPtr::Reset(std::unique_ptr<Connection> conn, std::shared_ptr<ConnectionPool> pool) {
+void ConnectionPtr::Reset(
+    std::unique_ptr<Connection> conn, std::shared_ptr<ConnectionPool> pool
+) {
     Release();
     _connection_ptr = std::move(conn);
     _pool_ptr = std::move(pool);

@@ -37,7 +37,11 @@ struct CommonStringBinaryParser : BufferParserBase<std::string> {
         auto size = Read<SizeType>(data, offset);
         this->value.reserve(size);
         this->value.resize(size);
-        std::memcpy(this->value.data(), reinterpret_cast<const char*>(data.data()) + offset, size);
+        std::memcpy(
+            this->value.data(),
+            reinterpret_cast<const char*>(data.data()) + offset,
+            size
+        );
         offset += size;
     }
 };
@@ -54,14 +58,19 @@ struct StringBinaryFormatter {
         auto offset = buffer.size();
         buffer.reserve(offset + size);
         buffer.resize(offset + size);
-        std::memcpy(buffer.data() + offset, reinterpret_cast<const std::byte*>(value.GetUnderlying().data()), size);
+        std::memcpy(
+            buffer.data() + offset,
+            reinterpret_cast<const std::byte*>(value.GetUnderlying().data()),
+            size
+        );
     }
 };
 
 struct CommonStringBinaryFormatter {
     using SizeType = Short;
     std::string value;
-    explicit CommonStringBinaryFormatter(const std::string& val) : value(val.data(), val.size()) {}
+    explicit CommonStringBinaryFormatter(const std::string& val)
+        : value(val.data(), val.size()) {}
 
     void operator()(protocol::RawBuffer& buffer) const {
         auto size = static_cast<SizeType>(value.size());
@@ -69,7 +78,11 @@ struct CommonStringBinaryFormatter {
         auto offset = buffer.size();
         buffer.reserve(offset + size);
         buffer.resize(offset + size);
-        std::memcpy(buffer.data() + offset, reinterpret_cast<const std::byte*>(value.data()), size);
+        std::memcpy(
+            buffer.data() + offset,
+            reinterpret_cast<const std::byte*>(value.data()),
+            size
+        );
     }
 };
 
@@ -100,7 +113,8 @@ struct BufferParser<std::string> : CommonStringBinaryParser {
 
 template <>
 struct BufferFormatter<std::string> : CommonStringBinaryFormatter {
-    explicit BufferFormatter(const std::string& val) : CommonStringBinaryFormatter(val) {}
+    explicit BufferFormatter(const std::string& val)
+        : CommonStringBinaryFormatter(val) {}
 };
 
 }  // namespace cassandra::io::detail

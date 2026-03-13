@@ -15,7 +15,9 @@
 
 namespace cassandra::detail {
 
-std::shared_ptr<StreamPool> ConnectionPool::GetStreamPool() { return _stream_pool_ptr; }
+std::shared_ptr<StreamPool> ConnectionPool::GetStreamPool() {
+    return _stream_pool_ptr;
+}
 
 constexpr auto kUnlimitedConnecting = std::numeric_limits<std::size_t>::max();
 
@@ -39,7 +41,10 @@ ConnectionPool::ConnectionPool(
       _queue(ConnectionQueue::Create()),
       _conn_consumer(_queue->GetMultiConsumer()),
       _conn_producer(_queue->GetMultiProducer()),
-      size_semaphore_(settings.connecting_limit ? settings.connecting_limit : kUnlimitedConnecting),
+      size_semaphore_(
+          settings.connecting_limit ? settings.connecting_limit
+                                    : kUnlimitedConnecting
+      ),
       connecting_semaphore_(kUnlimitedConnecting),
       _metrics(std::move(metrics)) {}
 
@@ -54,7 +59,13 @@ std::shared_ptr<ConnectionPool> ConnectionPool::Create(
     userver::utils::statistics::MetricsStoragePtr metrics
 ) {
     auto impl = std::make_shared<ConnectionPool>(
-        description, resolver, bg_task_processor, keyspace, settings, connection_settings, metrics
+        description,
+        resolver,
+        bg_task_processor,
+        keyspace,
+        settings,
+        connection_settings,
+        metrics
     );
 
     impl->Init(init_mode);
@@ -65,11 +76,16 @@ void ConnectionPool::Init(InitMode init_mode) {
     auto settings = _settings.Read();
 
     if (settings->min_size > settings->max_size) {
-        throw exceptions::InvalidConfig("Cassandra pool max size is less than requested initial size");
+        throw exceptions::InvalidConfig(
+            "Cassandra pool max size is less than requested initial "
+            "size"
+        );
     }
 
     LOG_INFO(
-        "{} initializing Cassandra connection pool, creating up to {} connections to {}:{}",
+        "{} initializing Cassandra connection pool, creating up to "
+        "{} "
+        "connections to {}:{}",
         init_mode == InitMode::kAsync ? "Asynchronously" : "Synchronously",
         settings->min_size,
         _description.contact_point.GetUnderlying(),
@@ -85,7 +101,8 @@ void ConnectionPool::Init(InitMode init_mode) {
     for (std::size_t i = 0; i < tasks.capacity(); ++i) {
         // Push connect task
         tasks.push_back(Connect(
-            userver::engine::SemaphoreLock{size_semaphore_, std::try_to_lock}, ConnectionSettings{connection_settings}
+            userver::engine::SemaphoreLock{size_semaphore_, std::try_to_lock},
+            ConnectionSettings{connection_settings}
         ));
     }
 
@@ -101,11 +118,13 @@ void ConnectionPool::Init(InitMode init_mode) {
         try {
             const auto success = t.Get();
             if (!success) {
-                LOG_ERROR() << "Failed to establish connection to Cassandra server";
+                LOG_ERROR() << "Failed to establish connection to "
+                               "Cassandra server";
             }
         } catch (const std::exception& e) {
             LOG_ERROR(
-                "Failed to establish connection with Cassandra server {}:{}: ",
+                "Failed to establish connection with Cassandra "
+                "server {}:{}: ",
                 _description.contact_point.GetUnderlying(),
                 _description.port.GetUnderlying()
             ) << e;
@@ -113,21 +132,30 @@ void ConnectionPool::Init(InitMode init_mode) {
     }
 }
 
-userver::engine::TaskWithResult<bool>
-ConnectionPool::Connect(userver::engine::SemaphoreLock lock, ConnectionSettings&& conn_settings) {
-    return userver::engine::AsyncNoSpan([this, size_lock = std::move(lock), conn_settings = std::move(conn_settings)](
-                                        ) mutable {
+userver::engine::TaskWithResult<bool> ConnectionPool::Connect(
+    userver::engine::SemaphoreLock lock, ConnectionSettings&& conn_settings
+) {
+    return userver::engine::AsyncNoSpan([this,
+                                         size_lock = std::move(lock),
+                                         conn_settings =
+                                             std::move(conn_settings)]() mutable {
         if (!size_lock) {
-            size_lock = userver::engine::SemaphoreLock{size_semaphore_, kConnectingTimeout};
+            size_lock =
+                userver::engine::SemaphoreLock{size_semaphore_, kConnectingTimeout};
         }
         return DoConnect(std::move(size_lock), std::move(conn_settings));
     });
 }
-bool ConnectionPool::DoConnect(userver::engine::SemaphoreLock size_lock, ConnectionSettings&& conn_settings) {
+bool ConnectionPool::DoConnect(
+    userver::engine::SemaphoreLock size_lock, ConnectionSettings&& conn_settings
+) {
     if (!size_lock) return false;
-    LOG_TRACE() << "Creating Cassandra connection, current pool size: " << size_semaphore_.UsedApprox();
+    LOG_TRACE() << "Creating Cassandra connection, current pool size: "
+                << size_semaphore_.UsedApprox();
 
-    const userver::engine::SemaphoreLock connecting_lock{connecting_semaphore_, kConnectingTimeout};
+    const userver::engine::SemaphoreLock connecting_lock{
+        connecting_semaphore_, kConnectingTimeout
+    };
     if (!connecting_lock) {
         LOG_WARNING() << "Pool has too many establishing connections";
         return false;
@@ -174,12 +202,16 @@ constexpr std::chrono::seconds kRecentErrorPeriod{15};
 constexpr auto kPendingConnectsMax{1};
 void ConnectionPool::TryCreateConnectionAsync() {
     auto conn_settings = _connection_settings.ReadCopy();
-    // Checking errors is more expensive than incrementing an atomic, so we
-    // check it only if we can start a new connection.
-    if (recent_conn_errors_.GetStatsForPeriod(kRecentErrorPeriod, true) < conn_settings.recent_errors_threshold) {
+    // Checking errors is more expensive than incrementing an atomic,
+    // so we check it only if we can start a new connection.
+    if (recent_conn_errors_.GetStatsForPeriod(kRecentErrorPeriod, true) <
+        conn_settings.recent_errors_threshold) {
         userver::engine::SemaphoreLock size_lock{size_semaphore_, std::try_to_lock};
-        if (size_lock || _connect_task_storage.ActiveTasksApprox() <= kPendingConnectsMax) {
-            _connect_task_storage.Detach(Connect(std::move(size_lock), std::move(conn_settings)));
+        if (size_lock ||
+            _connect_task_storage.ActiveTasksApprox() <= kPendingConnectsMax) {
+            _connect_task_storage.Detach(
+                Connect(std::move(size_lock), std::move(conn_settings))
+            );
         }
     } else {
         LOG_DEBUG() << "Too many connection errors in recent period";
@@ -188,12 +220,16 @@ void ConnectionPool::TryCreateConnectionAsync() {
 
 Connection* ConnectionPool::Pop(userver::engine::Deadline deadline) {
     if (userver::engine::current_task::ShouldCancel()) {
-        throw exceptions::PoolError("Task was cancelled before trying to get a connection");
+        throw exceptions::PoolError(
+            "Task was cancelled before trying to get a connection"
+        );
     }
 
     if (deadline.IsReached()) {
         // ++stats_.connection.error_timeout;
-        throw exceptions::PoolError("Deadline reached before trying to get a connection");
+        throw exceptions::PoolError(
+            "Deadline reached before trying to get a connection"
+        );
     }
     Connection* connection = nullptr;
     auto conn_settings = _connection_settings.Read();
@@ -211,12 +247,14 @@ Connection* ConnectionPool::Pop(userver::engine::Deadline deadline) {
         return connection;
     }
     if (userver::engine::current_task::ShouldCancel()) {
-        throw exceptions::PoolError("Task was cancelled while waiting for connection");
+        throw exceptions::PoolError("Task was cancelled while waiting for connection"
+        );
     }
 
     throw exceptions::PoolError(
         fmt::format(
-            "No available connections found. Connecting: {}. Max concurrent "
+            "No available connections found. Connecting: {}. Max "
+            "concurrent "
             "connecting: {}. Active: {}. Max active {}",
             connecting_semaphore_.UsedApprox(),
             connecting_semaphore_.GetCapacity(),

@@ -41,7 +41,6 @@ TEST(ScalarTypesIO, Double) {
     EXPECT_EQ(actual_value, value);
 }
 
-
 TEST(ListTypesIO, IntegralVector) {
     cassandra::io::protocol::Buffer buffer;
 

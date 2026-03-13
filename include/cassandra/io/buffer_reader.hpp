@@ -11,11 +11,14 @@
 namespace cassandra::io {
 class BufferReader {
 public:
-    explicit BufferReader(std::span<const std::byte> data) noexcept : data_(data), offset_(0) {}
+    explicit BufferReader(std::span<const std::byte> data) noexcept
+        : data_(data), offset_(0) {}
 
     // ===== Core API =====
     [[nodiscard]] size_t Offset() const noexcept { return offset_; }
-    [[nodiscard]] size_t Remaining() const noexcept { return data_.size() - offset_; }
+    [[nodiscard]] size_t Remaining() const noexcept {
+        return data_.size() - offset_;
+    }
     [[nodiscard]] bool Empty() const noexcept { return offset_ >= data_.size(); }
 
     template <class T>

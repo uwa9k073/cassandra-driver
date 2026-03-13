@@ -18,7 +18,7 @@ add_library(
 
 add_library(userver::cassandra ALIAS ${PROJECT_NAME})
 
-target_link_libraries(${PROJECT_NAME} PUBLIC userver::core)
+target_link_libraries(${PROJECT_NAME} PUBLIC userver::core lz4)
 
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

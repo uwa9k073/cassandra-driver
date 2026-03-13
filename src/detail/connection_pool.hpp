@@ -42,8 +42,8 @@ public:
     std::shared_ptr<StreamPool> GetStreamPool();
 
 private:
-    using RecentCounter =
-        userver::utils::statistics::RecentPeriod<userver::utils::statistics::RelaxedCounter<size_t>, size_t>;
+    using RecentCounter = userver::utils::statistics::
+        RecentPeriod<userver::utils::statistics::RelaxedCounter<size_t>, size_t>;
 
     void Init(InitMode mode);
     void Clear();
@@ -56,8 +56,9 @@ private:
     void DropExpiredConnection(Connection* connection);
     void DropOutdatedConnection(Connection* connection);
 
-    [[nodiscard]] userver::engine::TaskWithResult<bool>
-    Connect(userver::engine::SemaphoreLock lock, ConnectionSettings&& conn_settings);
+    [[nodiscard]] userver::engine::TaskWithResult<bool> Connect(
+        userver::engine::SemaphoreLock lock, ConnectionSettings&& conn_settings
+    );
     bool DoConnect(userver::engine::SemaphoreLock, ConnectionSettings&&);
 
     NodeDescription _description;

@@ -4,6 +4,10 @@
 
 namespace cassandra::io::protocol {
 
+enum class CompressionType {
+    kNone,
+    kLz4,
+};
 /// Base class for all CQL protocol messages
 class Message {
 public:

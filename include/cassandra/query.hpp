@@ -13,7 +13,8 @@ public:
     Query& operator=(const Query& other) = default;
     Query& operator=(Query&& other) = default;
 
-    constexpr Query(userver::utils::StringLiteral statement) : data_{StaticStrings{statement}} {}
+    constexpr Query(userver::utils::StringLiteral statement)
+        : data_{StaticStrings{statement}} {}
 
     Query(const char* statement) : Query(std::string{statement}) {}
     Query(std::string statement) : data_{DynamicStrings{std::move(statement)}} {}
@@ -26,6 +27,7 @@ private:
         userver::utils::StringLiteral statement;
     };
 
-    std::variant<StaticStrings, DynamicStrings> data_ = StaticStrings{userver::utils::StringLiteral{""}};
+    std::variant<StaticStrings, DynamicStrings> data_ =
+        StaticStrings{userver::utils::StringLiteral{""}};
 };
 }  // namespace cassandra

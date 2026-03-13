@@ -83,7 +83,7 @@ void Write(protocol::RawBuffer& data, const T& value) {
 }
 
 template <class It, class T>
-void WriteIntBE(It begin, It end, const T value) {
+void WriteIntBE(It begin, It end, const T& value) {
     size_t size = sizeof(T);
     if ((size_t)(end - begin) < size) {
         throw std::out_of_range("buffer is too small");

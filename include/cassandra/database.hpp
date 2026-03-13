@@ -2,7 +2,6 @@
 
 #include <cassandra/cassandra_fwd.hpp>
 #include <cassandra/database_fwd.hpp>
-#include <cstddef>
 
 namespace components {
 class Cassandra;
@@ -11,7 +10,7 @@ class Cassandra;
 namespace cassandra {
 class Database {
 public:
-    SessionPtr GetSession() const;
+    SessionPtr GetSessionPtr() const;
 
 private:
     friend class components::Cassandra;

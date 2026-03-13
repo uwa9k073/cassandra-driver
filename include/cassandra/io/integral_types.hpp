@@ -12,7 +12,9 @@ struct IntegralBinaryParser : BufferParserBase<T> {
     using BaseType = BufferParserBase<T>;
     using BaseType::BaseType;
 
-    void operator()(std::span<const std::byte> data, size_t& offset) { this->value = ReadIntBE<T>(data, offset); }
+    void operator()(std::span<const std::byte> data, size_t& offset) {
+        this->value = ReadIntBE<T>(data, offset);
+    }
 };
 
 template <typename T>

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassandra/cassandra_fwd.hpp>
+#include <cassandra/io/cassandra_types.hpp>
 #include <optional>
 #include <string>
 
@@ -8,18 +9,18 @@ namespace cassandra {
 
 enum class InitMode { kSync, kAsync };
 
-enum class Consistency {
-    kAny,
-    kOne,
-    kTwo,
-    kThree,
-    kQuorum,
-    kAll,
-    kLocalQuorum,
-    kEachQuorum,
-    kSerial,
-    kLocalSerial,
-    kLocalOne
+enum class Consistency : io::Short {
+    kAny = 0x0000,
+    kOne = 0x0001,
+    kTwo = 0x0002,
+    kThree = 0x0003,
+    kQuorum = 0x0004,
+    kAll = 0x0005,
+    kLocalQuorum = 0x0006,
+    kEachQuorum = 0x0007,
+    kSerial = 0x0008,
+    kLocalSerial = 0x0009,
+    kLocalOne = 0x000A
 };
 
 struct CommandControl {
@@ -30,23 +31,31 @@ struct CommandControl {
 
     enum class PreparedStatementsOptionOverride { kNoOverride, kEnabled, kDisabled };
 
-    PreparedStatementsOptionOverride prepared_statements_enabled{PreparedStatementsOptionOverride::kNoOverride};
+    PreparedStatementsOptionOverride prepared_statements_enabled{
+        PreparedStatementsOptionOverride::kNoOverride
+    };
 
     constexpr CommandControl(
         TimeoutDuration network_timeout_ms,
         TimeoutDuration statement_timeout_ms,
-        PreparedStatementsOptionOverride prepared_statements_enabled = PreparedStatementsOptionOverride::kNoOverride
+        PreparedStatementsOptionOverride prepared_statements_enabled =
+            PreparedStatementsOptionOverride::kNoOverride
     )
         : network_timeout_ms(network_timeout_ms),
           statement_timeout_ms(statement_timeout_ms),
           prepared_statements_enabled(prepared_statements_enabled) {}
 
-    constexpr CommandControl WithExecuteTimeout(TimeoutDuration n) const noexcept { return {n, statement_timeout_ms}; }
+    constexpr CommandControl WithExecuteTimeout(TimeoutDuration n) const noexcept {
+        return {n, statement_timeout_ms};
+    }
 
-    constexpr CommandControl WithStatementTimeout(TimeoutDuration s) const noexcept { return {network_timeout_ms, s}; }
+    constexpr CommandControl WithStatementTimeout(TimeoutDuration s) const noexcept {
+        return {network_timeout_ms, s};
+    }
 
     bool operator==(const CommandControl& rhs) const {
-        return network_timeout_ms == rhs.network_timeout_ms && statement_timeout_ms == rhs.statement_timeout_ms &&
+        return network_timeout_ms == rhs.network_timeout_ms &&
+               statement_timeout_ms == rhs.statement_timeout_ms &&
                prepared_statements_enabled == rhs.prepared_statements_enabled;
     }
 
@@ -78,11 +87,13 @@ struct PoolSettings final {
     /// Maximum number of clients waiting for a connection
     std::size_t max_queue_size{kDefaultPoolMaxQueueSize};
 
-    /// Limits number of concurrent establishing connections (0 - unlimited)
+    /// Limits number of concurrent establishing connections (0 -
+    /// unlimited)
     std::size_t connecting_limit{kDefaultConnectingLimit};
 
     bool operator==(const PoolSettings& rhs) const {
-        return min_size == rhs.min_size && max_size == rhs.max_size && max_queue_size == rhs.max_queue_size &&
+        return min_size == rhs.min_size && max_size == rhs.max_size &&
+               max_queue_size == rhs.max_queue_size &&
                connecting_limit == rhs.connecting_limit;
     }
 };

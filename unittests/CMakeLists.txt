@@ -1,7 +1,7 @@
 
 
 # Unit Tests
-add_executable(${PROJECT_NAME}_unittest io_test.cpp)
+add_executable(${PROJECT_NAME}_unittest io_test.cpp compress_test.cpp)
 
 target_link_libraries(${PROJECT_NAME}_unittest PRIVATE userver::cassandra userver::utest)
 target_include_directories(${PROJECT_NAME}_unittest PRIVATE ../include)

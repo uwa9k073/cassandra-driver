@@ -4,7 +4,9 @@
 namespace cassandra::detail {
 
 StreamPool::StreamPool()
-    : _queue(StreamIdQueue::Create()), _consumer(_queue->GetMultiConsumer()), _producer(_queue->GetMultiProducer()) {
+    : _queue(StreamIdQueue::Create()),
+      _consumer(_queue->GetMultiConsumer()),
+      _producer(_queue->GetMultiProducer()) {
     for (size_t i = 0; i < kTotalStreams; ++i) {
         auto value = i;
         [[maybe_unused]] auto _ = _producer.PushNoblock(std::move(value));
@@ -14,12 +16,15 @@ std::int16_t StreamPool::Acquire() {
     std::int16_t value;
     if (!_consumer.PopNoblock(value)) {
         LOG_WARNING("FAILED TO ACQUIRE STREAM");
+        // 0 is sync stream, -1 is a stream id of Cassandra response
         return -2;
     }
 
     return value;
 }
 
-void StreamPool::Release(std::int16_t id) { [[maybe_unused]] auto _ = _producer.PushNoblock(std::move(id)); }
+void StreamPool::Release(std::int16_t id) {
+    [[maybe_unused]] auto _ = _producer.PushNoblock(std::move(id));
+}
 
 }  // namespace cassandra::detail
