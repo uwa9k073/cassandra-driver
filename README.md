@@ -1,6 +1,6 @@
 # userver-cql-driver
 
-Сервис для хранения информации о сотрудниках
+Драйвер Apache Cassandra (Native Protocol V4) основанный на фреймворке Userver.
 
 ## Download and Build
 
