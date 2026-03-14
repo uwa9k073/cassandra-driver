@@ -1,0 +1,227 @@
+#include <netinet/tcp.h>
+#include <algorithm>
+#include <cassandra/io/protocol/frame.hpp>
+#include <cassandra/io/protocol/message.hpp>
+#include <cassandra/node_description.hpp>
+#include <cassandra/query.hpp>
+#include <chrono>
+#include <cstdint>
+#include <cstdlib>
+#include <detail/connection_impl.hpp>
+#include <memory>
+#include <userver/clients/dns/common.hpp>
+#include <userver/concurrent/background_task_storage.hpp>
+#include <userver/engine/deadline.hpp>
+#include <userver/engine/io/common.hpp>
+#include <userver/engine/io/exception.hpp>
+#include <userver/engine/io/sockaddr.hpp>
+#include <userver/engine/io/socket.hpp>
+#include <userver/formats/json/serialize.hpp>
+#include <userver/formats/json/value.hpp>
+#include <userver/formats/json/value_builder.hpp>
+#include <userver/formats/serialize/common_containers.hpp>
+#include <userver/logging/log.hpp>
+#include <userver/tracing/span.hpp>
+#include <userver/tracing/tags.hpp>
+#include <utility>
+namespace cassandra::detail {
+ConnectionImpl::ConnectionImpl(
+    userver::engine::TaskProcessor& tp,
+    userver::concurrent::BackgroundTaskStorageCore& bts,
+    ConnectionSettings settings,
+    userver::engine::SemaphoreLock&& pool_size_lock,
+    userver::utils::statistics::MetricsStoragePtr metrics
+)
+    : bg_task_processor_(tp),
+      bg_task_storage_(bts),
+      settings_(settings),
+      pool_size_lock_(std::move(pool_size_lock)),
+      _metrics(std::move(metrics)) {}
+
+ConnectionImpl::~ConnectionImpl() { bg_task_storage_.Detach(Close()); }
+
+userver::engine::Task ConnectionImpl::Close() {
+    userver::engine::io::Socket tmp_sock = std::exchange(_socket, {});
+
+    // NOLINTNEXTLINE(cppcoreguidelines-slicing)
+    return userver::engine::CriticalAsyncNoSpan(
+        bg_task_processor_,
+        [socket = std::move(tmp_sock), sl = std::move(pool_size_lock_)]() mutable {
+            if (socket) {
+                int _ = std::move(socket).Release();
+            }
+        }
+    );
+}
+void ConnectionImpl::AsyncConnect(
+    userver::clients::dns::AddrVector addresses,
+    bool use_compression,
+    userver::engine::Deadline deadline
+) {
+    for (auto addr : addresses) {
+        try {
+            userver::engine::io::Socket socket{
+                addr.Domain(), userver::engine::io::SocketType::kTcp
+            };
+            socket.SetOption(IPPROTO_TCP, TCP_NODELAY, 1);
+            socket.Connect(addr, deadline);
+            _socket = std::move(socket);
+            break;
+        } catch (userver::engine::io::IoException& e) {
+            LOG_DEBUG("Cannot connect to {}: ", addr.PrimaryAddressString()) << e;
+        }
+    }
+
+    if (!_socket.IsValid()) {
+        LOG_DEBUG("SOCKET NOT READY");
+        return;
+    }
+    LOG_DEBUG("CASSANDRA SOCKET READY");
+
+    // SENDING OPTIONS
+    SendMessage(io::protocol::OptionsMessage{});
+    LOG_DEBUG("SENDED OPTIONS MESSAGE");
+    // RECEIVE SUPPORT
+    auto support_message = WaitForResult();
+
+    auto options =
+        reinterpret_cast<io::protocol::SupportMessage*>(support_message.get())
+            ->GetOptions();
+
+    auto compression_options = options.at(io::String("COMPRESSION"));
+
+    auto json = userver::formats::json::ValueBuilder{options}.ExtractValue();
+
+    LOG_DEBUG("CASSANDRA OPTIONS: {}", userver::formats::json::ToString(json));
+    // CONFIGURE COMPRESSION
+    // SEND STARTUP
+
+    if (std::ranges::find(compression_options, io::String("lz4")) !=
+            compression_options.end() &&
+        use_compression) {
+        _compressor_ptr = std::make_unique<io::protocol::Lz4Compressor>();
+        SendMessage(io::protocol::StartupMessage{"lz4"});
+    } else {
+        SendMessage(io::protocol::StartupMessage{});
+    }
+
+    auto message = WaitForResult();
+
+    if (message->GetOpcode() == io::protocol::Opcode::kReady) {
+        LOG_DEBUG("RECEIVED READY MESSAGE");
+    }
+}
+
+void ConnectionImpl::SendMessage(io::protocol::RequestMessage&& message) {
+    io::protocol::RawBuffer buffer;
+    message.Serialize(buffer);
+
+    auto returned_len =
+        _socket.SendAll(buffer.data(), buffer.size(), userver::engine::Deadline{});
+    if (returned_len != buffer.size()) {
+        LOG_ERROR("Failed to send message");
+    }
+}
+
+std::shared_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(
+    io::protocol::FrameHeader&& header
+) {
+    auto opcode = header.opcode;
+    auto direction = static_cast<io::protocol::MessageDirection>(header.version);
+    if (direction != io::protocol::MessageDirection::kResponse) {
+        LOG_ERROR("Unexpected message direction");
+        throw std::runtime_error("Unexpected message direction");
+    }
+    switch (opcode) {
+        case io::protocol::Opcode::kSupported:
+            return std::make_shared<io::protocol::SupportMessage>(std::move(header));
+        case io::protocol::Opcode::kReady:
+            return std::make_shared<io::protocol::ReadyMessage>(std::move(header));
+        case io::protocol::Opcode::kAuthenticate:
+            return std::make_shared<io::protocol::AuthentificateMessage>(
+                std::move(header)
+            );
+        case io::protocol::Opcode::kError:
+            return std::make_shared<io::protocol::ErrorMessage>(std::move(header));
+        case io::protocol::Opcode::kResult:
+            return std::make_shared<io::protocol::ResultMessage>(std::move(header));
+        default:
+            throw std::runtime_error("Unexpected opcode");
+    }
+}
+
+std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::WaitForResult() {
+    constexpr size_t kHeaderSize = io::protocol::FrameHeader::kHeaderSize;
+    io::protocol::RawBuffer header_buffer(kHeaderSize);
+
+    auto len = _socket.RecvSome(
+        header_buffer.data(),
+        kHeaderSize,
+        userver::engine::Deadline::FromDuration(std::chrono::seconds{15})
+    );
+    if (len <= 0) {
+        LOG_ERROR() << "Socket closed or timeout";
+        throw std::runtime_error("Socket read failed");
+    }
+
+    auto header = io::protocol::ResponseMessage::ParseHeader(header_buffer);
+
+    LOG_DEBUG() << "Received cassandra message opcode: "
+                << static_cast<uint8_t>(header.opcode);
+    auto message = GetResponseMessageFromHeader(std::move(header));
+    LOG_DEBUG("MESSAGE NOT EMPTY: {}", message != nullptr);
+    LOG_DEBUG() << "Received cassandra body len: " << message->GetHeader().length;
+
+    size_t body_length = message->GetHeader().length;
+    io::protocol::RawBuffer body_buffer;
+    body_buffer.resize(body_length);
+
+    len = _socket.RecvSome(
+        body_buffer.data(),
+        body_length,
+        userver::engine::Deadline::FromDuration(std::chrono::seconds{15})
+    );
+    if (len < body_length) {
+        LOG_ERROR() << "Socket closed or timeout";
+        throw std::runtime_error("Socket read failed");
+    }
+
+    LOG_DEBUG() << "BUFFER SIZE: "
+                << body_buffer.size();  // Will now correctly print 102
+    message->ParseBody(body_buffer);
+
+    if (message->GetOpcode() == io::protocol::Opcode::kError) {
+        auto error_message =
+            reinterpret_cast<io::protocol::ErrorMessage*>(message.get());
+        LOG_WARNING(
+            "RECEIVED ERROR MESSAGE: code={}, message={}",
+            error_message->GetErrorCode(),
+            error_message->GetErrorMessage()
+        );
+        throw std::runtime_error("Received error message");
+    }
+
+    return message;
+}
+
+ResultSet ConnectionImpl::Execute(
+    Consistency level,
+    const Query& query,
+    const QueryParameters& params,
+    OptionalCommandControl statement_cmd_ctl
+) {
+    io::protocol::QueryMessage message(level, query.GetStatement(), params);
+
+    SendMessage(std::move(message));
+
+    auto recv_message = WaitForResult();
+
+    io::protocol::ResultMessage* result_message =
+        reinterpret_cast<io::protocol::ResultMessage*>(recv_message.get());
+
+    LOG_DEBUG("RESULT MESSAGE CORRECT");
+
+    return result_message->GetResultSet();
+}
+
+}  // namespace cassandra::detail

@@ -38,7 +38,7 @@ build-debug build-release: build-%: cmake-%
 .PHONY: test-debug test-release
 test-debug test-release: test-%: build-%
 	@cmake --build build_$* -j $(NPROCS) --target userver-cql-driver_unittest
-	@cmake --build build_$* -j $(NPROCS) --target userver-cql-driver_benchmark
+	# @cmake --build build_$* -j $(NPROCS) --target userver-cql-driver_benchmark
 	@cd build_$* && ((test -t 1 && GTEST_COLOR=1 PYTEST_ADDOPTS="--color=yes" ctest -V) || ctest -V)
 
 
@@ -69,5 +69,7 @@ dist-clean:
 .PHONY: format
 format:
 	find src -name '*pp' -type f | xargs $(CLANG_FORMAT) -i
-	find tests -name '*.py' -type f | xargs black -l 79
-
+	find include -name '*pp' -type f | xargs $(CLANG_FORMAT) -i
+	find benchmarks -name '*pp' -type f | xargs $(CLANG_FORMAT) -i
+	find unittests -name '*pp' -type f | xargs $(CLANG_FORMAT) -i
+	find samples -name '*pp' -type f | xargs $(CLANG_FORMAT) -i
