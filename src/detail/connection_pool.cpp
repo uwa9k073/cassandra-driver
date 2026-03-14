@@ -194,10 +194,14 @@ void ConnectionPool::Push(Connection* conn) {
         return;
     }
 
+    LOG_DEBUG("PUSH TO QUEUE");
+
     if (!_conn_producer.PushNoblock(std::move(conn))) {
         LOG_WARNING("Couldn't push connection back to the pool. Deleting...");
-        delete conn;
+        DeleteConnection(conn);
     }
+
+    LOG_DEBUG("SUCCESS PUSH TO QUEUE");
 }
 
 constexpr std::chrono::seconds kRecentErrorPeriod{15};
@@ -319,7 +323,7 @@ void ConnectionPool::Release(Connection* connection) {
     // DecGuard dg{stats_.connection.used, DecGuard::DontIncrement{}};
 
     // std::optional<Connection::Statistics> connection_stats{};
-    // // Grab stats only if connection is not in transaction
+    // Grab stats only if connection is not in transaction
     // if (!connection->IsInTransaction()) {
     //     connection_stats.emplace(connection->GetStatsAndReset());
     // }
@@ -327,7 +331,8 @@ void ConnectionPool::Release(Connection* connection) {
     // if (!connection->IsConnected() || connection->IsBroken()) {
     //     DeleteBrokenConnection(connection);
     // } else if (connection->IsIdle()) {
-    //     Push(connection);
+    LOG_DEBUG("PUSHING CONNECTION");
+    Push(connection);
     // } else {
     //     // Connection cleanup is done asynchronously while returning control to
     //     // the user

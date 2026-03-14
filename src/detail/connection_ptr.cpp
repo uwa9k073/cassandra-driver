@@ -43,12 +43,14 @@ void ConnectionPtr::Reset(
     Release();
     _connection_ptr = std::move(conn);
     _pool_ptr = std::move(pool);
+    LOG_DEBUG("CONNECTION RELEASED");
 }
 
 void ConnectionPtr::Release() {
     // We release pooled connection but reset standalone one
     if (_pool_ptr) {
-        // _pool_ptr->Release(_connection_ptr.release());
+        LOG_DEBUG("RELEASE POOLED CONNECTION");
+        _pool_ptr->Release(_connection_ptr.release());
     } else {
         _connection_ptr.reset();
     }

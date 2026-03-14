@@ -6,13 +6,16 @@
 #include <cassandra/io/protocol/lz4_utils.hpp>
 #include <cassandra/io/protocol/message.hpp>
 #include <cassandra/io/protocol/types.hpp>
+#include <cassandra/result_set.hpp>
 #include <io/protocol/column_option.hpp>
 #include <io/protocol/events/schema_change.hpp>
 #include <span>
 #include <userver/logging/log.hpp>
 #include <utility>
 #include <variant>
-#include "cassandra/result_set.hpp"
+#include <vector>
+#include "cassandra/io/buffer_writer.hpp"
+#include "cassandra/row.hpp"
 
 namespace cassandra::io::protocol {
 class ResponseMessage : public Message {
@@ -90,7 +93,7 @@ private:
     StringMultiMap options;
 };
 
-class ReslutMessage : public ResponseMessage {
+class ResultMessage : public ResponseMessage {
     struct ResultColumn {
         String key_space;
         String table;
@@ -118,7 +121,7 @@ class ReslutMessage : public ResponseMessage {
         String global_table;
         std::vector<ResultColumn> columns;
         Int rows_count;
-        std::vector<Bytes> rows_content;
+        RawBuffer rows_content;
     };
 
     struct PreparedKind {
@@ -167,9 +170,11 @@ class ReslutMessage : public ResponseMessage {
         row_kind.columns_count = reader.Read<Int>();
 
         if (row_kind.flags & static_cast<Int>(Flags::kHasMorePages)) {
+            LOG_DEBUG("HAS_MORE_PAGES_IN_RESULT_MESSAGE");
             row_kind.paging_state = reader.Read<Bytes>();
         }
         if (!(row_kind.flags & static_cast<Int>(Flags::kNoMetadata))) {
+            LOG_DEBUG("HAS_METADATA_IN_RESULT_MESSAGE");
             if (row_kind.flags & static_cast<Int>(Flags::kGlobalTableSpec)) {
                 row_kind.global_key_space = reader.Read<String>();
                 row_kind.global_table = reader.Read<String>();
@@ -186,10 +191,10 @@ class ReslutMessage : public ResponseMessage {
 
         row_kind.rows_count = reader.Read<Int>();
         row_kind.rows_content.reserve(row_kind.rows_count);
+        LOG_DEBUG("REMAINING: {}", reader.Remaining());
+        auto remaining = reader.GetSubBuffer(reader.Remaining());
 
-        for (Int i = 0; i < row_kind.rows_count; ++i) {
-            row_kind.rows_content.emplace_back(reader.Read<Bytes>());
-        }
+        row_kind.rows_content = {remaining.begin(), remaining.end()};
         _payload = std::move(row_kind);
     }
 
@@ -200,11 +205,12 @@ class ReslutMessage : public ResponseMessage {
     }
 
 public:
-    ReslutMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
+    ResultMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
 
     void DoParseBody(RawBufferView buffer) override {
         auto reader = BufferReader{buffer};
-        _kind = static_cast<ResultKind>(reader.Read<int32_t>());
+        _kind = static_cast<ResultKind>(reader.Read<Int>());
+
         switch (_kind) {
             case ResultKind::kRows:
                 ParseRows(reader);
@@ -224,8 +230,17 @@ public:
         }
     }
 
-
-    ResultSet GetResultSet();
+    ResultSet GetResultSet() {
+        if (_kind != ResultKind::kRows) {
+            throw std::runtime_error("GetResultSet called on non-rows result");
+        }
+        auto& row_kind = std::get<RowKind>(_payload);
+        LOG_DEBUG("GET ROW KIND");
+        LOG_DEBUG("RETURN RESULT SET");
+        return ResultSet{
+            row_kind.rows_content, row_kind.columns_count, row_kind.rows_count
+        };
+    }
 
 private:
     ResultKind _kind;

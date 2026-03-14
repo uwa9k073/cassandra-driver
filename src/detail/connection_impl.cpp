@@ -3,6 +3,7 @@
 #include <cassandra/io/protocol/frame.hpp>
 #include <cassandra/io/protocol/message.hpp>
 #include <cassandra/node_description.hpp>
+#include <cassandra/query.hpp>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
@@ -23,7 +24,6 @@
 #include <userver/tracing/span.hpp>
 #include <userver/tracing/tags.hpp>
 #include <utility>
-
 namespace cassandra::detail {
 ConnectionImpl::ConnectionImpl(
     userver::engine::TaskProcessor& tp,
@@ -143,6 +143,8 @@ std::shared_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(
             );
         case io::protocol::Opcode::kError:
             return std::make_shared<io::protocol::ErrorMessage>(std::move(header));
+        case io::protocol::Opcode::kResult:
+            return std::make_shared<io::protocol::ResultMessage>(std::move(header));
         default:
             throw std::runtime_error("Unexpected opcode");
     }
@@ -208,12 +210,18 @@ ResultSet ConnectionImpl::Execute(
     const QueryParameters& params,
     OptionalCommandControl statement_cmd_ctl
 ) {
-    io::protocol::QueryMessage message;
+    io::protocol::QueryMessage message(level, query.GetStatement(), params);
 
-    if (statement_cmd_ctl.has_value()) {
-    }
+    SendMessage(std::move(message));
 
-    return {};
+    auto recv_message = WaitForResult();
+
+    io::protocol::ResultMessage* result_message =
+        reinterpret_cast<io::protocol::ResultMessage*>(recv_message.get());
+
+    LOG_DEBUG("RESULT MESSAGE CORRECT");
+
+    return result_message->GetResultSet();
 }
 
 }  // namespace cassandra::detail

@@ -8,6 +8,7 @@
 #include <cassandra/io/map_types.hpp>
 #include <cassandra/io/string_types.hpp>
 #include <span>
+#include "cassandra/io/protocol/types.hpp"
 namespace cassandra::io {
 class BufferReader {
 public:
@@ -24,6 +25,10 @@ public:
     template <class T>
     [[nodiscard]] T Read() {
         return detail::Read<T>(this->data_, this->offset_);
+    }
+
+    protocol::RawBufferView GetSubBuffer(size_t size) {
+        return data_.subspan(offset_, size);
     }
 
 private:

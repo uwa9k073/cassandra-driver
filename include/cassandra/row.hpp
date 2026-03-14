@@ -1,34 +1,45 @@
 #pragma once
 
-#include "cassandra/io/buffer_reader.hpp"
-#include "cassandra/io/protocol/types.hpp"
-#include "cassandra/io/row_types.hpp"
+#include <cassandra/io/buffer_reader.hpp>
+#include <cassandra/io/protocol/types.hpp>
+#include <cassandra/io/row_types.hpp>
+#include <string>
+#include <userver/logging/log.hpp>
+
 namespace cassandra {
 class Row {
 public:
-
-    Row(io::protocol::RawBuffer&& buffer)
-        : _columns_buffer(std::move(buffer)) {}
+    Row(std::vector<io::protocol::RawBuffer>&& buffer)
+        : _columns(std::move(buffer)) {}
+    Row(const std::vector<io::protocol::RawBuffer>& buffer) : _columns(buffer) {}
 
     template <class T>
-    T As(io::FieldTag tag) const {
-        T val;
-        To(val, tag);
-        return val;
+    T As(io::FieldTag) const {
+        // using ValueType = std::decay_t<T>;
+
+        LOG_DEBUG(
+            "BUFFER_STRING: {}",
+            std::string{
+                reinterpret_cast<const char*>(_columns.front().data()),
+                _columns.front().size()
+            }
+        );
+        io::BufferReader reader{_columns.front()};
+        return reader.Read<T>();
     }
     template <class T>
     T As(io::RowTag tag) const;
 
 private:
-    io::protocol::RawBuffer _columns_buffer;
+    std::vector<io::protocol::RawBuffer> _columns;
 
     template <typename T>
     void To(T&& val, io::FieldTag) const {
         using ValueType = std::decay_t<T>;
 
-        static_assert(sizeof(ValueType)==_columns_buffer.size(), "ValueType size does not match buffer size");
+        // LOG_DEBUG("READING FIELD");
 
-        io::BufferReader reader{_columns_buffer};
+        io::BufferReader reader{_columns.front()};
         val = reader.Read<ValueType>();
     }
 };

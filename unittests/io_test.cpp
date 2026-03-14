@@ -20,6 +20,25 @@ TEST(ScalarTypesIO, Integral) {
     EXPECT_EQ(actual_value, value);
 }
 
+TEST(ScalarTypesIO, String) {
+    std::string from_cassandra = "\0\0\0standalone-cluster";
+
+    cassandra::io::protocol::RawBuffer from_cassandra_buffer;
+    for (size_t i = 0; i < from_cassandra.size(); ++i) {
+        from_cassandra_buffer.push_back(static_cast<std::byte>(from_cassandra[i]));
+    }
+
+    cassandra::io::BufferReader reader(from_cassandra_buffer);
+    auto bytes = reader.Read<cassandra::io::Bytes>();
+
+    cassandra::io::String actual_string =
+        cassandra::io::BufferReader{bytes.GetUnderlying()}
+            .Read<cassandra::io::String>();
+
+    cassandra::io::String expected("standalone-cluster");
+    EXPECT_EQ(expected, actual_string);
+}
+
 TEST(ScalarTypesIO, Float) {
     cassandra::io::protocol::Buffer buffer;
 

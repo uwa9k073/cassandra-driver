@@ -37,7 +37,7 @@ enum class Opcode : uint8_t {
 };
 
 /// Result kind codes
-enum class ResultKind : int32_t {
+enum class ResultKind : Int {
     kVoid = 0x0001,
     kRows = 0x0002,
     kSetKeyspace = 0x0003,

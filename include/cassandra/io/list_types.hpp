@@ -11,10 +11,8 @@ namespace cassandra::io::detail {
 //  list, followed by n
 //                  elements.  Each element is [bytes] representing
 //                  the serialized value.
-//  [bytes]         A [int] n, followed by n bytes if n >= 0. If n <
-//  0,
-//                  no byte should follow and the value represented is
-//                  `null`.
+//  [bytes]         A [int] n, followed by n bytes if n >= 0. If n < 0,
+//                  no byte should follow and the value represented is `null`.
 //  [string list]   A [short] n, followed by n [string].
 //  [short bytes]   A [short] n, followed by n bytes if n >= 0.
 //

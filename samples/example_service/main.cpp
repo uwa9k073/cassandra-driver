@@ -5,6 +5,7 @@
 #include <userver/components/minimal_server_component_list.hpp>
 #include <userver/components/run.hpp>
 #include <userver/congestion_control/component.hpp>
+#include <userver/logging/log.hpp>
 #include <userver/server/handlers/ping.hpp>
 #include <userver/server/handlers/tests_control.hpp>
 #include <userver/storages/secdist/component.hpp>
@@ -18,14 +19,15 @@
 #include <userver/server/handlers/http_handler_json_base.hpp>
 
 #include <cassandra/component.hpp>
+#include <cassandra/io/cassandra_types.hpp>
+#include <cassandra/io/row_types.hpp>
+#include <cassandra/options.hpp>
+#include <cassandra/query.hpp>
+#include <cassandra/result_set.hpp>
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
 #include <userver/formats/json/inline.hpp>
 #include <userver/server/http/http_status.hpp>
-#include "cassandra/io/cassandra_types.hpp"
-#include "cassandra/io/row_types.hpp"
-#include "cassandra/options.hpp"
-#include "cassandra/query.hpp"
 
 namespace views {
 class Cassandra final : public userver::server::handlers::HttpHandlerJsonBase {
@@ -85,7 +87,24 @@ userver::formats::json::Value Cassandra::HandleRequestJsonThrow(
         auto result =
             _session_ptr->Execute(cassandra::Consistency::kLocalOne, kBasicSelect);
 
-        return userver::formats::json::MakeObject("clusterName", result.AsSingleRow<cassandra::io::String>(cassandra::io::kFieldTag).GetUnderlying());
+        if (!result.RowsAffected()) {
+            request.SetResponseStatus(userver::server::http::HttpStatus::NotFound);
+            return {};
+        }
+
+        LOG_DEBUG(
+            "RowsAffected={}, ColumnsAffected={}",
+            result.RowsAffected(),
+            result.ColumnsAffected()
+        );
+        auto cassandra_cluster_name =
+            result.AsSingleRow<cassandra::io::LongString>(cassandra::io::kFieldTag);
+        LOG_DEBUG("clusterName={}", cassandra_cluster_name.GetUnderlying());
+        std::string underlying_cluster_name = cassandra_cluster_name.GetUnderlying();
+
+        return userver::formats::json::MakeObject(
+            "clusterName", underlying_cluster_name
+        );
     } else {
         request.SetResponseStatus(
             userver::server::http::HttpStatus::InternalServerError

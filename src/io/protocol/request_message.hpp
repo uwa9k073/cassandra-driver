@@ -74,22 +74,38 @@ private:
 
 class QueryMessage final : public RequestMessage {
 public:
+    QueryMessage() : RequestMessage(FrameHeader{.opcode = Opcode::kQuery}) {}
     QueryMessage(Consistency level, const LongString& query)
         : RequestMessage(FrameHeader{.opcode = Opcode::kQuery}),
           consistency_level(level),
           query(query) {}
-    QueryMessage(
-        Consistency level, const LongString& query, QueryParameters&& params
+    explicit QueryMessage(
+        Consistency level, const LongString& query, const QueryParameters& params
     )
         : RequestMessage(FrameHeader{.opcode = Opcode::kQuery}),
           consistency_level(level),
           query(query),
-          params(std::move(params)) {}
+          params(params) {}
+
+    enum class Flags : Byte {
+        kValues = 0x01,
+        kSkipMetadata = 0x02,
+        kPageSize = 0x04,
+        kPagingState = 0x08,
+        kSerialConsistency = 0x10,
+        kTimestamp = 0x20,
+        kNamesForValues = 0x40,
+    };
 
     void SerializeBody(RawBuffer& buffer) override {
         BufferWriter writer(buffer);
         writer.Write(query);
         writer.Write(static_cast<Short>(consistency_level));
+        Byte flags = static_cast<Byte>(Flags::kSkipMetadata);
+        if (!params.Empty()) {
+            flags |= 0x01;
+        }
+        writer.Write(flags);
         if (!params.Empty()) {
             writer.Write<Short>(params.Size());
             auto* buffers = params.ParamBuffers();
