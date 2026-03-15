@@ -13,25 +13,21 @@
 #include <cassert>
 
 namespace cassandra::io {
-template<class Buffer>
+template <class Buffer>
 class BufferReader;
 
-template<>
+template <>
 class BufferReader<protocol::BufferView> {
 public:
     explicit BufferReader(protocol::RawBufferView buffer) noexcept
         : _buffer(protocol::BufferView{buffer, 0}) {}
 
     // ===== Core API =====
-    [[nodiscard]] size_t Offset() const noexcept {
-        return _buffer.offset;
-    }
+    [[nodiscard]] size_t Offset() const noexcept { return _buffer.offset; }
     [[nodiscard]] size_t Remaining() const noexcept {
         return _buffer.data.size() - _buffer.offset;
     }
-    [[nodiscard]] bool Empty() const noexcept {
-        return _buffer.data.empty();
-    }
+    [[nodiscard]] bool Empty() const noexcept { return _buffer.data.empty(); }
 
     template <class T>
     [[nodiscard]] T Read() {
@@ -43,25 +39,20 @@ public:
     }
 
 private:
-    protocol::BufferView  _buffer;
+    protocol::BufferView _buffer;
 };
 
-
-
-template<>
+template <>
 class BufferReader<Bytes> {
 public:
-    explicit BufferReader(const Bytes& buffer) noexcept
-        : _buffer(buffer) {}
-
+    explicit BufferReader(const Bytes& buffer) noexcept : _buffer(buffer) {}
 
     template <class T>
     [[nodiscard]] T Read() {
         return detail::Read<T>(_buffer);
     }
 
-
 private:
-    const Bytes&  _buffer;
+    const Bytes& _buffer;
 };
 }  // namespace cassandra::io

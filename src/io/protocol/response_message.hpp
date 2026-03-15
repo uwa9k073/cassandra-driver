@@ -193,7 +193,7 @@ class ResultMessage : public ResponseMessage {
 
         for (Int i = 0; i < row_kind.rows_count; ++i) {
             BytesBuffer row_buffer;
-            for(int j = 0; j < row_kind.columns_count; ++j) {
+            for (int j = 0; j < row_kind.columns_count; ++j) {
                 row_buffer.emplace_back(reader.Read<Bytes>());
             }
             row_kind.rows_content.emplace_back(std::move(row_buffer));
@@ -242,7 +242,9 @@ public:
         LOG_DEBUG("GET ROW KIND");
         LOG_DEBUG("RETURN RESULT SET");
         return ResultSet{
-            std::move(row_kind.rows_content), row_kind.columns_count, row_kind.rows_count
+            std::move(row_kind.rows_content),
+            row_kind.columns_count,
+            row_kind.rows_count
         };
     }
 

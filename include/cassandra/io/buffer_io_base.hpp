@@ -79,7 +79,7 @@ template <class T>
 
 template <class T>
 [[nodiscard]] T Read(const Bytes& data)
-requires std::same_as<Bytes, std::decay_t<decltype(data)>>
+    requires std::same_as<Bytes, std::decay_t<decltype(data)>>
 {
     T val;
     using Parser = typename IO<T>::ParserType;

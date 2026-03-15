@@ -33,16 +33,22 @@ void ColumnOption::Parse(BufferReader<BufferView>& reader) {
     _value->Parse(reader);
 }
 
-void ListPayload::Parse(BufferReader<BufferView>& reader) { _element_type.Parse(reader); }
+void ListPayload::Parse(BufferReader<BufferView>& reader) {
+    _element_type.Parse(reader);
+}
 
-void CustomPayload::Parse(BufferReader<BufferView>& reader) { _value = reader.Read<String>(); }
+void CustomPayload::Parse(BufferReader<BufferView>& reader) {
+    _value = reader.Read<String>();
+}
 
 void MapPayload::Parse(BufferReader<BufferView>& reader) {
     _key_type.Parse(reader);
     _value_type.Parse(reader);
 }
 
-void SetPayload::Parse(BufferReader<BufferView>& reader) { _element_type.Parse(reader); }
+void SetPayload::Parse(BufferReader<BufferView>& reader) {
+    _element_type.Parse(reader);
+}
 
 void UdtPayload::Parse(BufferReader<BufferView>& reader) {
     _keyspace = reader.Read<String>();

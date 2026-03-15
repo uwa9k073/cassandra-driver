@@ -2,13 +2,13 @@
 
 #include <cassandra/exception.hpp>
 #include <cassandra/io/buffer_reader.hpp>
+#include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/protocol/types.hpp>
 #include <cassandra/io/row_types.hpp>
 #include <type_traits>
 #include <userver/compiler/demangle.hpp>
 #include <userver/logging/log.hpp>
 #include <vector>
-#include <cassandra/io/cassandra_types.hpp>
 
 namespace cassandra {
 class Row {

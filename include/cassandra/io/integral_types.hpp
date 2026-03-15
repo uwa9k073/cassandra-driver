@@ -16,8 +16,8 @@ struct IntegralBinaryParser : BufferParserBase<T> {
         this->value = ReadIntBE<T>(data, offset);
     }
 
-    void operator()(const Bytes& buffer){
-        size_t offset= 0;
+    void operator()(const Bytes& buffer) {
+        size_t offset = 0;
         this->value = ReadIntBE<T>(buffer.GetUnderlying(), offset);
     }
 };
