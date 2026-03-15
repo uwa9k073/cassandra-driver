@@ -5,6 +5,7 @@
 #include <cassandra/io/row_types.hpp>
 #include <cassandra/row.hpp>
 #include <userver/logging/log.hpp>
+#include <vector>
 
 namespace cassandra {
 class ResultSet {
@@ -18,7 +19,7 @@ public:
     ResultSet() : _rows_content({}), _columns_count(0), _rows_count(0){};
 
     ResultSet(
-        const io::protocol::RawBuffer& rows,
+        std::vector<io::protocol::BytesBuffer>&& rows,
         io::Int columns_count,
         io::Int rows_count
     )
@@ -43,10 +44,10 @@ public:
         return Front().As<T>(tag);
     }
 
-    Row Front() const { return Row(_rows_content, _columns_count); }
+    Row Front() const { return Row(_rows_content.front(), _columns_count); }
 
 private:
-    io::protocol::RawBuffer _rows_content;
+    std::vector<io::protocol::BytesBuffer> _rows_content;
 
     io::Int _columns_count;
     io::Int _rows_count;

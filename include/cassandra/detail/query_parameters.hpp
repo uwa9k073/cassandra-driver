@@ -20,7 +20,8 @@ public:
     QueryParameters() = default;
 
     template <class ParamsHolder>
-    explicit QueryParameters(ParamsHolder& ph) : _size(ph.Size()), _values(ph.ParamBuffers()) {}
+    explicit QueryParameters(ParamsHolder& ph)
+        : _size(ph.Size()), _values(ph.ParamBuffers()) {}
     const io::Bytes* ParamBuffers() { return _values; }
 
     bool Empty() const { return !_size; }

@@ -22,7 +22,7 @@ struct SchemaChange {
 
     using TargetOptions = std::variant<Keyspace, Table, Function>;
 
-    static SchemaChange Parse(BufferReader& reader);
+    static SchemaChange Parse(BufferReader<BufferView>& reader);
     String change_type;
     String target;
     TargetOptions target_options;

@@ -46,7 +46,7 @@ public:
     String GetErrorMessage() const { return error_message; }
 
     void DoParseBody(RawBufferView buffer) override {
-        auto reader = BufferReader{buffer};
+        auto reader = BufferReader<BufferView>{buffer};
         error_code = reader.Read<Int>();
         error_message = reader.Read<String>();
     }
@@ -70,7 +70,7 @@ public:
         : ResponseMessage(std::move(header)){};
 
     void DoParseBody(RawBufferView buffer) override {
-        auth_challenge = BufferReader{buffer}.Read<String>();
+        auth_challenge = BufferReader<BufferView>{buffer}.Read<String>();
     }
 
 private:
@@ -84,7 +84,7 @@ public:
     StringMultiMap GetOptions() const { return options; }
 
     void DoParseBody(RawBufferView buffer) override {
-        options = BufferReader{buffer}.Read<StringMultiMap>();
+        options = BufferReader<BufferView>{buffer}.Read<StringMultiMap>();
     }
 
 private:
@@ -99,7 +99,7 @@ class ResultMessage : public ResponseMessage {
         ColumnOption type;
 
         static ResultColumn Parse(
-            BufferReader& reader, bool global_table_spec_enabled
+            BufferReader<BufferView>& reader, bool global_table_spec_enabled
         ) {
             ResultColumn column;
             if (!global_table_spec_enabled) {
@@ -119,7 +119,7 @@ class ResultMessage : public ResponseMessage {
         String global_table;
         std::vector<ResultColumn> columns;
         Int rows_count;
-        RawBuffer rows_content;
+        std::vector<BytesBuffer> rows_content;
     };
 
     struct PreparedKind {
@@ -132,7 +132,7 @@ class ResultMessage : public ResponseMessage {
         String global_table;
         std::vector<ResultColumn> columns;
 
-        static PreparedKind Parse(BufferReader& reader) {
+        static PreparedKind Parse(BufferReader<BufferView>& reader) {
             PreparedKind kind;
             kind.id = reader.Read<ShortBytes>();
             kind.flags = reader.Read<Int>();
@@ -162,7 +162,7 @@ class ResultMessage : public ResponseMessage {
         kNoMetadata = 0x0004
     };
 
-    void ParseRows(BufferReader& reader) {
+    void ParseRows(BufferReader<BufferView>& reader) {
         RowKind row_kind;
         row_kind.flags = reader.Read<Int>();
         row_kind.columns_count = reader.Read<Int>();
@@ -190,13 +190,18 @@ class ResultMessage : public ResponseMessage {
         row_kind.rows_count = reader.Read<Int>();
         row_kind.rows_content.reserve(row_kind.rows_count);
         LOG_DEBUG("REMAINING: {}", reader.Remaining());
-        auto remaining = reader.GetSubBuffer(reader.Remaining());
 
-        row_kind.rows_content = {remaining.begin(), remaining.end()};
+        for (Int i = 0; i < row_kind.rows_count; ++i) {
+            BytesBuffer row_buffer;
+            for(int j = 0; j < row_kind.columns_count; ++j) {
+                row_buffer.emplace_back(reader.Read<Bytes>());
+            }
+            row_kind.rows_content.emplace_back(std::move(row_buffer));
+        }
         _payload = std::move(row_kind);
     }
 
-    void ParseSetKeyspace(BufferReader& reader) {
+    void ParseSetKeyspace(BufferReader<BufferView>& reader) {
         SetKeyspaceKind set_keyspace;
         set_keyspace.key_space = reader.Read<String>();
         _payload = set_keyspace;
@@ -206,7 +211,7 @@ public:
     ResultMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
 
     void DoParseBody(RawBufferView buffer) override {
-        auto reader = BufferReader{buffer};
+        auto reader = BufferReader<BufferView>{buffer};
         _kind = static_cast<ResultKind>(reader.Read<Int>());
 
         switch (_kind) {
@@ -237,7 +242,7 @@ public:
         LOG_DEBUG("GET ROW KIND");
         LOG_DEBUG("RETURN RESULT SET");
         return ResultSet{
-            row_kind.rows_content, row_kind.columns_count, row_kind.rows_count
+            std::move(row_kind.rows_content), row_kind.columns_count, row_kind.rows_count
         };
     }
 

@@ -2,7 +2,7 @@
 
 namespace cassandra::io::protocol::events {
 
-SchemaChange SchemaChange::Parse(BufferReader& reader) {
+SchemaChange SchemaChange::Parse(BufferReader<BufferView>& reader) {
     SchemaChange change;
     change.change_type = reader.Read<String>();
     change.target = reader.Read<String>();

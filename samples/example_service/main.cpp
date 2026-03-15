@@ -77,12 +77,16 @@ Cassandra::Cassandra(
                        .GetSessionPtr()) {}
 
 const ::cassandra::Query kBasicSelect{"select cluster_name from system.local"};
-const ::cassandra::Query kBenchInsertQuery{"insert into benchmark_ks.my_table (id, name) values (?, ?)"};
-const ::cassandra::Query kBenchSelectQuery{"select id, name from benchmark_ks.my_table"};
+const ::cassandra::Query kBenchInsertQuery{
+    "insert into benchmark_ks.my_table (id, name) values (?, ?)"
+};
+const ::cassandra::Query kBenchSelectQuery{
+    "select id, name from benchmark_ks.my_table"
+};
 
 struct MyRow {
     cassandra::io::Int id;
-    cassandra::io::LongString name;
+    std::string name;
 };
 
 userver::formats::json::Value Cassandra::HandleRequestJsonThrow(
@@ -99,7 +103,8 @@ userver::formats::json::Value Cassandra::HandleRequestJsonThrow(
         );
 
         auto select_result = _session_ptr->Execute(
-            cassandra::Consistency::kLocalOne, kBenchSelectQuery);
+            cassandra::Consistency::kLocalOne, kBenchSelectQuery
+        );
         if (!select_result.RowsAffected()) {
             request.SetResponseStatus(userver::server::http::HttpStatus::NotFound);
             return {};
@@ -114,8 +119,7 @@ userver::formats::json::Value Cassandra::HandleRequestJsonThrow(
             select_result.AsSingleRow<MyRow>(cassandra::io::kRowTag);
 
         return userver::formats::json::MakeObject(
-            "id", cassandra_row.id,
-            "name", cassandra_row.name.GetUnderlying()
+            "id", cassandra_row.id, "name", cassandra_row.name
         );
     } else {
         request.SetResponseStatus(

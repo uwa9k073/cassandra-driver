@@ -4,19 +4,21 @@
 #include <cassandra/io/buffer_reader.hpp>
 #include <cassandra/io/protocol/types.hpp>
 #include <cassandra/io/row_types.hpp>
-#include <string>
 #include <type_traits>
 #include <userver/compiler/demangle.hpp>
 #include <userver/logging/log.hpp>
+#include <vector>
+#include <cassandra/io/cassandra_types.hpp>
 
 namespace cassandra {
 class Row {
 public:
-    Row(io::protocol::RawBuffer&& buffer) : _row_content(std::move(buffer)) {}
-    Row(const io::protocol::RawBuffer& buffer, int columns_count)
+    Row(io::protocol::BytesBuffer&& buffer, int columns_count)
+        : _row_content(std::move(buffer)), _columns_count(columns_count) {}
+    Row(const io::protocol::BytesBuffer& buffer, int columns_count)
         : _row_content(buffer), _columns_count(columns_count) {}
 
-    io::protocol::RawBufferView GetBufferView() const { return _row_content; }
+    io::protocol::BytesBufferView GetBufferView() const { return _row_content; }
 
     template <class T>
     T As() {
@@ -39,14 +41,14 @@ public:
     int Size() const { return _columns_count; }
 
 private:
-    io::protocol::RawBuffer _row_content;
+    std::vector<io::Bytes> _row_content;
     int _columns_count;
 
     template <typename T>
     void To(T&& val, io::FieldTag) const {
         using ValueType = std::decay_t<T>;
 
-        val = io::BufferReader{_row_content}.ReadRaw<ValueType>();
+        val = io::BufferReader<io::Bytes>{_row_content.front()}.Read<ValueType>();
     }
 
     template <typename T>
@@ -60,38 +62,40 @@ template <std::size_t... Indexes, typename... T>
 struct RowDataExtractorBase<std::index_sequence<Indexes...>, T...> {
     static void ExtractValues(const Row& row, T&&... val) {
         static_assert(sizeof...(Indexes) == sizeof...(T));
-        io::BufferReader reader(row.GetBufferView());
+
+        auto buffer_view = row.GetBufferView();
+        size_t column_index = 0;
         const auto perform = [&](auto& arg) {
-            arg = reader.ReadRaw<std::decay_t<decltype(arg)>>();
+            arg = io::BufferReader<io::Bytes>{buffer_view[column_index++]}
+                      .Read<std::decay_t<decltype(arg)>>();
         };
+
         (perform(std::forward<T>(val)), ...);
     }
     static void ExtractTuple(const Row& row, std::tuple<T...>& val) {
         static_assert(sizeof...(Indexes) == sizeof...(T));
-        io::BufferReader reader(row.GetBufferView());
+
+        auto buffer_view = row.GetBufferView();
+        size_t column_index = 0;
         const auto perform = [&](auto& arg) {
-            arg = reader.ReadRaw<std::decay_t<decltype(arg)>>();
+            arg = io::BufferReader<io::Bytes>{buffer_view[column_index++]}
+                      .Read<std::decay_t<decltype(arg)>>();
         };
+
         (perform(std::get<Indexes>(val)), ...);
     }
     static void ExtractTuple(const Row& row, std::tuple<T...>&& val) {
         static_assert(sizeof...(Indexes) == sizeof...(T));
-        io::BufferReader reader(row.GetBufferView());
+
+        auto buffer_view = row.GetBufferView();
+        size_t column_index = 0;
         const auto perform = [&](auto& arg) {
-            arg = reader.ReadRaw<std::decay_t<decltype(arg)>>();
+            arg = io::BufferReader<io::Bytes>{buffer_view[column_index++]}
+                      .Read<std::decay_t<decltype(arg)>>();
         };
+
         (perform(std::get<Indexes>(val)), ...);
     }
-
-    // static void ExtractValues(const Row& row, const
-    // std::initializer_list<std::size_t>& indexes, T&&... val) {
-    //     (row[*(indexes.begin() + Indexes)].To(std::forward<T>(val)), ...);
-    // }
-    // static void ExtractTuple(const Row& row, const
-    // std::initializer_list<std::size_t>& indexes, std::tuple<T...>& val) {
-    //     std::tuple<T...> tmp{row[*(indexes.begin() + Indexes)].template
-    //     As<T>()...}; tmp.swap(val);
-    // }
 };
 
 template <typename... T>
