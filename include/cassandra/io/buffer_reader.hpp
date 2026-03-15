@@ -1,14 +1,17 @@
 #pragma once
 
+#include <fmt/core.h>
+#include <cassandra/exception.hpp>
 #include <cassandra/io/buffer_io_base.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/floating_point_types.hpp>
 #include <cassandra/io/integral_types.hpp>
 #include <cassandra/io/list_types.hpp>
 #include <cassandra/io/map_types.hpp>
+#include <cassandra/io/protocol/types.hpp>
 #include <cassandra/io/string_types.hpp>
 #include <span>
-#include "cassandra/io/protocol/types.hpp"
+#include <type_traits>
 namespace cassandra::io {
 class BufferReader {
 public:
@@ -24,6 +27,24 @@ public:
 
     template <class T>
     [[nodiscard]] T Read() {
+        return detail::Read<T>(this->data_, this->offset_);
+    }
+
+    template <class T>
+        requires std::is_arithmetic_v<T>
+    [[nodiscard]] T ReadRaw() {
+        auto len = detail::Read<Int>(this->data_, this->offset_);
+        if (len != sizeof(T)) {
+            throw exceptions::Error(fmt::format(
+                "size mismatch, actual: {}, expected: {}", len, sizeof(T)
+            ));
+        }
+
+        return detail::Read<T>(this->data_, this->offset_);
+    }
+
+    template <class T>
+    [[nodiscard]] T ReadRaw() {
         return detail::Read<T>(this->data_, this->offset_);
     }
 

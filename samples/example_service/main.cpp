@@ -67,8 +67,6 @@ int main(int argc, char* argv[]) {
 
 namespace views {
 
-const ::cassandra::Query kBasicSelect{"select cluster_name from system.local"};
-
 Cassandra::Cassandra(
     const userver::components::ComponentConfig& config,
     const userver::components::ComponentContext& context
@@ -78,32 +76,46 @@ Cassandra::Cassandra(
                        .FindComponent<::components::Cassandra>("cassandra-component")
                        .GetSessionPtr()) {}
 
+const ::cassandra::Query kBasicSelect{"select cluster_name from system.local"};
+const ::cassandra::Query kBenchInsertQuery{"insert into benchmark_ks.my_table (id, name) values (?, ?)"};
+const ::cassandra::Query kBenchSelectQuery{"select id, name from benchmark_ks.my_table"};
+
+struct MyRow {
+    cassandra::io::Int id;
+    cassandra::io::LongString name;
+};
+
 userver::formats::json::Value Cassandra::HandleRequestJsonThrow(
     const HttpRequest& request,
-    const Value& /*request_json*/,
+    const Value& request_json,
     RequestContext& /*context*/
 ) const {
     if (_session_ptr) {
-        auto result =
-            _session_ptr->Execute(cassandra::Consistency::kLocalOne, kBasicSelect);
+        auto id = request_json["id"].As<int>();
+        auto name = request_json["name"].As<std::string>();
 
-        if (!result.RowsAffected()) {
+        auto result = _session_ptr->Execute(
+            cassandra::Consistency::kLocalOne, kBenchInsertQuery, id, name
+        );
+
+        auto select_result = _session_ptr->Execute(
+            cassandra::Consistency::kLocalOne, kBenchSelectQuery);
+        if (!select_result.RowsAffected()) {
             request.SetResponseStatus(userver::server::http::HttpStatus::NotFound);
             return {};
         }
 
         LOG_DEBUG(
             "RowsAffected={}, ColumnsAffected={}",
-            result.RowsAffected(),
-            result.ColumnsAffected()
+            select_result.RowsAffected(),
+            select_result.ColumnsAffected()
         );
-        auto cassandra_cluster_name =
-            result.AsSingleRow<cassandra::io::LongString>(cassandra::io::kFieldTag);
-        LOG_DEBUG("clusterName={}", cassandra_cluster_name.GetUnderlying());
-        std::string underlying_cluster_name = cassandra_cluster_name.GetUnderlying();
+        auto cassandra_row =
+            select_result.AsSingleRow<MyRow>(cassandra::io::kRowTag);
 
         return userver::formats::json::MakeObject(
-            "clusterName", underlying_cluster_name
+            "id", cassandra_row.id,
+            "name", cassandra_row.name.GetUnderlying()
         );
     } else {
         request.SetResponseStatus(

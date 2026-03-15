@@ -14,8 +14,6 @@
 #include <utility>
 #include <variant>
 #include <vector>
-#include "cassandra/io/buffer_writer.hpp"
-#include "cassandra/row.hpp"
 
 namespace cassandra::io::protocol {
 class ResponseMessage : public Message {
@@ -232,7 +230,8 @@ public:
 
     ResultSet GetResultSet() {
         if (_kind != ResultKind::kRows) {
-            throw std::runtime_error("GetResultSet called on non-rows result");
+            LOG_DEBUG("return empty result set");
+            return {};
         }
         auto& row_kind = std::get<RowKind>(_payload);
         LOG_DEBUG("GET ROW KIND");

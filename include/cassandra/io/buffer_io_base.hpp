@@ -6,6 +6,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <userver/utils/void_t.hpp>
+#include "cassandra/io/cassandra_types.hpp"
 
 namespace cassandra::io::detail {
 template <typename T>
@@ -77,6 +78,13 @@ template <class T>
 
 template <class T>
 void Write(protocol::RawBuffer& data, const T& value) {
+    using Formatter = typename IO<T>::FormatterType;
+    Formatter formatter(value);
+    formatter(data);
+}
+
+template <class T>
+void Write(Bytes& data, const T& value) {
     using Formatter = typename IO<T>::FormatterType;
     Formatter formatter(value);
     formatter(data);

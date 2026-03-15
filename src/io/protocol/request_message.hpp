@@ -107,10 +107,11 @@ public:
         }
         writer.Write(flags);
         if (!params.Empty()) {
+            LOG_DEBUG("PARAM COUNT: {}", params.Size());
             writer.Write<Short>(params.Size());
             auto* buffers = params.ParamBuffers();
             for (std::size_t i = 0; i < params.Size(); ++i) {
-                writer.AddBuffer(buffers[i]);
+                writer.Write<io::Bytes>(buffers[i]);
             }
         }
     }

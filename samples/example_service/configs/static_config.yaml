@@ -60,7 +60,7 @@ components_manager:
 
         cassandra-view:
             path: /cassandra
-            method: GET
+            method: POST
             task_processor: main-task-processor
 
         cassandra-component:

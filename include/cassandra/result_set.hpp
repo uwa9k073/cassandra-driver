@@ -4,15 +4,18 @@
 #include <cassandra/io/protocol/types.hpp>
 #include <cassandra/io/row_types.hpp>
 #include <cassandra/row.hpp>
-#include <type_traits>
+#include <userver/logging/log.hpp>
 
 namespace cassandra {
 class ResultSet {
 public:
     bool Empty() const { return _rows_content.empty(); }
+
     auto RowsAffected() const { return _columns_count; }
 
     auto ColumnsAffected() const { return _rows_count; }
+
+    ResultSet() : _rows_content({}), _columns_count(0), _rows_count(0){};
 
     ResultSet(
         const io::protocol::RawBuffer& rows,
@@ -24,18 +27,23 @@ public:
           _rows_count(rows_count) {}
 
     template <class T>
-    T AsSingleRow(io::FieldTag) {
+    T AsSingleRow(io::FieldTag tag) const {
+        return Front().As<T>(tag);
+    }
+
+    template <class T>
+    T AsSingleRow(io::RowTag tag) const {
         LOG_DEBUG(
-            "BUFFER_STRING: {}",
+            "BUFFER_DATA_ROW_TAG: ",
             std::string{
                 reinterpret_cast<const char*>(_rows_content.data()),
                 _rows_content.size()
             }
         );
-        io::BufferReader reader(_rows_content);
-        using ValueType = std::decay_t<T>;
-        return reader.Read<ValueType>();
+        return Front().As<T>(tag);
     }
+
+    Row Front() const { return Row(_rows_content, _columns_count); }
 
 private:
     io::protocol::RawBuffer _rows_content;

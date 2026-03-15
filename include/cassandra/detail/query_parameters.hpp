@@ -20,15 +20,15 @@ public:
     QueryParameters() = default;
 
     template <class ParamsHolder>
-    explicit QueryParameters(ParamsHolder& ph) : _values(ph.ParamBuffers()) {}
-    const io::protocol::RawBuffer* ParamBuffers() { return _values; }
+    explicit QueryParameters(ParamsHolder& ph) : _size(ph.Size()), _values(ph.ParamBuffers()) {}
+    const io::Bytes* ParamBuffers() { return _values; }
 
     bool Empty() const { return !_size; }
     std::size_t Size() const { return _size; }
 
 private:
     std::size_t _size = 0;
-    const io::protocol::RawBuffer* _values = {};
+    const io::Bytes* _values = {};
 };
 
 namespace detail {
@@ -42,7 +42,8 @@ public:
     StaticQueryParameters& operator=(const StaticQueryParameters&) = delete;
     StaticQueryParameters& operator=(StaticQueryParameters&&) = delete;
 
-    const io::protocol::RawBuffer* ParamBuffers() { return _args.data(); }
+    const io::Bytes* ParamBuffers() { return _args.data(); }
+    std::size_t Size() const { return ParamsCount; }
 
     // i need also bind paramter names
     template <typename T>
@@ -68,14 +69,14 @@ public:
     }
 
 private:
-    std::array<io::protocol::RawBuffer, ParamsCount> _args;
+    std::array<io::Bytes, ParamsCount> _args;
 };
 
 template <>
 class StaticQueryParameters<0> {
 public:
     static std::size_t Size() { return 0; }
-    static const io::protocol::RawBuffer* ParamBuffers() { return nullptr; }
+    static const io::Bytes* ParamBuffers() { return nullptr; }
 
     static void Write() {}
 };

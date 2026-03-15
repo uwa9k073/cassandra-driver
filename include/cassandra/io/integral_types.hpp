@@ -22,6 +22,8 @@ struct IntegralBinaryFormatter {
     T value;
     explicit IntegralBinaryFormatter(T value) : value(value) {}
     void operator()(protocol::RawBuffer& buffer) { WriteIntBE(buffer, this->value); }
+
+    void operator()(Bytes& buffer) { WriteIntBE(buffer.GetUnderlying(), this->value); }
 };
 
 template <>
