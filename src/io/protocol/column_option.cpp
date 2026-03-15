@@ -4,7 +4,7 @@
 
 namespace cassandra::io::protocol {
 
-void ColumnOption::Parse(BufferReader& reader) {
+void ColumnOption::Parse(BufferReader<BufferView>& reader) {
     _type = static_cast<ColumnType>(reader.Read<Short>());
     switch (_type) {
         case ColumnType::kCustom:
@@ -33,18 +33,24 @@ void ColumnOption::Parse(BufferReader& reader) {
     _value->Parse(reader);
 }
 
-void ListPayload::Parse(BufferReader& reader) { _element_type.Parse(reader); }
+void ListPayload::Parse(BufferReader<BufferView>& reader) {
+    _element_type.Parse(reader);
+}
 
-void CustomPayload::Parse(BufferReader& reader) { _value = reader.Read<String>(); }
+void CustomPayload::Parse(BufferReader<BufferView>& reader) {
+    _value = reader.Read<String>();
+}
 
-void MapPayload::Parse(BufferReader& reader) {
+void MapPayload::Parse(BufferReader<BufferView>& reader) {
     _key_type.Parse(reader);
     _value_type.Parse(reader);
 }
 
-void SetPayload::Parse(BufferReader& reader) { _element_type.Parse(reader); }
+void SetPayload::Parse(BufferReader<BufferView>& reader) {
+    _element_type.Parse(reader);
+}
 
-void UdtPayload::Parse(BufferReader& reader) {
+void UdtPayload::Parse(BufferReader<BufferView>& reader) {
     _keyspace = reader.Read<String>();
     _udt_name = reader.Read<String>();
 
@@ -56,7 +62,7 @@ void UdtPayload::Parse(BufferReader& reader) {
     }
 }
 
-void TuplePayload::Parse(BufferReader& reader) {
+void TuplePayload::Parse(BufferReader<BufferView>& reader) {
     auto count = reader.Read<Short>();
 
     _elements.reserve(count);

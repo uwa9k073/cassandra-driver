@@ -13,7 +13,9 @@ TEST(Lz4Compressor, Compress) {
     writer.Write(input);
     cassandra::io::protocol::Lz4Compressor compressor;
     auto ret = compressor.Compress(input_buffer, output_buffer);
-    cassandra::io::BufferReader reader(output_buffer);
+    cassandra::io::BufferReader<cassandra::io::protocol::BufferView> reader(
+        output_buffer
+    );
     auto compressed_size = reader.Read<cassandra::io::Int>();
     EXPECT_EQ(compressed_size, ret);
     EXPECT_EQ(compressed_size, input_buffer.size());
@@ -29,7 +31,9 @@ TEST(Lz4Compressor, Decompress) {
     compressor.Compress(input_buffer, output_buffer);
     auto decompressed = compressor.Decompress(output_buffer);
 
-    cassandra::io::BufferReader reader(decompressed);
+    cassandra::io::BufferReader<cassandra::io::protocol::BufferView> reader(
+        decompressed
+    );
     EXPECT_EQ(input_buffer, decompressed);
     cassandra::io::String decompressed_str = reader.Read<cassandra::io::String>();
     EXPECT_EQ(decompressed_str, input);

@@ -19,12 +19,12 @@ class UdtPayload;    // includes ColumnOption
 class ColumnPayload {
 public:
     virtual ~ColumnPayload() = default;
-    virtual void Parse(BufferReader& reader) = 0;
+    virtual void Parse(BufferReader<BufferView>& reader) = 0;
 };
 
 class ColumnOption {
 public:
-    void Parse(BufferReader& reader);
+    void Parse(BufferReader<BufferView>& reader);
 
     ColumnType GetColumnType() const { return _type; }
     ColumnPayload* GetPayloadPtr() const { return _value.get(); }
@@ -50,21 +50,21 @@ private:
 
 class ListPayload : public ColumnPayload {
 public:
-    void Parse(BufferReader& reader);
+    void Parse(BufferReader<BufferView>& reader);
 
 private:
     ColumnOption _element_type;
 };
 class SetPayload : public ColumnPayload {
 public:
-    void Parse(BufferReader& reader);
+    void Parse(BufferReader<BufferView>& reader);
 
 private:
     ColumnOption _element_type;
 };
 class MapPayload : public ColumnPayload {
 public:
-    void Parse(BufferReader& reader);
+    void Parse(BufferReader<BufferView>& reader);
 
 private:
     ColumnOption _key_type;
@@ -74,7 +74,7 @@ class TuplePayload : public ColumnPayload {
 public:
     using Types = std::vector<ColumnOption>;
 
-    void Parse(BufferReader& reader);
+    void Parse(BufferReader<BufferView>& reader);
 
 private:
     Types _elements;
@@ -82,7 +82,7 @@ private:
 class UdtPayload : public ColumnPayload {
 public:
     using FieldsType = std::vector<std::pair<String, ColumnOption>>;
-    void Parse(BufferReader& reader);
+    void Parse(BufferReader<BufferView>& reader);
 
 private:
     String _keyspace;
@@ -92,7 +92,7 @@ private:
 
 class CustomPayload : public ColumnPayload {
 public:
-    void Parse(BufferReader& reader);
+    void Parse(BufferReader<BufferView>& reader);
 
 private:
     String _value;

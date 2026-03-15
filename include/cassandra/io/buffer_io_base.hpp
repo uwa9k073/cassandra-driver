@@ -5,7 +5,9 @@
 #include <cstddef>
 #include <cstring>
 #include <stdexcept>
+#include <type_traits>
 #include <userver/utils/void_t.hpp>
+#include "cassandra/io/cassandra_types.hpp"
 
 namespace cassandra::io::detail {
 template <typename T>
@@ -76,7 +78,25 @@ template <class T>
 }
 
 template <class T>
+[[nodiscard]] T Read(const Bytes& data)
+    requires std::same_as<Bytes, std::decay_t<decltype(data)>>
+{
+    T val;
+    using Parser = typename IO<T>::ParserType;
+    Parser parser(val);
+    parser(data);
+    return val;
+}
+
+template <class T>
 void Write(protocol::RawBuffer& data, const T& value) {
+    using Formatter = typename IO<T>::FormatterType;
+    Formatter formatter(value);
+    formatter(data);
+}
+
+template <class T>
+void Write(Bytes& data, const T& value) {
     using Formatter = typename IO<T>::FormatterType;
     Formatter formatter(value);
     formatter(data);

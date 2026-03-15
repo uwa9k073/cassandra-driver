@@ -44,6 +44,17 @@ struct CommonStringBinaryParser : BufferParserBase<std::string> {
         );
         offset += size;
     }
+
+    void operator()(const Bytes& buffer) {
+        auto size = buffer.size();
+        this->value.reserve(size);
+        this->value.resize(size);
+        std::memcpy(
+            this->value.data(),
+            reinterpret_cast<const char*>(buffer.GetUnderlying().data()),
+            size
+        );
+    }
 };
 
 template <typename T>
@@ -84,6 +95,18 @@ struct CommonStringBinaryFormatter {
             size
         );
     }
+
+    void operator()(Bytes& buffer) const {
+        using Type = Bytes::UnderlyingType;
+        Type dest;
+        dest.resize(this->value.size());
+        std::memcpy(
+            dest.data(),
+            reinterpret_cast<const std::byte*>(value.data()),
+            value.size()
+        );
+        buffer = Bytes{std::move(dest)};
+    }
 };
 
 template <>
@@ -106,15 +129,15 @@ struct BufferFormatter<LongString> : StringBinaryFormatter<LongString> {
     explicit BufferFormatter(const LongString& val) : StringBinaryFormatter(val) {}
 };
 
+// for non scalar types or strong typedefs
 template <>
-struct BufferParser<std::string> : CommonStringBinaryParser {
-    explicit BufferParser(std::string& val) : CommonStringBinaryParser(val) {}
+struct Output<std::string> {
+    using type = CommonStringBinaryFormatter;
 };
 
 template <>
-struct BufferFormatter<std::string> : CommonStringBinaryFormatter {
-    explicit BufferFormatter(const std::string& val)
-        : CommonStringBinaryFormatter(val) {}
+struct Input<std::string> {
+    using type = CommonStringBinaryParser;
 };
 
 }  // namespace cassandra::io::detail

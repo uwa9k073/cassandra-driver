@@ -15,6 +15,11 @@ struct IntegralBinaryParser : BufferParserBase<T> {
     void operator()(std::span<const std::byte> data, size_t& offset) {
         this->value = ReadIntBE<T>(data, offset);
     }
+
+    void operator()(const Bytes& buffer) {
+        size_t offset = 0;
+        this->value = ReadIntBE<T>(buffer.GetUnderlying(), offset);
+    }
 };
 
 template <typename T>
@@ -22,6 +27,10 @@ struct IntegralBinaryFormatter {
     T value;
     explicit IntegralBinaryFormatter(T value) : value(value) {}
     void operator()(protocol::RawBuffer& buffer) { WriteIntBE(buffer, this->value); }
+
+    void operator()(Bytes& buffer) {
+        WriteIntBE(buffer.GetUnderlying(), this->value);
+    }
 };
 
 template <>

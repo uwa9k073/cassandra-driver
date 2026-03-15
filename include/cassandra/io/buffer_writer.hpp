@@ -9,27 +9,25 @@
 #include <cassandra/io/protocol/types.hpp>
 #include <cassandra/io/string_types.hpp>
 #include <cstddef>
+#include <type_traits>
 #include <vector>
 
 namespace cassandra::io {
+
+template <class Buffer>
 class BufferWriter {
 public:
-    explicit BufferWriter(std::vector<std::byte>& buffer) noexcept
-        : buffer_(buffer) {}
+    // CTAD: Template argument 'Buffer' is deduced from the constructor argument
+    explicit BufferWriter(Buffer& buffer) noexcept : buffer_(buffer) {}
 
     template <class T>
     void Write(const T& value) {
+        // Overload resolution happens here based on the concrete 'Buffer' type
         detail::Write<T>(buffer_, value);
     }
 
-    void AddBuffer(protocol::RawBufferView value) {
-        auto offset = buffer_.size();
-        buffer_.resize(offset + value.size());
-        std::copy(value.begin(), value.end(), buffer_.begin() + offset);
-    }
-
 private:
-    std::vector<std::byte>& buffer_;
+    Buffer& buffer_;
 };
 
 }  // namespace cassandra::io

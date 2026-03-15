@@ -1,38 +1,58 @@
 #pragma once
 
+#include <fmt/core.h>
+#include <cassandra/exception.hpp>
 #include <cassandra/io/buffer_io_base.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/floating_point_types.hpp>
 #include <cassandra/io/integral_types.hpp>
 #include <cassandra/io/list_types.hpp>
 #include <cassandra/io/map_types.hpp>
+#include <cassandra/io/protocol/types.hpp>
 #include <cassandra/io/string_types.hpp>
-#include <span>
-#include "cassandra/io/protocol/types.hpp"
+#include <cassert>
+
 namespace cassandra::io {
-class BufferReader {
+template <class Buffer>
+class BufferReader;
+
+template <>
+class BufferReader<protocol::BufferView> {
 public:
-    explicit BufferReader(std::span<const std::byte> data) noexcept
-        : data_(data), offset_(0) {}
+    explicit BufferReader(protocol::RawBufferView buffer) noexcept
+        : _buffer(protocol::BufferView{buffer, 0}) {}
 
     // ===== Core API =====
-    [[nodiscard]] size_t Offset() const noexcept { return offset_; }
+    [[nodiscard]] size_t Offset() const noexcept { return _buffer.offset; }
     [[nodiscard]] size_t Remaining() const noexcept {
-        return data_.size() - offset_;
+        return _buffer.data.size() - _buffer.offset;
     }
-    [[nodiscard]] bool Empty() const noexcept { return offset_ >= data_.size(); }
+    [[nodiscard]] bool Empty() const noexcept { return _buffer.data.empty(); }
 
     template <class T>
     [[nodiscard]] T Read() {
-        return detail::Read<T>(this->data_, this->offset_);
+        return detail::Read<T>(_buffer.data, _buffer.offset);
     }
 
     protocol::RawBufferView GetSubBuffer(size_t size) {
-        return data_.subspan(offset_, size);
+        return _buffer.SubView(size);
     }
 
 private:
-    std::span<const std::byte> data_;
-    size_t offset_ = 0;
+    protocol::BufferView _buffer;
+};
+
+template <>
+class BufferReader<Bytes> {
+public:
+    explicit BufferReader(const Bytes& buffer) noexcept : _buffer(buffer) {}
+
+    template <class T>
+    [[nodiscard]] T Read() {
+        return detail::Read<T>(_buffer);
+    }
+
+private:
+    const Bytes& _buffer;
 };
 }  // namespace cassandra::io
