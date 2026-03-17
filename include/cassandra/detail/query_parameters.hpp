@@ -22,7 +22,7 @@ public:
     template <class ParamsHolder>
     explicit QueryParameters(ParamsHolder& ph)
         : _size(ph.Size()), _values(ph.ParamBuffers()) {}
-    const io::Bytes* ParamBuffers() { return _values; }
+    const io::Bytes* ParamBuffers() const { return _values; }
 
     bool Empty() const { return !_size; }
     std::size_t Size() const { return _size; }
