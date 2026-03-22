@@ -2,45 +2,112 @@
 
 Драйвер Apache Cassandra (Native Protocol V4) основанный на фреймворке Userver.
 
-## Download and Build
+Драйвер сейчас поддерживает следующие возможности:
+- Выполнение запросов в синхронном режиме
+- Компрессия тела запроса
+- Удобную работу с ResultSet вдохновленную uPg драйвером [https://userver.tech/db/db5/pg_process_results.html]
 
-To create your own userver-based service follow the following steps:
+ Пример взаимодействия с драйвером:
+ ```cpp
+ namespace views {
+class Cassandra final : public userver::server::handlers::HttpHandlerJsonBase {
+public:
+    static constexpr std::string_view kName = "cassandra-view";
+    Cassandra(
+        const userver::components::ComponentConfig& config,
+        const userver::components::ComponentContext& context
+    );
 
-1. Press the green "Use this template button" at the top of this github page
-2. Clone the service `git clone your-service-repo && cd your-service-repo`
-3. Give a propper name to your service and replace all the occurences of "userver-cql-driver" string with that name
-   (could be done via `find . -not -path "./third_party/*" -not -path ".git/*" -not -path './build_*' -type f | xargs sed -i 's/userver-cql-driver/YOUR_SERVICE_NAME/g'`).
-4. Feel free to tweak, adjust or fully rewrite the source code of your service.
+    Value HandleRequestJsonThrow(
+        const HttpRequest& request,
+        const Value& request_json,
+        RequestContext& context
+    ) const override;
 
+private:
+    cassandra::SessionPtr _session_ptr;
+};
+}  // namespace views
 
-## Makefile
+int main(int argc, char* argv[]) {
+    auto component_list = userver::components::MinimalServerComponentList()
+                              .Append<userver::server::handlers::Ping>()
+                              .Append<userver::components::TestsuiteSupport>()
+                              .Append<userver::components::HttpClient>()
+                              .Append<userver::clients::dns::Component>()
+                              .Append<userver::components::Secdist>()
+                              .Append<userver::components::DefaultSecdistProvider>()
+                              .Append<userver::server::handlers::TestsControl>()
+                              .Append<userver::congestion_control::Component>()
+                              .Append<components::Cassandra>("cassandra-component")
+                              .Append<views::Cassandra>();
 
-Makefile contains typicaly useful targets for development:
+    return userver::utils::DaemonMain(argc, argv, component_list);
+}
 
-* `make build-debug` - debug build of the service with all the assertions and sanitizers enabled
-* `make build-release` - release build of the service with LTO
-* `make test-debug` - does a `make build-debug` and runs all the tests on the result
-* `make test-release` - does a `make build-release` and runs all the tests on the result
-* `make start-debug` - builds the service in debug mode and starts it
-* `make start-release` - builds the service in release mode and starts it
-* `make` or `make all` - builds and runs all the tests in release and debug modes
-* `make format` - autoformat all the C++ and Python sources
-* `make clean-` - cleans the object files
-* `make dist-clean` - clean all, including the CMake cached configurations
-* `make install` - does a `make build-release` and runs install in directory set in environment `PREFIX`
-* `make install-debug` - does a `make build-debug` and runs install in directory set in environment `PREFIX`
-* `make docker-COMMAND` - run `make COMMAND` in docker environment
-* `make docker-build-debug` - debug build of the service with all the assertions and sanitizers enabled in docker environment
-* `make docker-test-debug` - does a `make build-debug` and runs all the tests on the result in docker environment
-* `make docker-start-release` - does a `make install-release` and runs service in docker environment
-* `make docker-start-debug` - does a `make install-debug` and runs service in docker environment
-* `make docker-clean-data` - stop docker containers and clean database data
+namespace views {
 
-Edit `Makefile.local` to change the default configuration and build options.
+Cassandra::Cassandra(
+    const userver::components::ComponentConfig& config,
+    const userver::components::ComponentContext& context
+)
+    : userver::server::handlers::HttpHandlerJsonBase(config, context),
+      _session_ptr(context
+                       .FindComponent<::components::Cassandra>("cassandra-component")
+                       .GetSessionPtr()) {}
 
+const ::cassandra::Query kBasicSelect{"select cluster_name from system.local"};
+const ::cassandra::Query kBenchInsertQuery{
+    "insert into benchmark_ks.my_table (id, name) values (?, ?)"
+};
+const ::cassandra::Query kBenchSelectQuery{
+    "select id, name from benchmark_ks.my_table"
+};
 
-## License
+struct MyRow {
+    cassandra::io::Int id;
+    std::string name;
+};
 
-The original template is distributed under the [Apache-2.0 License](https://github.com/userver-framework/userver/blob/develop/LICENSE)
-and [CLA](https://github.com/userver-framework/userver/blob/develop/CONTRIBUTING.md). Services based on the template may change
-the license and CLA.
+userver::formats::json::Value Cassandra::HandleRequestJsonThrow(
+    const HttpRequest& request,
+    const Value& request_json,
+    RequestContext& /*context*/
+) const {
+    if (_session_ptr) {
+        auto id = request_json["id"].As<int>();
+        auto name = request_json["name"].As<std::string>();
+
+        auto result = _session_ptr->Execute(
+            cassandra::Consistency::kLocalOne, kBenchInsertQuery, id, name
+        );
+
+        auto select_result = _session_ptr->Execute(
+            cassandra::Consistency::kLocalOne, kBenchSelectQuery
+        );
+        if (!select_result.RowsAffected()) {
+            request.SetResponseStatus(userver::server::http::HttpStatus::NotFound);
+            return {};
+        }
+
+        LOG_DEBUG(
+            "RowsAffected={}, ColumnsAffected={}",
+            select_result.RowsAffected(),
+            select_result.ColumnsAffected()
+        );
+        auto cassandra_row =
+            select_result.AsSingleRow<MyRow>(cassandra::io::kRowTag);
+
+        return userver::formats::json::MakeObject(
+            "id", cassandra_row.id, "name", cassandra_row.name
+        );
+    } else {
+        request.SetResponseStatus(
+            userver::server::http::HttpStatus::InternalServerError
+        );
+        return userver::formats::json::MakeObject(
+            "message", "session_ptr is nullptr"
+        );
+    }
+}
+ ```
