@@ -24,10 +24,10 @@ add_library(userver::cassandra ALIAS ${CASSANDRA_ROOT_PROJECT_NAME})
 target_link_libraries(${CASSANDRA_ROOT_PROJECT_NAME} PUBLIC userver::core lz4)
 
 target_include_directories(
-  ${CASSANDRA_ROOT_PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                                        $<INSTALL_INTERFACE:include>
+  ${CASSANDRA_ROOT_PROJECT_NAME}
+  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
-include_directories(src)
 
 # Install
 include(GNUInstallDirs)
