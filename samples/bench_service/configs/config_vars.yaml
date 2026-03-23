@@ -1,0 +1,11 @@
+worker-threads: 1
+worker-fs-threads: 2
+worker-monitor-threads: 2
+logger-level: warning
+
+is-testing: false
+
+server-port: 8080
+
+# secdist-path: /configs/secure_data.json
+cassandra-keyspace: store

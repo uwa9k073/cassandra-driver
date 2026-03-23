@@ -31,6 +31,8 @@ struct CommandControl {
 
     enum class PreparedStatementsOptionOverride { kNoOverride, kEnabled, kDisabled };
 
+    int16_t stream_id = 0;
+
     PreparedStatementsOptionOverride prepared_statements_enabled{
         PreparedStatementsOptionOverride::kNoOverride
     };

@@ -1,3 +1,4 @@
+#include <chrono>
 #include <userver/clients/dns/component.hpp>
 #include <userver/clients/http/component.hpp>
 #include <userver/components/component.hpp>
@@ -5,6 +6,7 @@
 #include <userver/components/minimal_server_component_list.hpp>
 #include <userver/components/run.hpp>
 #include <userver/congestion_control/component.hpp>
+#include <userver/formats/json/value_builder.hpp>
 #include <userver/logging/log.hpp>
 #include <userver/server/handlers/ping.hpp>
 #include <userver/server/handlers/tests_control.hpp>
@@ -27,7 +29,11 @@
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
 #include <userver/formats/json/inline.hpp>
+#include <userver/formats/serialize/common_containers.hpp>
+#include <userver/server/handlers/log_level.hpp>
 #include <userver/server/http/http_status.hpp>
+#include <userver/utils/datetime_light.hpp>
+#include <vector>
 
 namespace views {
 class Cassandra final : public userver::server::handlers::HttpHandlerJsonBase {
@@ -59,6 +65,7 @@ int main(int argc, char* argv[]) {
                               .Append<userver::components::DefaultSecdistProvider>()
                               .Append<userver::server::handlers::TestsControl>()
                               .Append<userver::congestion_control::Component>()
+                              .Append<userver::server::handlers::LogLevel>()
                               .Append<components::Cassandra>("cassandra-component")
                               .Append<views::Cassandra>();
 
@@ -81,6 +88,10 @@ const ::cassandra::Query kInsertQuery{
 };
 const ::cassandra::Query kSelectQuery{"select id, name from benchmark_ks.my_table"};
 
+const ::cassandra::Query kTruncQuery{
+    "TRUNCATE TABLE benchmark_ks.my_table"
+};
+
 struct MyRow {
     cassandra::io::Int id;
     std::string name;
@@ -92,31 +103,31 @@ userver::formats::json::Value Cassandra::HandleRequestJsonThrow(
     RequestContext& /*context*/
 ) const {
     if (_session_ptr) {
-        auto id = request_json["id"].As<int>();
-        auto name = request_json["name"].As<std::string>();
+        auto turn_count = request_json["turnCount"].As<int>();
+        auto loop_count = request_json["loopCount"].As<int>();
+        auto data = request_json["data"].As<std::string>();
 
-        auto result = _session_ptr->Execute(
-            cassandra::Consistency::kLocalOne, kInsertQuery, id, name
-        );
+        std::vector<int> results;
 
-        auto select_result =
-            _session_ptr->Execute(cassandra::Consistency::kLocalOne, kSelectQuery);
-        if (!select_result.RowsAffected()) {
-            request.SetResponseStatus(userver::server::http::HttpStatus::NotFound);
-            return {};
+        for (auto _ = 0; _ < turn_count; ++_) {
+            _session_ptr->Execute(cassandra::Consistency::kLocalOne, kTruncQuery);
+            auto start = userver::utils::datetime::Now();
+            for (int id = 0; id < loop_count; ++id) {
+                _session_ptr->Execute(
+                    cassandra::Consistency::kLocalOne, kInsertQuery, id, data
+                );
+            }
+            auto end = userver::utils::datetime::Now();
+            results.push_back(
+                std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+                    .count()
+            );
         }
 
-        LOG_DEBUG(
-            "RowsAffected={}, ColumnsAffected={}",
-            select_result.RowsAffected(),
-            select_result.ColumnsAffected()
-        );
-        auto cassandra_row =
-            select_result.AsSingleRow<MyRow>(cassandra::io::kRowTag);
+        userver::formats::json::ValueBuilder builder;
+        builder["durations"] = results;
 
-        return userver::formats::json::MakeObject(
-            "id", cassandra_row.id, "name", cassandra_row.name
-        );
+        return builder.ExtractValue();
     } else {
         request.SetResponseStatus(
             userver::server::http::HttpStatus::InternalServerError

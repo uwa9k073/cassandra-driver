@@ -5,7 +5,6 @@
 #include <sys/socket.h>
 #include <detail/connection.hpp>
 
-#include <algorithm>
 #include <cassandra/exception.hpp>
 #include <cassandra/node_description.hpp>
 #include <detail/connection_impl.hpp>

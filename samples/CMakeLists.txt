@@ -1,0 +1,2 @@
+add_subdirectory(example_service)
+add_subdirectory(bench_service)
