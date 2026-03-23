@@ -40,6 +40,7 @@ ConnectionPool::ConnectionPool(
       _settings(settings),
       _connection_settings(connection_settings),
       _bg_task_processor(bg_task_processor),
+      _stream_pool_ptr(std::make_shared<StreamPool>()),
       _queue(ConnectionQueue::Create()),
       _conn_consumer(_queue->GetMultiConsumer()),
       _conn_producer(_queue->GetMultiProducer()),
@@ -173,7 +174,8 @@ bool ConnectionPool::DoConnect(
             _close_task_storage,
             std::move(conn_settings),
             std::move(size_lock),
-            _metrics
+            _metrics,
+            _stream_pool_ptr
         );
     } catch (...) {
         return false;
@@ -360,8 +362,16 @@ ResultSet ConnectionPool::Execute(
     const QueryParameters& params,
     OptionalCommandControl statement_cmd_ctl
 ) {
+    // auto stream_id = _stream_pool_ptr->Acquire();
+    // if (statement_cmd_ctl.has_value()) {
+    //     statement_cmd_ctl->stream_id = stream_id;
+    // } else {
+    //     statement_cmd_ctl = statement_cmd_ctl->WithStreamId(stream_id);
+    // }
     auto conn = Acquire(userver::engine::Deadline{});
     return conn->Execute(level, query, params, statement_cmd_ctl);
+    // _stream_pool_ptr->Release(stream_id);
+    // return result;
 }
 
 }  // namespace cassandra::detail

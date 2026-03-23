@@ -105,7 +105,8 @@ std::unique_ptr<Connection> Connection::Connect(
     userver::concurrent::BackgroundTaskStorageCore& bg_task_storage,
     ConnectionSettings settings,
     userver::engine::SemaphoreLock&& size_lock,
-    userver::utils::statistics::MetricsStoragePtr metrics
+    userver::utils::statistics::MetricsStoragePtr metrics,
+    std::shared_ptr<StreamPool> stream_pool_ptr
 ) {
     const auto deadline =
         userver::engine::Deadline::FromDuration(kMinConnectTimeout);
@@ -116,7 +117,8 @@ std::unique_ptr<Connection> Connection::Connect(
         bg_task_storage,
         settings,
         std::move(size_lock),
-        std::move(metrics)
+        std::move(metrics),
+        std::move(stream_pool_ptr)
     );
 
     auto resolved = TryResolveContactPoint(

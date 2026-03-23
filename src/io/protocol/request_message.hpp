@@ -1,14 +1,14 @@
+#include <cassandra/detail/query_parameters.hpp>
 #include <cassandra/io/buffer_writer.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/protocol/frame.hpp>
 #include <cassandra/io/protocol/lz4_utils.hpp>
 #include <cassandra/io/protocol/message.hpp>
 #include <cassandra/io/protocol/types.hpp>
+#include <cassandra/options.hpp>
 #include <cstdint>
 #include <unordered_map>
 #include <userver/logging/log.hpp>
-#include <cassandra/detail/query_parameters.hpp>
-#include <cassandra/options.hpp>
 #include <variant>
 #include <vector>
 
@@ -124,12 +124,10 @@ private:
     QueryParameters params;
 };
 
-
 class PrepareMessage : public RequestMessage {
 public:
     PrepareMessage(const LongString& query)
-        : RequestMessage(FrameHeader{.opcode = Opcode::kPrepare}),
-          query(query) {}
+        : RequestMessage(FrameHeader{.opcode = Opcode::kPrepare}), query(query) {}
 
     void SerializeBody(RawBuffer& buffer) override {
         BufferWriter writer(buffer);
@@ -140,10 +138,11 @@ private:
     LongString query;
 };
 
-
 class ExecuteMessage : public RequestMessage {
 public:
-    ExecuteMessage(const ShortBytes& id, Consistency consistency_level, QueryParameters params)
+    ExecuteMessage(
+        const ShortBytes& id, Consistency consistency_level, QueryParameters params
+    )
         : RequestMessage(FrameHeader{.opcode = Opcode::kExecute}),
           _id(id),
           _consistency_level(consistency_level),
@@ -176,28 +175,32 @@ private:
 
 class BatchMessage final : public RequestMessage {
 public:
-    enum class Kind : Byte {kString, kId};
+    enum class Kind : Byte { kString, kId };
     struct BatchQuery {
         Kind kind;
         std::variant<LongString, ShortBytes> query;
         QueryParameters params;
     };
 
-    BatchMessage(const std::vector<BatchQuery>& queries, Consistency consistency_level)
-        : RequestMessage(FrameHeader{.opcode = Opcode::kBatch}), _queries(queries), _consistency_level(consistency_level) {}
+    BatchMessage(
+        const std::vector<BatchQuery>& queries, Consistency consistency_level
+    )
+        : RequestMessage(FrameHeader{.opcode = Opcode::kBatch}),
+          _queries(queries),
+          _consistency_level(consistency_level) {}
 
     void SerializeBody(RawBuffer& buffer) override {
         BufferWriter writer(buffer);
         writer.Write(_type);
         writer.Write<Short>(_queries.size());
-        for(const auto& batch_query : _queries){
+        for (const auto& batch_query : _queries) {
             writer.Write<Byte>(static_cast<Byte>(batch_query.kind));
-            if(batch_query.kind == Kind::kString) {
+            if (batch_query.kind == Kind::kString) {
                 writer.Write<LongString>(std::get<LongString>(batch_query.query));
             } else {
                 writer.Write<ShortBytes>(std::get<ShortBytes>(batch_query.query));
             }
-            if(!batch_query.params.Empty()) {
+            if (!batch_query.params.Empty()) {
                 writer.Write<Short>(batch_query.params.Size());
                 auto* buffers = batch_query.params.ParamBuffers();
                 for (std::size_t i = 0; i < batch_query.params.Size(); ++i) {

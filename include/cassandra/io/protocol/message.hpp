@@ -21,6 +21,9 @@ public:
     Message& operator=(const Message&) = delete;
     Message& operator=(Message&&) = default;
 
+    void SetStreamId(std::int16_t id) { _header.stream = id; }
+    std::int16_t GetStreamId() const { return _header.stream; }
+
 protected:
     FrameHeader _header;
 };

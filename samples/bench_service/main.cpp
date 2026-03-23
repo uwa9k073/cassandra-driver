@@ -88,9 +88,7 @@ const ::cassandra::Query kInsertQuery{
 };
 const ::cassandra::Query kSelectQuery{"select id, name from benchmark_ks.my_table"};
 
-const ::cassandra::Query kTruncQuery{
-    "TRUNCATE TABLE benchmark_ks.my_table"
-};
+const ::cassandra::Query kTruncQuery{"TRUNCATE TABLE benchmark_ks.my_table"};
 
 struct MyRow {
     cassandra::io::Int id;
