@@ -208,7 +208,7 @@ ResultSet ConnectionImpl::Execute(
     Consistency level,
     const Query& query,
     const QueryParameters& params,
-    OptionalCommandControl statement_cmd_ctl
+    OptionalCommandControl /*statement_cmd_ctl*/
 ) {
     io::protocol::QueryMessage message(level, query.GetStatement(), params);
 
