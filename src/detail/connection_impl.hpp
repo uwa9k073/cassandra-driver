@@ -25,11 +25,6 @@
 
 namespace cassandra::detail {
 class ConnectionImpl {
-    using MessageFuture =
-        userver::engine::Future<std::shared_ptr<io::protocol::ResponseMessage>>;
-    using MessagePromise =
-        userver::engine::Promise<std::shared_ptr<io::protocol::ResponseMessage>>;
-
     using RecvMessageQueue = userver::concurrent::SpscQueue<
         std::shared_ptr<io::protocol::ResponseMessage>>;
 
@@ -76,15 +71,25 @@ private:
     userver::engine::Mutex _send_mutex;
     io::protocol::CompressorPtr _compressor_ptr;
 
+    void TcpConnect(
+        const userver::clients::dns::AddrVector& addresses,
+        userver::engine::Deadline deadline
+    );
+    void CqlHandshake(bool use_compression);
+    void StartReceiverLoop();
+
     void SendMessage(
         io::protocol::RequestMessage&& message, userver::engine::Deadline deadline
     );
-    void WaitForResult(MessagePromise&& promise, std::int16_t stream_id = 0);
     std::shared_ptr<io::protocol::ResponseMessage> ReadFrame(
         userver::engine::Deadline deadline
     );
 
     std::shared_ptr<io::protocol::ResponseMessage> ExecuteMessage(
+        io::protocol::RequestMessage&& message, userver::engine::Deadline deadline
+    );
+
+    std::shared_ptr<io::protocol::ResponseMessage> ExecuteMessageAsync(
         io::protocol::RequestMessage&& message, userver::engine::Deadline deadline
     );
 

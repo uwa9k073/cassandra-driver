@@ -207,10 +207,10 @@ public:
                     writer.Write<io::Bytes>(buffers[i]);
                 }
             }
-
-            writer.Write(static_cast<Short>(_consistency_level));
-            writer.Write(flags);
         }
+
+        writer.Write(static_cast<Short>(_consistency_level));
+        writer.Write(flags);
     }
 
 private:

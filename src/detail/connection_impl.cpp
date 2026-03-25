@@ -84,13 +84,17 @@ userver::engine::Task ConnectionImpl::Close() {
     );
 }
 
-std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessage(
+std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsync(
     io::protocol::RequestMessage&& message, userver::engine::Deadline deadline
 ) {
     StreamGuard guard(_stream_pool);
     message.SetStreamId(guard.GetStreamId());
-    SendMessage(std::move(message), deadline);
-
+    bg_task_storage_.Detach(userver::engine::AsyncNoSpan(
+        bg_task_processor_,
+        [this, &message, &deadline]() mutable {
+            SendMessage(std::move(message), deadline);
+        }
+    ));
     std::shared_ptr<io::protocol::ResponseMessage> result;
     if (!_received_message_consumer_map[guard.GetStreamId()].Pop(result, deadline)) {
         MarkBroken();
@@ -100,9 +104,56 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessage(
     return result;
 }
 
-void ConnectionImpl::AsyncConnect(
-    userver::clients::dns::AddrVector addresses,
-    bool use_compression,
+std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessage(
+    io::protocol::RequestMessage&& message, userver::engine::Deadline deadline
+) {
+    SendMessage(std::move(message), deadline);
+
+    return ReadFrame(deadline);
+}
+
+void ConnectionImpl::StartReceiverLoop() {
+    _receiver_task = userver::engine::CriticalAsyncNoSpan(
+        bg_task_processor_, [this]() { ReceiverLoop(); }
+    );
+}
+
+void ConnectionImpl::CqlHandshake(bool use_compression) {
+    auto support_message = ExecuteMessage(
+        io::protocol::OptionsMessage{},
+        userver::engine::Deadline::FromDuration(std::chrono::seconds{1})
+    );
+
+    auto options = dynamic_cast<io::protocol::SupportMessage*>(support_message.get())
+                       ->GetOptions();
+
+    auto compression_options = options.at(io::String("COMPRESSION"));
+
+    std::shared_ptr<io::protocol::ResponseMessage> message;
+    if (use_compression &&
+        std::ranges::find(compression_options, io::String("lz4")) !=
+            compression_options.end()) {
+        _compressor_ptr = std::make_unique<io::protocol::Lz4Compressor>();
+        message = ExecuteMessage(
+            io::protocol::StartupMessage{"lz4"},
+            userver::engine::Deadline::FromDuration(std::chrono::seconds{10})
+        );
+    } else {
+        message = ExecuteMessage(
+            io::protocol::StartupMessage{},
+            userver::engine::Deadline::FromDuration(std::chrono::seconds{10})
+        );
+    }
+
+    if (message.get()->GetOpcode() != io::protocol::Opcode::kReady) {
+        LOG_ERROR("RECEIVED UNEXPECTED MESSAGE");
+        MarkBroken();
+        throw std::runtime_error("Unexpected message received");
+    }
+}
+
+void ConnectionImpl::TcpConnect(
+    const userver::clients::dns::AddrVector& addresses,
     userver::engine::Deadline deadline
 ) {
     for (auto addr : addresses) {
@@ -121,56 +172,21 @@ void ConnectionImpl::AsyncConnect(
 
     if (!_socket.IsValid()) {
         LOG_DEBUG("SOCKET NOT READY");
-        return;
+        throw std::runtime_error("Socket not ready");
     }
     LOG_DEBUG("CASSANDRA SOCKET READY");
+}
 
-    _receiver_task =
-        userver::engine::AsyncNoSpan(bg_task_processor_, [this] { ReceiverLoop(); });
+void ConnectionImpl::AsyncConnect(
+    userver::clients::dns::AddrVector addresses,
+    bool use_compression,
+    userver::engine::Deadline deadline
+) {
+    TcpConnect(addresses, deadline);
 
-    // SENDING OPTIONS
-    LOG_DEBUG("SENDED OPTIONS MESSAGE");
-    // RECEIVE SUPPORT
-    auto support_message = ExecuteMessage(
-        io::protocol::OptionsMessage{},
-        userver::engine::Deadline::FromDuration(std::chrono::seconds{1})
-    );
+    CqlHandshake(use_compression);
 
-    auto options = dynamic_cast<io::protocol::SupportMessage*>(support_message.get())
-                       ->GetOptions();
-
-    auto compression_options = options.at(io::String("COMPRESSION"));
-
-    auto json = userver::formats::json::ValueBuilder{options}.ExtractValue();
-
-    LOG_DEBUG("CASSANDRA OPTIONS: {}", userver::formats::json::ToString(json));
-    // CONFIGURE COMPRESSION
-    // SEND STARTUP
-
-    std::shared_ptr<io::protocol::ResponseMessage> message;
-    if (use_compression &&
-        std::ranges::find(compression_options, io::String("lz4")) !=
-            compression_options.end()) {
-        _compressor_ptr = std::make_unique<io::protocol::Lz4Compressor>();
-        message = ExecuteMessage(
-            io::protocol::StartupMessage{"lz4"},
-            userver::engine::Deadline::FromDuration(std::chrono::seconds{1})
-        );
-    } else {
-        message = ExecuteMessage(
-            io::protocol::StartupMessage{},
-            userver::engine::Deadline::FromDuration(std::chrono::seconds{1})
-        );
-    }
-
-    if (message.get()->GetOpcode() == io::protocol::Opcode::kReady) {
-        LOG_DEBUG("RECEIVED READY MESSAGE");
-
-    } else {
-        LOG_ERROR("RECEIVED UNEXPECTED MESSAGE");
-        MarkBroken();
-        throw std::runtime_error("Unexpected message received");
-    }
+    StartReceiverLoop();
 }
 
 void ConnectionImpl::SendMessage(
@@ -283,7 +299,7 @@ void ConnectionImpl::ReceiverLoop() {
         }
 
         const auto stream_id = frame->GetStreamId();
-        if (stream_id < 0 || stream_id >= StreamPool::kTotalStreams) {
+        if (stream_id < 0) {
             // error handling
             break;
         }
@@ -318,7 +334,7 @@ ResultSet ConnectionImpl::Execute(
         statement_command_control.network_timeout_ms
     );  // лучше получить из statement_cmd_ctl
 
-    auto response = ExecuteMessage(std::move(message), deadline);
+    auto response = ExecuteMessageAsync(std::move(message), deadline);
 
     auto* result = dynamic_cast<io::protocol::ResultMessage*>(response.get());
     if (!result) throw std::runtime_error("Unexpected response type");

@@ -38,7 +38,7 @@ public:
         return val;
     }
 
-    int Size() const { return _columns_count; }
+    size_t Size() const { return _columns_count; }
 
 private:
     std::vector<io::Bytes> _row_content;
@@ -114,7 +114,7 @@ void Row::To(T&& val, io::RowTag) const {
 
     using RowType = io::RowType<ValueType>;
     using TupleType = typename RowType::TupleType;
-    constexpr auto tuple_size = RowType::size;
+    constexpr size_t tuple_size = RowType::size;
 
     if (tuple_size > Size()) {
         throw ::cassandra::exceptions::Error(fmt::format(
