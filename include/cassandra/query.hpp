@@ -1,10 +1,10 @@
 #pragma once
 
+#include <cassandra/io/cassandra_types.hpp>
 #include <userver/storages/query.hpp>
 #include <userver/utils/string_literal.hpp>
 #include <userver/utils/zstring_view.hpp>
 #include <utility>
-#include "cassandra/io/cassandra_types.hpp"
 
 namespace cassandra {
 class Query {
