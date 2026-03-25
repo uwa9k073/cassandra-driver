@@ -49,7 +49,8 @@ ConnectionImpl::ConnectionImpl(
       settings_(settings),
       pool_size_lock_(std::move(pool_size_lock)),
       _metrics(std::move(metrics)),
-      _stream_pool(*stream_pool_ptr.get()) {
+      _stream_pool(*stream_pool_ptr.get()),
+     _broken(false) {
     _received_message_queue_map.reserve(StreamPool::kMaxStreams);
     _received_message_producer_map.reserve(StreamPool::kMaxStreams);
     _received_message_consumer_map.reserve(StreamPool::kMaxStreams);
@@ -63,15 +64,7 @@ ConnectionImpl::ConnectionImpl(
 }
 
 ConnectionImpl::~ConnectionImpl() {
-    // if (_receiver_task.IsValid()) {
-    //     _receiver_task.BlockingWait();
-    // }
-    LOG_DEBUG() << "~ConnectionImpl: waiting for receiver task";
-    _receiver_task.Wait();
-    LOG_DEBUG() << "~ConnectionImpl: waiting for socket close";
     bg_task_storage_.Detach(Close());
-    // bg_task_storage_.CancelAndWait();
-    // bg_task_storage_.CloseAndWaitDebug();
 }
 
 userver::engine::Task ConnectionImpl::Close() {
@@ -81,7 +74,12 @@ userver::engine::Task ConnectionImpl::Close() {
     return userver::engine::CriticalAsyncNoSpan(
         bg_task_processor_,
         [socket = std::move(tmp_sock),
-         sl = std::move(pool_size_lock_)]() mutable {
+         sl = std::move(pool_size_lock_),
+         reader_loop = std::move(_receiver_task)]() mutable {
+             if (reader_loop.IsValid()) {
+                 reader_loop.RequestCancel();
+                 reader_loop.Wait();
+             }
             if (socket) {
                 int _ = std::move(socket).Release();
             }
@@ -253,12 +251,8 @@ void ConnectionImpl::ReceiverLoop() {
     while (!userver::engine::current_task::ShouldCancel()) {
         std::shared_ptr<io::protocol::ResponseMessage> frame;
         try {
-            frame = ReadFrame(
-                userver::engine::Deadline::FromDuration(std::chrono::seconds{1})
+            frame = ReadFrame(deadline
             );
-        } catch (const userver::engine::io::IoTimeout&) {
-            // Expected timeout - continue loop to re-check ShouldCancel()
-            continue;
         } catch (const userver::engine::io::IoException& e) {
             LOG_DEBUG() << "ReaderLoop: socket closed, exiting";
             MarkBroken();
@@ -284,6 +278,7 @@ void ConnectionImpl::ReceiverLoop() {
             break;
         }
     }
+    LOG_DEBUG("LOOP EXIT: IsBroken={}", IsBroken());
 }
 
 class StreamGuard {
