@@ -14,22 +14,15 @@ public:
     static constexpr int16_t kMaxClientStreamId = 32767;  // 2^15 - 1
     static constexpr int16_t kServerStreamId = -1;  // Для EVENT сообщений
     static constexpr size_t kTotalStreams = kMaxClientStreamId + 1;
-    static constexpr size_t kDefaultMaxConcurrent =
-        1024;  // Ограничение по умолчанию
+    static constexpr size_t kMaxStreams = 1024;  // Ограничение по умолчанию
+    StreamPool() : _semaphore(kMaxStreams), _next_id(0) {}
 
-    StreamPool();
-
-    std::int16_t Acquire();
+    std::int16_t Acquire(userver::engine::Deadline deadline);
 
     void Release(std::int16_t id);
 
 private:
-    using StreamIdQueue = userver::concurrent::NonFifoMpmcQueue<std::int16_t>;
-    using Producer = StreamIdQueue::MultiProducer;
-    using Consumer = StreamIdQueue::MultiConsumer;
-
-    std::shared_ptr<StreamIdQueue> _queue;
-    Consumer _consumer;
-    Producer _producer;
+    userver::engine::Semaphore _semaphore;
+    std::atomic<std::int16_t> _next_id;
 };
 }  // namespace cassandra::detail

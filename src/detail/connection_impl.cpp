@@ -1,13 +1,18 @@
+#include <fmt/format.h>
 #include <netinet/tcp.h>
 #include <algorithm>
+#include <atomic>
 #include <cassandra/io/protocol/frame.hpp>
 #include <cassandra/io/protocol/message.hpp>
+#include <cassandra/io/protocol/types.hpp>
 #include <cassandra/node_description.hpp>
 #include <cassandra/query.hpp>
+#include <cassandra/result_set.hpp>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <detail/connection_impl.hpp>
+#include <detail/stream_pool.hpp>
 #include <memory>
 #include <userver/clients/dns/common.hpp>
 #include <userver/concurrent/background_task_storage.hpp>
@@ -19,6 +24,7 @@
 #include <userver/engine/io/sockaddr.hpp>
 #include <userver/engine/io/socket.hpp>
 #include <userver/engine/sleep.hpp>
+#include <userver/engine/task/cancel.hpp>
 #include <userver/formats/json/serialize.hpp>
 #include <userver/formats/json/value.hpp>
 #include <userver/formats/json/value_builder.hpp>
@@ -27,8 +33,8 @@
 #include <userver/tracing/span.hpp>
 #include <userver/tracing/tags.hpp>
 #include <utility>
-#include "cassandra/result_set.hpp"
-#include "detail/stream_pool.hpp"
+#include "cassandra/options.hpp"
+
 namespace cassandra::detail {
 ConnectionImpl::ConnectionImpl(
     userver::engine::TaskProcessor& tp,
@@ -43,20 +49,30 @@ ConnectionImpl::ConnectionImpl(
       settings_(settings),
       pool_size_lock_(std::move(pool_size_lock)),
       _metrics(std::move(metrics)),
-      _stream_pool_ptr(stream_pool_ptr) {
-    _received_message_queue_map.reserve(StreamPool::kTotalStreams);
-    _received_message_producer_map.reserve(StreamPool::kTotalStreams);
-    _received_message_consumer_map.reserve(StreamPool::kTotalStreams);
+      _stream_pool(*stream_pool_ptr.get()) {
+    _received_message_queue_map.reserve(StreamPool::kMaxStreams);
+    _received_message_producer_map.reserve(StreamPool::kMaxStreams);
+    _received_message_consumer_map.reserve(StreamPool::kMaxStreams);
 
-    for (size_t i = 0; i < StreamPool::kTotalStreams; ++i) {
-        _received_message_queue_map.emplace_back(RecvMessageQueue::Create(100));
+    for (size_t i = 0; i < StreamPool::kMaxStreams; ++i) {
+        _received_message_queue_map.emplace_back(RecvMessageQueue::Create(1));
         auto back = _received_message_queue_map.back();
         _received_message_producer_map.emplace_back(back->GetProducer());
         _received_message_consumer_map.emplace_back(back->GetConsumer());
     }
 }
 
-ConnectionImpl::~ConnectionImpl() { bg_task_storage_.Detach(Close()); }
+ConnectionImpl::~ConnectionImpl() {
+    // if (_receiver_task.IsValid()) {
+    //     _receiver_task.BlockingWait();
+    // }
+    LOG_DEBUG() << "~ConnectionImpl: waiting for receiver task";
+    _receiver_task.Wait();
+    LOG_DEBUG() << "~ConnectionImpl: waiting for socket close";
+    bg_task_storage_.Detach(Close());
+    // bg_task_storage_.CancelAndWait();
+    // bg_task_storage_.CloseAndWaitDebug();
+}
 
 userver::engine::Task ConnectionImpl::Close() {
     userver::engine::io::Socket tmp_sock = std::exchange(_socket, {});
@@ -64,7 +80,8 @@ userver::engine::Task ConnectionImpl::Close() {
     // NOLINTNEXTLINE(cppcoreguidelines-slicing)
     return userver::engine::CriticalAsyncNoSpan(
         bg_task_processor_,
-        [socket = std::move(tmp_sock), sl = std::move(pool_size_lock_)]() mutable {
+        [socket = std::move(tmp_sock),
+         sl = std::move(pool_size_lock_)]() mutable {
             if (socket) {
                 int _ = std::move(socket).Release();
             }
@@ -100,11 +117,11 @@ void ConnectionImpl::AsyncConnect(
     SendMessage(io::protocol::OptionsMessage{});
     LOG_DEBUG("SENDED OPTIONS MESSAGE");
     // RECEIVE SUPPORT
-    auto support_message = ReadFrame();
+    auto support_message =
+        ReadFrame(userver::engine::Deadline::FromDuration(std::chrono::seconds{1}));
 
-    auto options =
-        reinterpret_cast<io::protocol::SupportMessage*>(support_message.get())
-            ->GetOptions();
+    auto options = dynamic_cast<io::protocol::SupportMessage*>(support_message.get())
+                       ->GetOptions();
 
     auto compression_options = options.at(io::String("COMPRESSION"));
 
@@ -114,25 +131,36 @@ void ConnectionImpl::AsyncConnect(
     // CONFIGURE COMPRESSION
     // SEND STARTUP
 
-    if (std::ranges::find(compression_options, io::String("lz4")) !=
-            compression_options.end() &&
-        use_compression) {
+    if (use_compression &&
+        std::ranges::find(compression_options, io::String("lz4")) !=
+            compression_options.end()) {
         _compressor_ptr = std::make_unique<io::protocol::Lz4Compressor>();
         SendMessage(io::protocol::StartupMessage{"lz4"});
     } else {
         SendMessage(io::protocol::StartupMessage{});
     }
 
-    auto message = ReadFrame();
+    auto message =
+        ReadFrame(userver::engine::Deadline::FromDuration(std::chrono::seconds{1}));
 
     if (message.get()->GetOpcode() == io::protocol::Opcode::kReady) {
         LOG_DEBUG("RECEIVED READY MESSAGE");
+        _receiver_task = userver::engine::AsyncNoSpan(bg_task_processor_, [this] {
+            ReceiverLoop();
+        });
+
+    } else {
+        LOG_ERROR("RECEIVED UNEXPECTED MESSAGE");
+        MarkBroken();
+        throw std::runtime_error("Unexpected message received");
     }
 }
 
 void ConnectionImpl::SendMessage(io::protocol::RequestMessage&& message) {
     io::protocol::RawBuffer buffer;
     message.Serialize(buffer);
+
+    auto lock = std::unique_lock(_send_mutex);
 
     auto returned_len =
         _socket.SendAll(buffer.data(), buffer.size(), userver::engine::Deadline{});
@@ -168,16 +196,14 @@ std::shared_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(
     }
 }
 
-std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ReadFrame() {
+std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ReadFrame(
+    userver::engine::Deadline deadline
+) {
     constexpr size_t kHeaderSize = io::protocol::FrameHeader::kHeaderSize;
 
     io::protocol::RawBuffer header_buffer(kHeaderSize);
 
-    auto len = _socket.RecvSome(
-        header_buffer.data(),
-        kHeaderSize,
-        userver::engine::Deadline::FromDuration(std::chrono::seconds{15})
-    );
+    auto len = _socket.RecvAll(header_buffer.data(), kHeaderSize, deadline);
     if (len <= 0) {
         LOG_ERROR() << "Socket closed or timeout";
         throw std::runtime_error("Socket read failed");
@@ -195,11 +221,7 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ReadFrame() {
     io::protocol::RawBuffer body_buffer;
     body_buffer.resize(body_length);
 
-    len = _socket.RecvSome(
-        body_buffer.data(),
-        body_length,
-        userver::engine::Deadline::FromDuration(std::chrono::seconds{15})
-    );
+    len = _socket.RecvAll(body_buffer.data(), body_length, deadline);
     if (len < body_length) {
         LOG_ERROR() << "Socket closed or timeout";
         throw std::runtime_error("Socket read failed");
@@ -210,8 +232,8 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ReadFrame() {
     message->ParseBody(body_buffer);
 
     if (message->GetOpcode() == io::protocol::Opcode::kError) {
-        auto error_message =
-            reinterpret_cast<io::protocol::ErrorMessage*>(message.get());
+        auto* error_message =
+            dynamic_cast<io::protocol::ErrorMessage*>(message.get());
         LOG_WARNING(
             "RECEIVED ERROR MESSAGE: code={}, message={}",
             error_message->GetErrorCode(),
@@ -223,45 +245,61 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ReadFrame() {
     return message;
 }
 
-void ConnectionImpl::WaitForResult(
-    MessagePromise&& promise, std::int16_t stream_id
-) {
-    auto& consumer = _received_message_consumer_map.at(stream_id);
-    std::shared_ptr<io::protocol::ResponseMessage> promise_value = nullptr;
+void ConnectionImpl::MarkBroken() { _broken.store(true, std::memory_order_release); }
 
-    LOG_DEBUG("TRYING TO GET MESSAGE BY STREAM ID");
+void ConnectionImpl::ReceiverLoop() {
+    const auto deadline = userver::engine::Deadline{};
 
-    while (!consumer.PopNoblock(promise_value)) {
-        LOG_DEBUG("POP NOBLOCK FAILED, READING FRAME");
-        promise_value = ReadFrame();
-        if (promise_value->GetStreamId() == stream_id) {
-            promise.set_value(promise_value);
-            return;
-        } else {
-            LOG_DEBUG("PUSHING FRAME TO QUEUE");
-            auto& producer = _received_message_producer_map.at(promise_value->GetStreamId());
-            [[maybe_unused]] auto _ = producer.PushNoblock(std::move(promise_value));
-            userver::engine::Yield();
+    while (!userver::engine::current_task::ShouldCancel()) {
+        std::shared_ptr<io::protocol::ResponseMessage> frame;
+        try {
+            frame = ReadFrame(
+                userver::engine::Deadline::FromDuration(std::chrono::seconds{1})
+            );
+        } catch (const userver::engine::io::IoTimeout&) {
+            // Expected timeout - continue loop to re-check ShouldCancel()
+            continue;
+        } catch (const userver::engine::io::IoException& e) {
+            LOG_DEBUG() << "ReaderLoop: socket closed, exiting";
+            MarkBroken();
+            break;
+        } catch (std::exception& e) {
+            LOG_WARNING("ReaderLoop: read error: {}", e.what());
+            MarkBroken();
+            break;
+        }
+
+        const auto stream_id = frame->GetStreamId();
+        if (stream_id < 0 || stream_id >= StreamPool::kTotalStreams) {
+            // error handling
+            break;
+        }
+
+        const auto push_deadline =
+            userver::engine::Deadline::FromDuration(std::chrono::seconds{30});
+        if (!_received_message_producer_map[stream_id].Push(
+                std::move(frame), push_deadline
+            )) {
+            // Error handling
+            break;
         }
     }
-
-    LOG_DEBUG("FRAME GETTED");
-    promise.set_value(promise_value);
 }
 
 class StreamGuard {
 public:
-    StreamGuard(std::shared_ptr<StreamPool> stream_pool)
-        : _stream_pool(stream_pool) {
-        _stream_id = _stream_pool->Acquire();
+    StreamGuard(StreamPool& stream_pool) : _stream_pool(stream_pool) {
+        _stream_id = _stream_pool.Acquire(
+            userver::engine::Deadline::FromDuration(std::chrono::seconds{1})
+        );
     }
 
-    ~StreamGuard() { _stream_pool->Release(_stream_id); }
+    ~StreamGuard() { _stream_pool.Release(_stream_id); }
 
     std::int16_t GetStreamId() const { return _stream_id; }
 
 private:
-    std::shared_ptr<StreamPool> _stream_pool;
+    StreamPool& _stream_pool;
     std::int16_t _stream_id;
 };
 
@@ -269,39 +307,42 @@ ResultSet ConnectionImpl::Execute(
     Consistency level,
     const Query& query,
     const QueryParameters& params,
-    OptionalCommandControl /*statement_cmd_ctl*/
+    OptionalCommandControl statement_cmd_ctl
 ) {
-    StreamGuard sg(_stream_pool_ptr);
+    auto statement_command_control = statement_cmd_ctl.value_or(CommandControl{
+        std::chrono::seconds{3},
+        std::chrono::seconds{1},
+        CommandControl::PreparedStatementsOptionOverride::kNoOverride
+    });
+    StreamGuard sg(_stream_pool);
     auto stream_id = sg.GetStreamId();
 
     io::protocol::QueryMessage message(level, query.GetStatement(), params);
 
     message.SetStreamId(stream_id);
 
-    MessagePromise promise;
-    auto future = promise.get_future();
-    auto task = userver::engine::AsyncNoSpan(
-        bg_task_processor_,
-        [message_promise = std::move(promise),
-         request = std::move(message),
-         this,
-         stream_id]() mutable {
-            SendMessage(std::move(request));
+    // bg_task_storage_.Detach(userver::engine::AsyncNoSpan(
+    //     bg_task_processor_,
+    //     [this, request = std::move(message)]() mutable {
+    //         SendMessage(std::move(request));
+    //     }
+    // ));
 
-            WaitForResult(std::move(message_promise), stream_id);
-        }
-    );
+    SendMessage(std::move(message));
 
-    bg_task_storage_.Detach(std::move(task));
-    auto result_message =
-        std::dynamic_pointer_cast<io::protocol::ResultMessage>(future.get());
-    if (!result_message) {
-        throw std::runtime_error("Result message is null");
+    const auto deadline = userver::engine::Deadline::FromDuration(
+        statement_command_control.network_timeout_ms
+    );  // лучше получить из statement_cmd_ctl
+
+    std::shared_ptr<io::protocol::ResponseMessage> response;
+    if (!_received_message_consumer_map[stream_id].Pop(response, deadline)) {
+        MarkBroken();
+        throw std::runtime_error("Timeout");
     }
 
-    LOG_DEBUG("RESULT MESSAGE CORRECT");
+    auto* result = dynamic_cast<io::protocol::ResultMessage*>(response.get());
+    if (!result) throw std::runtime_error("Unexpected response type");
 
-    return result_message->GetResultSet();
+    return result->GetResultSet();
 }
-
 }  // namespace cassandra::detail

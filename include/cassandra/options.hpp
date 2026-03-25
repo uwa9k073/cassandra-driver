@@ -27,7 +27,7 @@ enum class Consistency : io::Short {
 struct CommandControl {
     /// Overall timeout for a command being executed
     TimeoutDuration network_timeout_ms{};
-    /// PostgreSQL server-side timeout
+    /// Cassandra server-side timeout
     TimeoutDuration statement_timeout_ms{};
 
     enum class PreparedStatementsOptionOverride { kNoOverride, kEnabled, kDisabled };
@@ -36,19 +36,15 @@ struct CommandControl {
         PreparedStatementsOptionOverride::kNoOverride
     };
 
-    int16_t stream_id;
-
     constexpr CommandControl(
         TimeoutDuration network_timeout_ms,
         TimeoutDuration statement_timeout_ms,
         PreparedStatementsOptionOverride prepared_statements_enabled =
-            PreparedStatementsOptionOverride::kNoOverride,
-        int16_t stream_id = 0
+            PreparedStatementsOptionOverride::kNoOverride
     )
         : network_timeout_ms(network_timeout_ms),
           statement_timeout_ms(statement_timeout_ms),
-          prepared_statements_enabled(prepared_statements_enabled),
-          stream_id(stream_id) {}
+          prepared_statements_enabled(prepared_statements_enabled) {}
 
     constexpr CommandControl WithExecuteTimeout(TimeoutDuration n) const noexcept {
         return {n, statement_timeout_ms};
@@ -56,12 +52,6 @@ struct CommandControl {
 
     constexpr CommandControl WithStatementTimeout(TimeoutDuration s) const noexcept {
         return {network_timeout_ms, s};
-    }
-
-    constexpr CommandControl WithStreamId(std::int16_t k) const noexcept {
-        return {
-            network_timeout_ms, statement_timeout_ms, prepared_statements_enabled, k
-        };
     }
 
     bool operator==(const CommandControl& rhs) const {

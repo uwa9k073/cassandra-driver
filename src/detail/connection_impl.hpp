@@ -54,6 +54,8 @@ public:
                userver::utils::datetime::SteadyNow() > expires_at_;
     }
 
+    bool IsBroken() const { return _broken.load(std::memory_order_relaxed); }
+
     ResultSet Execute(
         Consistency level,
         const Query& query,
@@ -71,29 +73,27 @@ private:
     std::optional<std::chrono::steady_clock::time_point> expires_at_;
     userver::engine::SemaphoreLock pool_size_lock_;
     userver::utils::statistics::MetricsStoragePtr _metrics;
-
-    void StartAsyncConnect(ContactPoint contact_point, Port port);
-    void WaitAsyncConnect(
-        userver::engine::Deadline deadline, ContactPoint contact_point, Port port
-    );
+    StreamPool& _stream_pool;
+    userver::engine::Mutex _send_mutex;
+    io::protocol::CompressorPtr _compressor_ptr;
 
     void SendMessage(io::protocol::RequestMessage&& message);
     void WaitForResult(MessagePromise&& promise, std::int16_t stream_id = 0);
-    std::shared_ptr<io::protocol::ResponseMessage> ReadFrame();
+    std::shared_ptr<io::protocol::ResponseMessage> ReadFrame(
+        userver::engine::Deadline deadline
+    );
+
+    void ReceiverLoop();
+
+    void MarkBroken();
 
     userver::engine::Task Close();
-
-    std::shared_ptr<StreamPool> _stream_pool_ptr;
-
-    io::protocol::CompressorPtr _compressor_ptr;
-    userver::engine::Mutex _message_queue_mutex;
-    userver::engine::ConditionVariable _stream_ready_cv;
-
-    std::vector<std::pair<bool, MessagePromise>> _receiving_promise_map;
 
     std::vector<std::shared_ptr<RecvMessageQueue>> _received_message_queue_map;
     std::vector<RecvMessageQueue::Producer> _received_message_producer_map;
     std::vector<RecvMessageQueue::Consumer> _received_message_consumer_map;
-    std::size_t _receiving_promise_count;
+
+    std::atomic<bool> _broken;
+    userver::engine::Task _receiver_task;
 };
 }  // namespace cassandra::detail

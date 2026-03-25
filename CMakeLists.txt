@@ -14,6 +14,7 @@ find_package(
   COMPONENTS core
   REQUIRED
 )
+
 file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp")
 list(FILTER SOURCES EXCLUDE REGEX ".*(_test|_benchmark)\\.cpp$")
 

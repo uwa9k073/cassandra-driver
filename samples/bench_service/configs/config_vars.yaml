@@ -3,7 +3,7 @@ worker-fs-threads: 6
 worker-monitor-threads: 2
 event-threads: 2
 
-logger-level: warning
+logger-level: debug
 
 is-testing: false
 
