@@ -39,8 +39,7 @@ public:
         userver::concurrent::BackgroundTaskStorageCore& bts,
         ConnectionSettings settings,
         userver::engine::SemaphoreLock&& pool_size_lock,
-        userver::utils::statistics::MetricsStoragePtr metrics,
-        std::shared_ptr<StreamPool> stream_pool_ptr
+        userver::utils::statistics::MetricsStoragePtr metrics
     );
 
     void AsyncConnect(
@@ -73,14 +72,20 @@ private:
     std::optional<std::chrono::steady_clock::time_point> expires_at_;
     userver::engine::SemaphoreLock pool_size_lock_;
     userver::utils::statistics::MetricsStoragePtr _metrics;
-    StreamPool& _stream_pool;
+    StreamPool _stream_pool;
     userver::engine::Mutex _send_mutex;
     io::protocol::CompressorPtr _compressor_ptr;
 
-    void SendMessage(io::protocol::RequestMessage&& message);
+    void SendMessage(
+        io::protocol::RequestMessage&& message, userver::engine::Deadline deadline
+    );
     void WaitForResult(MessagePromise&& promise, std::int16_t stream_id = 0);
     std::shared_ptr<io::protocol::ResponseMessage> ReadFrame(
         userver::engine::Deadline deadline
+    );
+
+    std::shared_ptr<io::protocol::ResponseMessage> ExecuteMessage(
+        io::protocol::RequestMessage&& message, userver::engine::Deadline deadline
     );
 
     void ReceiverLoop();

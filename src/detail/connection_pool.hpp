@@ -89,7 +89,6 @@ private:
     using Consumer = ConnectionQueue::MultiConsumer;
     using Producer = ConnectionQueue::MultiProducer;
 
-    std::shared_ptr<StreamPool> _stream_pool_ptr;
     std::shared_ptr<ConnectionQueue> _queue;
     Consumer _conn_consumer;
     Producer _conn_producer;

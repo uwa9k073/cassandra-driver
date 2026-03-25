@@ -24,8 +24,7 @@ public:
         userver::concurrent::BackgroundTaskStorageCore& bg_task_storage,
         ConnectionSettings settings,
         userver::engine::SemaphoreLock&& size_lock,
-        userver::utils::statistics::MetricsStoragePtr metric,
-        std::shared_ptr<StreamPool> stream_pool_ptr
+        userver::utils::statistics::MetricsStoragePtr metric
     );
 
     ~Connection();

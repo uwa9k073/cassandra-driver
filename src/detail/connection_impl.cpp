@@ -6,6 +6,7 @@
 #include <cassandra/io/protocol/message.hpp>
 #include <cassandra/io/protocol/types.hpp>
 #include <cassandra/node_description.hpp>
+#include <cassandra/options.hpp>
 #include <cassandra/query.hpp>
 #include <cassandra/result_set.hpp>
 #include <chrono>
@@ -33,7 +34,6 @@
 #include <userver/tracing/span.hpp>
 #include <userver/tracing/tags.hpp>
 #include <utility>
-#include "cassandra/options.hpp"
 
 namespace cassandra::detail {
 ConnectionImpl::ConnectionImpl(
@@ -41,16 +41,15 @@ ConnectionImpl::ConnectionImpl(
     userver::concurrent::BackgroundTaskStorageCore& bts,
     ConnectionSettings settings,
     userver::engine::SemaphoreLock&& pool_size_lock,
-    userver::utils::statistics::MetricsStoragePtr metrics,
-    std::shared_ptr<StreamPool> stream_pool_ptr
+    userver::utils::statistics::MetricsStoragePtr metrics
 )
     : bg_task_processor_(tp),
       bg_task_storage_(bts),
       settings_(settings),
       pool_size_lock_(std::move(pool_size_lock)),
       _metrics(std::move(metrics)),
-      _stream_pool(*stream_pool_ptr.get()),
-     _broken(false) {
+      _stream_pool(),
+      _broken(false) {
     _received_message_queue_map.reserve(StreamPool::kMaxStreams);
     _received_message_producer_map.reserve(StreamPool::kMaxStreams);
     _received_message_consumer_map.reserve(StreamPool::kMaxStreams);
@@ -63,9 +62,7 @@ ConnectionImpl::ConnectionImpl(
     }
 }
 
-ConnectionImpl::~ConnectionImpl() {
-    bg_task_storage_.Detach(Close());
-}
+ConnectionImpl::~ConnectionImpl() { bg_task_storage_.Detach(Close()); }
 
 userver::engine::Task ConnectionImpl::Close() {
     userver::engine::io::Socket tmp_sock = std::exchange(_socket, {});
@@ -76,16 +73,33 @@ userver::engine::Task ConnectionImpl::Close() {
         [socket = std::move(tmp_sock),
          sl = std::move(pool_size_lock_),
          reader_loop = std::move(_receiver_task)]() mutable {
-             if (reader_loop.IsValid()) {
-                 reader_loop.RequestCancel();
-                 reader_loop.Wait();
-             }
+            if (reader_loop.IsValid()) {
+                reader_loop.RequestCancel();
+                reader_loop.Wait();
+            }
             if (socket) {
                 int _ = std::move(socket).Release();
             }
         }
     );
 }
+
+std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessage(
+    io::protocol::RequestMessage&& message, userver::engine::Deadline deadline
+) {
+    StreamGuard guard(_stream_pool);
+    message.SetStreamId(guard.GetStreamId());
+    SendMessage(std::move(message), deadline);
+
+    std::shared_ptr<io::protocol::ResponseMessage> result;
+    if (!_received_message_consumer_map[guard.GetStreamId()].Pop(result, deadline)) {
+        MarkBroken();
+        throw std::runtime_error("Timeout");
+    }
+
+    return result;
+}
+
 void ConnectionImpl::AsyncConnect(
     userver::clients::dns::AddrVector addresses,
     bool use_compression,
@@ -111,12 +125,16 @@ void ConnectionImpl::AsyncConnect(
     }
     LOG_DEBUG("CASSANDRA SOCKET READY");
 
+    _receiver_task =
+        userver::engine::AsyncNoSpan(bg_task_processor_, [this] { ReceiverLoop(); });
+
     // SENDING OPTIONS
-    SendMessage(io::protocol::OptionsMessage{});
     LOG_DEBUG("SENDED OPTIONS MESSAGE");
     // RECEIVE SUPPORT
-    auto support_message =
-        ReadFrame(userver::engine::Deadline::FromDuration(std::chrono::seconds{1}));
+    auto support_message = ExecuteMessage(
+        io::protocol::OptionsMessage{},
+        userver::engine::Deadline::FromDuration(std::chrono::seconds{1})
+    );
 
     auto options = dynamic_cast<io::protocol::SupportMessage*>(support_message.get())
                        ->GetOptions();
@@ -129,23 +147,24 @@ void ConnectionImpl::AsyncConnect(
     // CONFIGURE COMPRESSION
     // SEND STARTUP
 
+    std::shared_ptr<io::protocol::ResponseMessage> message;
     if (use_compression &&
         std::ranges::find(compression_options, io::String("lz4")) !=
             compression_options.end()) {
         _compressor_ptr = std::make_unique<io::protocol::Lz4Compressor>();
-        SendMessage(io::protocol::StartupMessage{"lz4"});
+        message = ExecuteMessage(
+            io::protocol::StartupMessage{"lz4"},
+            userver::engine::Deadline::FromDuration(std::chrono::seconds{1})
+        );
     } else {
-        SendMessage(io::protocol::StartupMessage{});
+        message = ExecuteMessage(
+            io::protocol::StartupMessage{},
+            userver::engine::Deadline::FromDuration(std::chrono::seconds{1})
+        );
     }
-
-    auto message =
-        ReadFrame(userver::engine::Deadline::FromDuration(std::chrono::seconds{1}));
 
     if (message.get()->GetOpcode() == io::protocol::Opcode::kReady) {
         LOG_DEBUG("RECEIVED READY MESSAGE");
-        _receiver_task = userver::engine::AsyncNoSpan(bg_task_processor_, [this] {
-            ReceiverLoop();
-        });
 
     } else {
         LOG_ERROR("RECEIVED UNEXPECTED MESSAGE");
@@ -154,14 +173,15 @@ void ConnectionImpl::AsyncConnect(
     }
 }
 
-void ConnectionImpl::SendMessage(io::protocol::RequestMessage&& message) {
+void ConnectionImpl::SendMessage(
+    io::protocol::RequestMessage&& message, userver::engine::Deadline deadline
+) {
     io::protocol::RawBuffer buffer;
     message.Serialize(buffer);
 
     auto lock = std::unique_lock(_send_mutex);
 
-    auto returned_len =
-        _socket.SendAll(buffer.data(), buffer.size(), userver::engine::Deadline{});
+    auto returned_len = _socket.SendAll(buffer.data(), buffer.size(), deadline);
     if (returned_len != buffer.size()) {
         LOG_ERROR("Failed to send message");
     }
@@ -251,8 +271,7 @@ void ConnectionImpl::ReceiverLoop() {
     while (!userver::engine::current_task::ShouldCancel()) {
         std::shared_ptr<io::protocol::ResponseMessage> frame;
         try {
-            frame = ReadFrame(deadline
-            );
+            frame = ReadFrame(deadline);
         } catch (const userver::engine::io::IoException& e) {
             LOG_DEBUG() << "ReaderLoop: socket closed, exiting";
             MarkBroken();
@@ -281,23 +300,6 @@ void ConnectionImpl::ReceiverLoop() {
     LOG_DEBUG("LOOP EXIT: IsBroken={}", IsBroken());
 }
 
-class StreamGuard {
-public:
-    StreamGuard(StreamPool& stream_pool) : _stream_pool(stream_pool) {
-        _stream_id = _stream_pool.Acquire(
-            userver::engine::Deadline::FromDuration(std::chrono::seconds{1})
-        );
-    }
-
-    ~StreamGuard() { _stream_pool.Release(_stream_id); }
-
-    std::int16_t GetStreamId() const { return _stream_id; }
-
-private:
-    StreamPool& _stream_pool;
-    std::int16_t _stream_id;
-};
-
 ResultSet ConnectionImpl::Execute(
     Consistency level,
     const Query& query,
@@ -309,31 +311,14 @@ ResultSet ConnectionImpl::Execute(
         std::chrono::seconds{1},
         CommandControl::PreparedStatementsOptionOverride::kNoOverride
     });
-    StreamGuard sg(_stream_pool);
-    auto stream_id = sg.GetStreamId();
 
     io::protocol::QueryMessage message(level, query.GetStatement(), params);
-
-    message.SetStreamId(stream_id);
-
-    // bg_task_storage_.Detach(userver::engine::AsyncNoSpan(
-    //     bg_task_processor_,
-    //     [this, request = std::move(message)]() mutable {
-    //         SendMessage(std::move(request));
-    //     }
-    // ));
-
-    SendMessage(std::move(message));
 
     const auto deadline = userver::engine::Deadline::FromDuration(
         statement_command_control.network_timeout_ms
     );  // лучше получить из statement_cmd_ctl
 
-    std::shared_ptr<io::protocol::ResponseMessage> response;
-    if (!_received_message_consumer_map[stream_id].Pop(response, deadline)) {
-        MarkBroken();
-        throw std::runtime_error("Timeout");
-    }
+    auto response = ExecuteMessage(std::move(message), deadline);
 
     auto* result = dynamic_cast<io::protocol::ResultMessage*>(response.get());
     if (!result) throw std::runtime_error("Unexpected response type");
