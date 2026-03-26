@@ -5,6 +5,7 @@
 #include <userver/components/component_list.hpp>
 #include <userver/components/minimal_server_component_list.hpp>
 #include <userver/components/run.hpp>
+#include <userver/concurrent/background_task_storage.hpp>
 #include <userver/congestion_control/component.hpp>
 #include <userver/formats/json/value_builder.hpp>
 #include <userver/logging/log.hpp>

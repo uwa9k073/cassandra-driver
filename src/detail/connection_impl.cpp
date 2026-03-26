@@ -91,12 +91,7 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsy
     StreamGuard guard(_stream_pool);
     message->SetStreamId(guard.GetStreamId());
 
-    bg_task_storage_.Detach(userver::engine::AsyncNoSpan(
-        bg_task_processor_,
-        [this, request = std::move(message), deadline]() mutable {
-            SendMessage(std::move(request), deadline);
-        }
-    ));
+    SendMessage(std::move(message), deadline);
     std::shared_ptr<io::protocol::ResponseMessage> result;
     if (!_received_message_consumer_map[guard.GetStreamId()].Pop(result, deadline)) {
         MarkBroken();
@@ -205,9 +200,9 @@ void ConnectionImpl::SendMessage(
     }
 }
 
-
 void ConnectionImpl::SendMessage(
-    std::unique_ptr<io::protocol::RequestMessage> message, userver::engine::Deadline deadline
+    std::unique_ptr<io::protocol::RequestMessage> message,
+    userver::engine::Deadline deadline
 ) {
     io::protocol::RawBuffer buffer;
     message->Serialize(buffer);
