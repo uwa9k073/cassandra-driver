@@ -240,6 +240,9 @@ Connection* ConnectionPool::Pop(userver::engine::Deadline deadline) {
         if (connection->IsExpired()) {
             DropExpiredConnection(connection);
             continue;
+        } else if (connection->IsBroken()) {
+            DeleteBrokenConnection(connection);
+            continue;
         }
         return connection;
     }
@@ -324,12 +327,13 @@ void ConnectionPool::Release(Connection* connection) {
     //     connection_stats.emplace(connection->GetStatsAndReset());
     // }
 
-    // if (!connection->IsConnected() || connection->IsBroken()) {
-    //     DeleteBrokenConnection(connection);
-    // } else if (connection->IsIdle()) {
-    LOG_DEBUG("PUSHING CONNECTION");
-    Push(connection);
-    // } else {
+    if (connection->IsBroken() || connection->IsExpired()) {
+        DeleteBrokenConnection(connection);
+    } else {
+        LOG_DEBUG("PUSHING CONNECTION");
+        Push(connection);
+    }
+    // else {
     //     // Connection cleanup is done asynchronously while returning control to
     //     // the user
     //     close_task_storage_.Detach(USERVER_NAMESPACE::utils::CriticalAsync(

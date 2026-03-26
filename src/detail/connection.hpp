@@ -31,6 +31,8 @@ public:
 
     bool IsExpired() const;
 
+    bool IsBroken() const;
+
     ResultSet Execute(
         Consistency level,
         const Query& query,

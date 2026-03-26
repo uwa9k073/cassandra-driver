@@ -129,6 +129,8 @@ std::unique_ptr<Connection> Connection::Connect(
 
 bool Connection::IsExpired() const { return _pimpl->IsExpired(); }
 
+bool Connection::IsBroken() const { return _pimpl->IsBroken(); }
+
 ResultSet Connection::Execute(
     Consistency level,
     const Query& query,

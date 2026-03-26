@@ -55,7 +55,7 @@ ConnectionImpl::ConnectionImpl(
     _received_message_consumer_map.reserve(StreamPool::kMaxStreams);
 
     for (size_t i = 0; i < StreamPool::kMaxStreams; ++i) {
-        _received_message_queue_map.emplace_back(RecvMessageQueue::Create(1));
+        _received_message_queue_map.emplace_back(RecvMessageQueue::Create(10));
         auto back = _received_message_queue_map.back();
         _received_message_producer_map.emplace_back(back->GetProducer());
         _received_message_consumer_map.emplace_back(back->GetConsumer());
@@ -85,14 +85,16 @@ userver::engine::Task ConnectionImpl::Close() {
 }
 
 std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsync(
-    io::protocol::RequestMessage&& message, userver::engine::Deadline deadline
+    std::unique_ptr<io::protocol::RequestMessage> message,
+    userver::engine::Deadline deadline
 ) {
     StreamGuard guard(_stream_pool);
-    message.SetStreamId(guard.GetStreamId());
+    message->SetStreamId(guard.GetStreamId());
+
     bg_task_storage_.Detach(userver::engine::AsyncNoSpan(
         bg_task_processor_,
-        [this, &message, &deadline]() mutable {
-            SendMessage(std::move(message), deadline);
+        [this, request = std::move(message), deadline]() mutable {
+            SendMessage(std::move(request), deadline);
         }
     ));
     std::shared_ptr<io::protocol::ResponseMessage> result;
@@ -194,6 +196,21 @@ void ConnectionImpl::SendMessage(
 ) {
     io::protocol::RawBuffer buffer;
     message.Serialize(buffer);
+
+    auto lock = std::unique_lock(_send_mutex);
+
+    auto returned_len = _socket.SendAll(buffer.data(), buffer.size(), deadline);
+    if (returned_len != buffer.size()) {
+        LOG_ERROR("Failed to send message");
+    }
+}
+
+
+void ConnectionImpl::SendMessage(
+    std::unique_ptr<io::protocol::RequestMessage> message, userver::engine::Deadline deadline
+) {
+    io::protocol::RawBuffer buffer;
+    message->Serialize(buffer);
 
     auto lock = std::unique_lock(_send_mutex);
 
@@ -328,13 +345,16 @@ ResultSet ConnectionImpl::Execute(
         CommandControl::PreparedStatementsOptionOverride::kNoOverride
     });
 
-    io::protocol::QueryMessage message(level, query.GetStatement(), params);
-
     const auto deadline = userver::engine::Deadline::FromDuration(
         statement_command_control.network_timeout_ms
     );  // лучше получить из statement_cmd_ctl
 
-    auto response = ExecuteMessageAsync(std::move(message), deadline);
+    auto response = ExecuteMessageAsync(
+        std::make_unique<io::protocol::QueryMessage>(
+            level, query.GetStatement(), params
+        ),
+        deadline
+    );
 
     auto* result = dynamic_cast<io::protocol::ResultMessage*>(response.get());
     if (!result) throw std::runtime_error("Unexpected response type");

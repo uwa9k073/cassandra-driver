@@ -81,6 +81,11 @@ private:
     void SendMessage(
         io::protocol::RequestMessage&& message, userver::engine::Deadline deadline
     );
+
+    void SendMessage(
+        std::unique_ptr<io::protocol::RequestMessage> message,
+        userver::engine::Deadline deadline
+    );
     std::shared_ptr<io::protocol::ResponseMessage> ReadFrame(
         userver::engine::Deadline deadline
     );
@@ -90,7 +95,8 @@ private:
     );
 
     std::shared_ptr<io::protocol::ResponseMessage> ExecuteMessageAsync(
-        io::protocol::RequestMessage&& message, userver::engine::Deadline deadline
+        std::unique_ptr<io::protocol::RequestMessage> message,
+        userver::engine::Deadline deadline
     );
 
     void ReceiverLoop();
