@@ -1,4 +1,5 @@
 #pragma once
+#include <cassandra/batch_query.hpp>
 #include <cassandra/detail/query_parameters.hpp>
 #include <cassandra/node_description.hpp>
 #include <cassandra/options.hpp>
@@ -39,10 +40,7 @@ public:
         return Execute(level, std::nullopt, query, std::forward<Args>(args)...);
     }
 
-    template <typename... Args>
-    ResultSet BatchExecute(
-        Consistency level, userver::utils::zstring_view query, Args&&... args
-    );
+    ResultSet BatchExecute(const BatchQueryStore& store);
 
     template <typename... Args>
     ResultSet Execute(

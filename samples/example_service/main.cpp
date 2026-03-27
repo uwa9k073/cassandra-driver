@@ -18,6 +18,7 @@
 #include <userver/formats/json/value.hpp>
 #include <userver/server/handlers/http_handler_json_base.hpp>
 
+#include <cassandra/batch_query.hpp>
 #include <cassandra/component.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/row_types.hpp>
@@ -34,6 +35,24 @@ class Cassandra final : public userver::server::handlers::HttpHandlerJsonBase {
 public:
     static constexpr std::string_view kName = "cassandra-view";
     Cassandra(
+        const userver::components::ComponentConfig& config,
+        const userver::components::ComponentContext& context
+    );
+
+    Value HandleRequestJsonThrow(
+        const HttpRequest& request,
+        const Value& request_json,
+        RequestContext& context
+    ) const override;
+
+private:
+    cassandra::SessionPtr _session_ptr;
+};
+
+class CassandraBatch final : public userver::server::handlers::HttpHandlerJsonBase {
+public:
+    static constexpr std::string_view kName = "cassandra-batch";
+    CassandraBatch(
         const userver::components::ComponentConfig& config,
         const userver::components::ComponentContext& context
     );
@@ -98,6 +117,57 @@ userver::formats::json::Value Cassandra::HandleRequestJsonThrow(
         auto result = _session_ptr->Execute(
             cassandra::Consistency::kLocalOne, kInsertQuery, id, name
         );
+
+        auto select_result =
+            _session_ptr->Execute(cassandra::Consistency::kLocalOne, kSelectQuery);
+        if (!select_result.RowsAffected()) {
+            request.SetResponseStatus(userver::server::http::HttpStatus::NotFound);
+            return {};
+        }
+
+        LOG_DEBUG(
+            "RowsAffected={}, ColumnsAffected={}",
+            select_result.RowsAffected(),
+            select_result.ColumnsAffected()
+        );
+        auto cassandra_row =
+            select_result.AsSingleRow<MyRow>(cassandra::io::kRowTag);
+
+        return userver::formats::json::MakeObject(
+            "id", cassandra_row.id, "name", cassandra_row.name
+        );
+    } else {
+        request.SetResponseStatus(
+            userver::server::http::HttpStatus::InternalServerError
+        );
+        return userver::formats::json::MakeObject(
+            "message", "session_ptr is nullptr"
+        );
+    }
+}
+
+CassandraBatch::CassandraBatch(
+    const userver::components::ComponentConfig& config,
+    const userver::components::ComponentContext& context
+)
+    : userver::server::handlers::HttpHandlerJsonBase(config, context),
+      _session_ptr(context
+                       .FindComponent<::components::Cassandra>("cassandra-component")
+                       .GetSessionPtr()) {}
+
+userver::formats::json::Value CassandraBatch::HandleRequestJsonThrow(
+    const HttpRequest& request,
+    const Value& request_json,
+    RequestContext& /*context*/
+) const {
+    if (_session_ptr) {
+        auto id = request_json["id"].As<int>();
+        auto name = request_json["name"].As<std::string>();
+
+        cassandra::BatchQueryStore batch_store(cassandra::Consistency::kLocalOne);
+        batch_store.AddQuery(kInsertQuery, id, name).AddQuery(kSelectQuery);
+
+        auto result = _session_ptr->BatchExecute(batch_store);
 
         auto select_result =
             _session_ptr->Execute(cassandra::Consistency::kLocalOne, kSelectQuery);

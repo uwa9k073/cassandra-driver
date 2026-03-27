@@ -16,7 +16,7 @@ public:
 
     auto ColumnsAffected() const { return _rows_count; }
 
-    ResultSet() : _rows_content({}), _columns_count(0), _rows_count(0) {};
+    ResultSet() : _rows_content({}), _columns_count(0), _rows_count(0){};
 
     ResultSet(
         std::vector<io::protocol::BytesBuffer>&& rows,

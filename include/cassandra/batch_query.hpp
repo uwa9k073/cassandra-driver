@@ -8,6 +8,7 @@
 #include <userver/utils/string_literal.hpp>
 #include <userver/utils/zstring_view.hpp>
 #include <utility>
+#include <cassandra/options.hpp>
 
 namespace cassandra {
 
@@ -17,7 +18,7 @@ public:
     constexpr BatchQuery(Query query, Args&&... args) : _query{std::move(query)} {
         detail::StaticQueryParameters<sizeof...(Args)> params;
         params.Write(args...);
-        _params = std::move(params);
+        _params = QueryParameters{params};
     }
 
     template <typename... Args>
@@ -25,7 +26,7 @@ public:
         : _query{std::move(query)} {
         detail::StaticQueryParameters<sizeof...(Args)> params;
         params.Write(args...);
-        _params = std::move(params);
+        _params = QueryParameters{params};
     }
 
     template <typename... Args>
@@ -33,9 +34,12 @@ public:
         : _query{std::move(query)} {
         detail::StaticQueryParameters<sizeof...(Args)> params;
         params.Write(args...);
-        _params = std::move(params);
+        _params = QueryParameters{params};
     }
 
+
+    const Query& GetQuery() const { return _query; }
+    const QueryParameters& GetParams() const { return _params; }
 private:
     Query _query;
     QueryParameters _params;
@@ -43,14 +47,16 @@ private:
 
 class BatchQueryStore {
 public:
+    explicit BatchQueryStore(Consistency level) : _consistency{level} {}
+
     template <typename... Args>
-    constexpr BatchQueryStore& AddQuery(Query query, Args&&... args) {
+    [[maybe_unused]] BatchQueryStore& AddQuery(Query query, Args&&... args) {
         _queries.emplace_back(std::move(query), std::forward<Args>(args)...);
         return *this;
     }
 
     template <typename... Args>
-    constexpr BatchQueryStore& AddQuery(
+    [[maybe_unused]] BatchQueryStore& AddQuery(
         userver::utils::StringLiteral query, Args&&... args
     ) {
         _queries.emplace_back(std::move(query), std::forward<Args>(args)...);
@@ -58,12 +64,19 @@ public:
     }
 
     template <typename... Args>
-    constexpr BatchQueryStore& AddQuery(std::string_view query, Args&&... args) {
+    [[maybe_unused]] BatchQueryStore& AddQuery(
+        std::string_view query, Args&&... args
+    ) {
         _queries.emplace_back(std::move(query), std::forward<Args>(args)...);
         return *this;
     }
 
+
+    Consistency ConsistencyLevel() const { return _consistency; }
+    std::span<const BatchQuery> Queries() const { return _queries; }
+
 private:
+    Consistency _consistency;
     std::vector<BatchQuery> _queries;
 };
 }  // namespace cassandra
