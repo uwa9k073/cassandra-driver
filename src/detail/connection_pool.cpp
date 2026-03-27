@@ -376,7 +376,8 @@ ResultSet ConnectionPool::Execute(
                 return conn->ExecutePrepared(
                     level, *prepared_id_ptr, params, statement_cmd_ctl
                 );
-            } catch (const exceptions::FrameError& e) {
+            } catch (const exceptions::Unprepared& e) {
+                LOG_WARNING() << e;
                 auto prepared_id = conn->Prepare(query.GetStatement());
                 _prepared_statements_map.Emplace(
                     query.GetStatement().GetUnderlying(), prepared_id

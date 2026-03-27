@@ -39,6 +39,90 @@
 
 namespace cassandra::detail {
 
+namespace {
+void CheckError(std::shared_ptr<io::protocol::ResponseMessage> message) {
+    if (message->GetOpcode() == io::protocol::Opcode::kError) {
+        auto* error_message =
+            dynamic_cast<io::protocol::ErrorMessage*>(message.get());
+        auto error_code = error_message->GetErrorCode();
+        switch (error_code) {
+            case io::protocol::ErrorCode::kServerError:
+                throw ::cassandra::exceptions::ServerError(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kProtocolError:
+                throw ::cassandra::exceptions::ProtocolError(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kAuthenticationError:
+                throw ::cassandra::exceptions::AuthenticationError(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kUnavailable:
+                throw ::cassandra::exceptions::Unavailable(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kOverloaded:
+                throw ::cassandra::exceptions::Overloaded(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kIsBootstrapping:
+                throw ::cassandra::exceptions::IsBootstrapping(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kTruncateError:
+                throw ::cassandra::exceptions::TruncateError(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kWriteTimeout:
+                throw ::cassandra::exceptions::WriteTimeout(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kReadTimeout:
+                throw ::cassandra::exceptions::ReadTimeout(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kReadFailure:
+                throw ::cassandra::exceptions::ReadFailure(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kFunctionFailure:
+                throw ::cassandra::exceptions::FunctionFailure(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kWriteFailure:
+                throw ::cassandra::exceptions::WriteFailure(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kSyntaxError:
+                throw ::cassandra::exceptions::SyntaxError(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kUnauthorized:
+                throw ::cassandra::exceptions::Unauthorized(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kInvalid:
+                throw ::cassandra::exceptions::Invalid(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kConfigError:
+                throw ::cassandra::exceptions::ConfigError(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kAlreadyExists:
+                throw ::cassandra::exceptions::AlreadyExists(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+            case io::protocol::ErrorCode::kUnprepared:
+                throw ::cassandra::exceptions::Unprepared(
+                    error_message->GetErrorMessage().GetUnderlying()
+                );
+        }
+    }
+}
+}  // namespace
+
 ConnectionImpl::ConnectionImpl(
     userver::engine::TaskProcessor& tp,
     userver::concurrent::BackgroundTaskStorageCore& bts,
@@ -101,6 +185,8 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsy
         throw std::runtime_error("Timeout");
     }
 
+    CheckError(result);
+
     return result;
 }
 
@@ -109,7 +195,9 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessage(
 ) {
     SendMessage(std::move(message), deadline);
 
-    return ReadFrame(deadline);
+    auto response = ReadFrame(deadline);
+    CheckError(response);
+    return response;
 }
 
 void ConnectionImpl::StartReceiverLoop() {
@@ -280,16 +368,6 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ReadFrame(
                 << body_buffer.size();  // Will now correctly print 102
     message->ParseBody(body_buffer);
 
-    if (message->GetOpcode() == io::protocol::Opcode::kError) {
-        auto* error_message =
-            dynamic_cast<io::protocol::ErrorMessage*>(message.get());
-        LOG_WARNING(
-            "RECEIVED ERROR MESSAGE: code={}, message={}",
-            error_message->GetErrorCode(),
-            error_message->GetErrorMessage()
-        );
-    }
-
     return message;
 }
 
@@ -380,13 +458,6 @@ ResultSet ConnectionImpl::ExecutePrepared(
         deadline
     );
 
-    if (response->GetOpcode() == io::protocol::Opcode::kError) {
-        auto* error = dynamic_cast<io::protocol::ErrorMessage*>(response.get());
-        throw exceptions::FrameError(
-            error->GetErrorCode(), error->GetErrorMessage().GetUnderlying()
-        );
-    }
-
     auto* result = dynamic_cast<io::protocol::ResultMessage*>(response.get());
     if (!result) throw std::runtime_error("Unexpected response type");
 
@@ -400,13 +471,6 @@ io::ShortBytes ConnectionImpl::Prepare(const io::LongString& query_name) {
     auto response = ExecuteMessageAsync(
         std::make_unique<io::protocol::PrepareMessage>(query_name), deadline
     );
-
-    if (response->GetOpcode() == io::protocol::Opcode::kError) {
-        auto* error = dynamic_cast<io::protocol::ErrorMessage*>(response.get());
-        throw exceptions::FrameError(
-            error->GetErrorCode(), error->GetErrorMessage().GetUnderlying()
-        );
-    }
 
     auto* result = dynamic_cast<io::protocol::ResultMessage*>(response.get());
     if (!result) throw std::runtime_error("Unexpected response type");

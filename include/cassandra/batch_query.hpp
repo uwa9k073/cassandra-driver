@@ -2,13 +2,13 @@
 
 #include <cassandra/detail/query_parameters.hpp>
 #include <cassandra/io/cassandra_types.hpp>
+#include <cassandra/options.hpp>
 #include <cassandra/query.hpp>
 #include <string_view>
 #include <userver/storages/query.hpp>
 #include <userver/utils/string_literal.hpp>
 #include <userver/utils/zstring_view.hpp>
 #include <utility>
-#include <cassandra/options.hpp>
 
 namespace cassandra {
 
@@ -37,9 +37,9 @@ public:
         _params = QueryParameters{params};
     }
 
-
     const Query& GetQuery() const { return _query; }
     const QueryParameters& GetParams() const { return _params; }
+
 private:
     Query _query;
     QueryParameters _params;
@@ -70,7 +70,6 @@ public:
         _queries.emplace_back(std::move(query), std::forward<Args>(args)...);
         return *this;
     }
-
 
     Consistency ConsistencyLevel() const { return _consistency; }
     std::span<const BatchQuery> Queries() const { return _queries; }

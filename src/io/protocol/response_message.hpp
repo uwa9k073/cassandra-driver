@@ -41,17 +41,17 @@ class ErrorMessage : public ResponseMessage {
 public:
     ErrorMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
 
-    Int GetErrorCode() const { return error_code; }
+    ErrorCode GetErrorCode() const { return error_code; }
     String GetErrorMessage() const { return error_message; }
 
     void DoParseBody(RawBufferView buffer) override {
         auto reader = BufferReader<BufferView>{buffer};
-        error_code = reader.Read<Int>();
+        error_code = static_cast<ErrorCode>(reader.Read<Int>());
         error_message = reader.Read<String>();
     }
 
 private:
-    Int error_code;
+    ErrorCode error_code;
     String error_message;
 };
 
