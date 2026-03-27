@@ -34,13 +34,6 @@ public:
 
     template <class T>
     T AsSingleRow(io::RowTag tag) const {
-        LOG_DEBUG(
-            "BUFFER_DATA_ROW_TAG: ",
-            std::string{
-                reinterpret_cast<const char*>(_rows_content.data()),
-                _rows_content.size()
-            }
-        );
         return Front().As<T>(tag);
     }
 

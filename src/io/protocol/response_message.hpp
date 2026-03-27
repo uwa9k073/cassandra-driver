@@ -247,6 +247,15 @@ public:
         };
     }
 
+    io::ShortBytes GetPreparedStatementId() {
+        if (_kind != ResultKind::kPrepared) {
+            LOG_DEBUG("Message is not a prepared result");
+            return {};
+        }
+        auto& prepared_kind = std::get<PreparedKind>(_payload);
+        return prepared_kind.id;
+    }
+
 private:
     ResultKind _kind;
 

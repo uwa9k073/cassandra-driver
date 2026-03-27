@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassandra/cassandra_fwd.hpp>
+#include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/node_description.hpp>
 #include <cassandra/options.hpp>
 #include <memory>
@@ -9,6 +10,7 @@
 #include <userver/concurrent/queue.hpp>
 #include <userver/engine/task/task_processor_fwd.hpp>
 #include <userver/rcu/rcu.hpp>
+#include <userver/rcu/rcu_map.hpp>
 #include <userver/utils/statistics/fwd.hpp>
 #include <userver/utils/statistics/recentperiod.hpp>
 #include <userver/utils/statistics/relaxed_counter.hpp>
@@ -81,6 +83,9 @@ private:
     userver::concurrent::BackgroundTaskStorageCore _connect_task_storage;
     userver::concurrent::BackgroundTaskStorageCore _close_task_storage;
 
+    // prepared statements cache
+    // cassandra prepare statements per node and use ShortBytes as ID
+    userver::rcu::RcuMap<std::string, io::ShortBytes> _prepared_statements_map;
     std::atomic<size_t> wait_count_;
     RecentCounter recent_conn_errors_;
 

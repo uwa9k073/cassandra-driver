@@ -140,4 +140,17 @@ ResultSet Connection::Execute(
     return _pimpl->Execute(level, query, params, statement_cmd_ctl);
 }
 
+ResultSet Connection::ExecutePrepared(
+    Consistency level,
+    const io::ShortBytes& statement_id,
+    const QueryParameters& params,
+    OptionalCommandControl statement_cmd_ctl
+) {
+    return _pimpl->ExecutePrepared(level, statement_id, params, statement_cmd_ctl);
+}
+
+io::ShortBytes Connection::Prepare(const io::LongString& query_name) {
+    return _pimpl->Prepare(query_name);
+}
+
 }  // namespace cassandra::detail

@@ -14,6 +14,7 @@
 #include <userver/engine/task/task_with_result.hpp>
 #include <userver/logging/log.hpp>
 #include <vector>
+#include "cassandra/query.hpp"
 
 namespace cassandra::detail {
 
@@ -361,6 +362,41 @@ ResultSet ConnectionPool::Execute(
     OptionalCommandControl statement_cmd_ctl
 ) {
     auto conn = Acquire(userver::engine::Deadline{});
+
+    if (!statement_cmd_ctl.has_value() ||
+        statement_cmd_ctl->prepared_statements_enabled ==
+            CommandControl::PreparedStatementsOptionOverride::kNoOverride) {
+        LOG_DEBUG("TRYING TO GET PREPARED");
+        auto prepared_id_ptr =
+            _prepared_statements_map.Get(query.GetStatement().GetUnderlying());
+        if (prepared_id_ptr) {
+            LOG_DEBUG("FOUND PREPARED");
+
+            try {
+                return conn->ExecutePrepared(
+                    level, *prepared_id_ptr, params, statement_cmd_ctl
+                );
+            } catch (const exceptions::FrameError& e) {
+                auto prepared_id = conn->Prepare(query.GetStatement());
+                _prepared_statements_map.Emplace(
+                    query.GetStatement().GetUnderlying(), prepared_id
+                );
+                return conn->ExecutePrepared(
+                    level, prepared_id, params, statement_cmd_ctl
+                );
+            }
+        } else {
+            LOG_DEBUG("PREPARE");
+            auto prepared_id = conn->Prepare(query.GetStatement());
+            _prepared_statements_map.Emplace(
+                query.GetStatement().GetUnderlying(), prepared_id
+            );
+
+            return conn->ExecutePrepared(
+                level, prepared_id, params, statement_cmd_ctl
+            );
+        }
+    }
     return conn->Execute(level, query, params, statement_cmd_ctl);
 }
 

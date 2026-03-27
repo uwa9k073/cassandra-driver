@@ -141,7 +141,7 @@ private:
 class ExecuteMessage : public RequestMessage {
 public:
     ExecuteMessage(
-        const ShortBytes& id, Consistency consistency_level, QueryParameters params
+        Consistency consistency_level, const ShortBytes& id, QueryParameters params
     )
         : RequestMessage(FrameHeader{.opcode = Opcode::kExecute}),
           _id(id),

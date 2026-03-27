@@ -10,6 +10,7 @@
 #include <userver/engine/task/task_processor_fwd.hpp>
 #include <userver/tracing/scope_time.hpp>
 #include <userver/utils/statistics/fwd.hpp>
+#include "cassandra/io/cassandra_types.hpp"
 
 namespace cassandra::detail {
 
@@ -39,6 +40,15 @@ public:
         const QueryParameters& params,
         OptionalCommandControl statement_cmd_ctl
     );
+
+    ResultSet ExecutePrepared(
+        Consistency level,
+        const io::ShortBytes& statement_id,
+        const QueryParameters& params,
+        OptionalCommandControl statement_cmd_ctl
+    );
+
+    io::ShortBytes Prepare(const io::LongString& query_name);
 
 private:
     Connection();

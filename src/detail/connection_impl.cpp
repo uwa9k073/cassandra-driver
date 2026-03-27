@@ -2,6 +2,7 @@
 #include <netinet/tcp.h>
 #include <algorithm>
 #include <atomic>
+#include <cassandra/exception.hpp>
 #include <cassandra/io/protocol/frame.hpp>
 #include <cassandra/io/protocol/message.hpp>
 #include <cassandra/io/protocol/types.hpp>
@@ -33,9 +34,11 @@
 #include <userver/logging/log.hpp>
 #include <userver/tracing/span.hpp>
 #include <userver/tracing/tags.hpp>
+#include <userver/utils/trivial_map.hpp>
 #include <utility>
 
 namespace cassandra::detail {
+
 ConnectionImpl::ConnectionImpl(
     userver::engine::TaskProcessor& tp,
     userver::concurrent::BackgroundTaskStorageCore& bts,
@@ -285,7 +288,6 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ReadFrame(
             error_message->GetErrorCode(),
             error_message->GetErrorMessage()
         );
-        throw std::runtime_error("Received error message");
     }
 
     return message;
@@ -356,4 +358,60 @@ ResultSet ConnectionImpl::Execute(
 
     return result->GetResultSet();
 }
+
+ResultSet ConnectionImpl::ExecutePrepared(
+    Consistency level,
+    const io::ShortBytes& statement_id,
+    const QueryParameters& params,
+    OptionalCommandControl statement_cmd_ctl
+) {
+    auto statement_command_control = statement_cmd_ctl.value_or(CommandControl{
+        std::chrono::seconds{3},
+        std::chrono::seconds{1},
+        CommandControl::PreparedStatementsOptionOverride::kNoOverride
+    });
+
+    const auto deadline = userver::engine::Deadline::FromDuration(
+        statement_command_control.network_timeout_ms
+    );
+
+    auto response = ExecuteMessageAsync(
+        std::make_unique<io::protocol::ExecuteMessage>(level, statement_id, params),
+        deadline
+    );
+
+    if (response->GetOpcode() == io::protocol::Opcode::kError) {
+        auto* error = dynamic_cast<io::protocol::ErrorMessage*>(response.get());
+        throw exceptions::FrameError(
+            error->GetErrorCode(), error->GetErrorMessage().GetUnderlying()
+        );
+    }
+
+    auto* result = dynamic_cast<io::protocol::ResultMessage*>(response.get());
+    if (!result) throw std::runtime_error("Unexpected response type");
+
+    return result->GetResultSet();
+}
+
+io::ShortBytes ConnectionImpl::Prepare(const io::LongString& query_name) {
+    const auto deadline =
+        userver::engine::Deadline::FromDuration(std::chrono::seconds{3});
+
+    auto response = ExecuteMessageAsync(
+        std::make_unique<io::protocol::PrepareMessage>(query_name), deadline
+    );
+
+    if (response->GetOpcode() == io::protocol::Opcode::kError) {
+        auto* error = dynamic_cast<io::protocol::ErrorMessage*>(response.get());
+        throw exceptions::FrameError(
+            error->GetErrorCode(), error->GetErrorMessage().GetUnderlying()
+        );
+    }
+
+    auto* result = dynamic_cast<io::protocol::ResultMessage*>(response.get());
+    if (!result) throw std::runtime_error("Unexpected response type");
+
+    return result->GetPreparedStatementId();
+}
+
 }  // namespace cassandra::detail

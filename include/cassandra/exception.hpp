@@ -30,4 +30,19 @@ public:
     PoolError(std::string_view msg) : RuntimeError({msg.data(), msg.size()}) {}
 };
 
+class FrameError : public RuntimeError {
+public:
+    FrameError(int error_code, std::string_view msg)
+        : RuntimeError({msg.data(), msg.size()}),
+          _error_code(error_code),
+          _error_message(msg) {}
+
+    int GetErrorCode() const { return _error_code; }
+    std::string_view GetErrorMessage() const { return _error_message; }
+
+private:
+    int _error_code;
+    std::string _error_message;
+};
+
 }  // namespace cassandra::exceptions
