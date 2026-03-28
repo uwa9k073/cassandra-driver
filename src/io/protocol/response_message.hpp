@@ -6,9 +6,10 @@
 #include <cassandra/io/protocol/lz4_utils.hpp>
 #include <cassandra/io/protocol/message.hpp>
 #include <cassandra/io/protocol/types.hpp>
-#include <cassandra/result_set.hpp>
 #include <io/protocol/column_option.hpp>
 #include <io/protocol/events/schema_change.hpp>
+#include <memory>
+#include <cassandra/result_set.hpp>
 #include <userver/logging/log.hpp>
 #include <utility>
 #include <variant>
@@ -235,16 +236,16 @@ public:
     ResultSet GetResultSet() {
         if (_kind != ResultKind::kRows) {
             LOG_DEBUG("return empty result set");
-            return {};
+            return ResultSet{nullptr};
         }
         auto& row_kind = std::get<RowKind>(_payload);
         LOG_DEBUG("GET ROW KIND");
         LOG_DEBUG("RETURN RESULT SET");
-        return ResultSet{
+        return ResultSet{std::make_shared<cassandra::detail::ResultWrapper>(
             std::move(row_kind.rows_content),
             row_kind.columns_count,
             row_kind.rows_count
-        };
+        )};
     }
 
     io::ShortBytes GetPreparedStatementId() {
