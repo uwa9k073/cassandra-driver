@@ -14,6 +14,7 @@
 #include <userver/utils/statistics/fwd.hpp>
 #include <userver/utils/statistics/recentperiod.hpp>
 #include <userver/utils/statistics/relaxed_counter.hpp>
+#include "cassandra/batch_query.hpp"
 
 namespace cassandra::detail {
 class ConnectionPool : public std::enable_shared_from_this<ConnectionPool> {
@@ -51,6 +52,10 @@ public:
         const Query& query,
         const QueryParameters& params,
         OptionalCommandControl statement_cmd_ctl
+    );
+
+    ResultSet BatchExecute(
+        const BatchQueryStore& store, OptionalCommandControl statement_cmd_ctl
     );
 
 private:

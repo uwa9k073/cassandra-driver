@@ -45,6 +45,18 @@ private:
     QueryParameters _params;
 };
 
+struct BatchStatement {
+    enum class Kind : io::Byte { kString, kId };
+    Kind kind;
+    std::variant<io::LongString, io::ShortBytes> query;
+    QueryParameters params;
+
+    BatchStatement(const io::LongString& query, const QueryParameters& params)
+        : kind(Kind::kString), query(query), params(params) {}
+    BatchStatement(const io::ShortBytes& id, const QueryParameters& params)
+        : kind(Kind::kId), query(id), params(params) {}
+};
+
 class BatchQueryStore {
 public:
     explicit BatchQueryStore(Consistency level) : _consistency{level} {}

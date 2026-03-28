@@ -1,11 +1,16 @@
+#include <algorithm>
+#include <cassandra/batch_query.hpp>
 #include <cassandra/detail/connection_ptr.hpp>
 #include <cassandra/exception.hpp>
+#include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/options.hpp>
+#include <cassandra/query.hpp>]
 #include <cassandra/result_set.hpp>
 #include <cstddef>
 #include <detail/connection.hpp>
 #include <detail/connection_pool.hpp>
 #include <detail/stream_pool.hpp>
+#include <iterator>
 #include <memory>
 #include <userver/engine/async.hpp>
 #include <userver/engine/deadline.hpp>
@@ -14,7 +19,6 @@
 #include <userver/engine/task/task_with_result.hpp>
 #include <userver/logging/log.hpp>
 #include <vector>
-#include "cassandra/query.hpp"
 
 namespace cassandra::detail {
 
@@ -327,8 +331,9 @@ void ConnectionPool::Release(Connection* connection) {
     // if (!connection->IsInTransaction()) {
     //     connection_stats.emplace(connection->GetStatsAndReset());
     // }
-
-    if (connection->IsBroken() || connection->IsExpired()) {
+    if (connection->IsExpired()) {
+        DropExpiredConnection(connection);
+    } else if (connection->IsBroken()) {
         DeleteBrokenConnection(connection);
     } else {
         LOG_DEBUG("PUSHING CONNECTION");
@@ -372,20 +377,9 @@ ResultSet ConnectionPool::Execute(
         if (prepared_id_ptr) {
             LOG_DEBUG("FOUND PREPARED");
 
-            try {
-                return conn->ExecutePrepared(
-                    level, *prepared_id_ptr, params, statement_cmd_ctl
-                );
-            } catch (const exceptions::Unprepared& e) {
-                LOG_WARNING() << e;
-                auto prepared_id = conn->Prepare(query.GetStatement());
-                _prepared_statements_map.Emplace(
-                    query.GetStatement().GetUnderlying(), prepared_id
-                );
-                return conn->ExecutePrepared(
-                    level, prepared_id, params, statement_cmd_ctl
-                );
-            }
+            return conn->ExecutePrepared(
+                level, *prepared_id_ptr, params, statement_cmd_ctl
+            );
         } else {
             LOG_DEBUG("PREPARE");
             auto prepared_id = conn->Prepare(query.GetStatement());
@@ -399,6 +393,43 @@ ResultSet ConnectionPool::Execute(
         }
     }
     return conn->Execute(level, query, params, statement_cmd_ctl);
+}
+
+ResultSet ConnectionPool::BatchExecute(
+    const BatchQueryStore& store, OptionalCommandControl statement_cmd_ctl
+) {
+    auto conn = Acquire(userver::engine::Deadline{});
+    auto queries_view = store.Queries();
+    std::vector<BatchStatement> batch_statement;
+
+    if (!statement_cmd_ctl.has_value() ||
+        statement_cmd_ctl->prepared_statements_enabled ==
+            CommandControl::PreparedStatementsOptionOverride::kNoOverride) {
+        std::ranges::transform(
+            queries_view,
+            std::back_inserter(batch_statement),
+            [this, &conn](const BatchQuery& el) {
+                auto statement = el.GetQuery().GetStatement().GetUnderlying();
+                auto prepared_id_ptr = this->_prepared_statements_map.Get(statement);
+
+                auto prepared_id = prepared_id_ptr
+                                       ? *prepared_id_ptr
+                                       : conn->Prepare(el.GetQuery().GetStatement());
+                return BatchStatement{prepared_id, el.GetParams()};
+            }
+        );
+    } else {
+        std::ranges::transform(
+            queries_view,
+            std::back_inserter(batch_statement),
+            [](const BatchQuery& el) {
+                return BatchStatement{el.GetQuery().GetStatement(), el.GetParams()};
+            }
+        );
+    }
+    return conn->BatchExecute(
+        store.ConsistencyLevel(), std::move(batch_statement), statement_cmd_ctl
+    );
 }
 
 }  // namespace cassandra::detail

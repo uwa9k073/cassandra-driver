@@ -4,6 +4,7 @@
 #include <cassandra/result_set.hpp>
 #include <detail/connection.hpp>
 
+#include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/protocol/lz4_utils.hpp>
 #include <detail/stream_pool.hpp>
 #include <io/protocol/request_message.hpp>
@@ -21,7 +22,6 @@
 #include <userver/utils/datetime_light.hpp>
 #include <userver/utils/statistics/fwd.hpp>
 #include <vector>
-#include "cassandra/io/cassandra_types.hpp"
 namespace cassandra::detail {
 class ConnectionImpl {
     using RecvMessageQueue = userver::concurrent::SpscQueue<

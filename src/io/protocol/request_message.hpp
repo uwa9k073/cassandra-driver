@@ -11,6 +11,7 @@
 #include <userver/logging/log.hpp>
 #include <variant>
 #include <vector>
+#include "cassandra/batch_query.hpp"
 
 namespace cassandra::io::protocol {
 class RequestMessage : public Message {
@@ -175,15 +176,8 @@ private:
 
 class BatchMessage final : public RequestMessage {
 public:
-    enum class Kind : Byte { kString, kId };
-    struct BatchQuery {
-        Kind kind;
-        std::variant<LongString, ShortBytes> query;
-        QueryParameters params;
-    };
-
     BatchMessage(
-        const std::vector<BatchQuery>& queries, Consistency consistency_level
+        const std::vector<BatchStatement>& queries, Consistency consistency_level
     )
         : RequestMessage(FrameHeader{.opcode = Opcode::kBatch}),
           _queries(queries),
@@ -195,7 +189,7 @@ public:
         writer.Write<Short>(_queries.size());
         for (const auto& batch_query : _queries) {
             writer.Write<Byte>(static_cast<Byte>(batch_query.kind));
-            if (batch_query.kind == Kind::kString) {
+            if (batch_query.kind == BatchStatement::Kind::kString) {
                 writer.Write<LongString>(std::get<LongString>(batch_query.query));
             } else {
                 writer.Write<ShortBytes>(std::get<ShortBytes>(batch_query.query));
@@ -215,7 +209,7 @@ public:
 
 private:
     Byte _type = 0;
-    std::vector<BatchQuery> _queries;
+    std::vector<BatchStatement> _queries;
     Consistency _consistency_level;
     Byte flags = 0;
 };

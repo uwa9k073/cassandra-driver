@@ -1,7 +1,9 @@
 #include <cassandra/session.hpp>
 #include <memory>
+#include <optional>
 #include <userver/utils/statistics/metrics_storage.hpp>
 #include <vector>
+#include "cassandra/batch_query.hpp"
 #include "cassandra/options.hpp"
 #include "session_impl.hpp"
 
@@ -31,5 +33,9 @@ ResultSet Session::DoExecute(
     OptionalCommandControl statement_cmd_ctl
 ) {
     return _pimpl->Execute(level, query, params, statement_cmd_ctl);
+}
+
+ResultSet Session::BatchExecute(const BatchQueryStore& batch_store) {
+    return _pimpl->BatchExecute(batch_store, std::nullopt);
 }
 }  // namespace cassandra
