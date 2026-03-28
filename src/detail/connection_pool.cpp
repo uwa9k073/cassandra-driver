@@ -41,6 +41,7 @@ ConnectionPool::ConnectionPool(
       _settings(settings),
       _connection_settings(connection_settings),
       _bg_task_processor(bg_task_processor),
+      _prepared_statements_map(100),
       _queue(ConnectionQueue::Create()),
       _conn_consumer(_queue->GetMultiConsumer()),
       _conn_producer(_queue->GetMultiProducer()),
@@ -48,8 +49,7 @@ ConnectionPool::ConnectionPool(
           settings.connecting_limit ? settings.connecting_limit
                                     : kUnlimitedConnecting
       ),
-      connecting_semaphore_(kUnlimitedConnecting),
-      _metrics(std::move(metrics)) {}
+      connecting_semaphore_(kUnlimitedConnecting), _metrics(std::move(metrics)) {}
 
 std::shared_ptr<ConnectionPool> ConnectionPool::Create(
     NodeDescription description,

@@ -10,6 +10,7 @@
 #include <userver/concurrent/queue.hpp>
 #include <userver/engine/task/task_processor_fwd.hpp>
 #include <userver/cache/lru_map.hpp>
+#include <userver/rcu/rcu.hpp>
 #include <userver/utils/statistics/fwd.hpp>
 #include <userver/utils/statistics/recentperiod.hpp>
 #include <userver/utils/statistics/relaxed_counter.hpp>
