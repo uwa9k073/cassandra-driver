@@ -2,6 +2,7 @@
 
 #include <cassandra/cassandra_fwd.hpp>
 #include <cassandra/io/cassandra_types.hpp>
+#include <cstdint>
 #include <optional>
 #include <string>
 
@@ -26,12 +27,10 @@ enum class Consistency : io::Short {
 struct CommandControl {
     /// Overall timeout for a command being executed
     TimeoutDuration network_timeout_ms{};
-    /// PostgreSQL server-side timeout
+    /// Cassandra server-side timeout
     TimeoutDuration statement_timeout_ms{};
 
     enum class PreparedStatementsOptionOverride { kNoOverride, kEnabled, kDisabled };
-
-    int16_t stream_id = 0;
 
     PreparedStatementsOptionOverride prepared_statements_enabled{
         PreparedStatementsOptionOverride::kNoOverride

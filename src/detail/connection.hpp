@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cassandra/batch_query.hpp>
+#include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/node_description.hpp>
 #include <cassandra/options.hpp>
 #include <memory>
@@ -31,10 +33,27 @@ public:
 
     bool IsExpired() const;
 
+    bool IsBroken() const;
+
     ResultSet Execute(
         Consistency level,
         const Query& query,
         const QueryParameters& params,
+        OptionalCommandControl statement_cmd_ctl
+    );
+
+    ResultSet ExecutePrepared(
+        Consistency level,
+        const io::ShortBytes& statement_id,
+        const QueryParameters& params,
+        OptionalCommandControl statement_cmd_ctl
+    );
+
+    io::ShortBytes Prepare(const io::LongString& query_name);
+
+    ResultSet BatchExecute(
+        Consistency level,
+        const std::vector<BatchStatement>& batch_statements,
         OptionalCommandControl statement_cmd_ctl
     );
 

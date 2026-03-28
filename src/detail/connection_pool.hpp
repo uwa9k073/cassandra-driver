@@ -1,9 +1,12 @@
 #pragma once
 
+#include <cassandra/batch_query.hpp>
 #include <cassandra/cassandra_fwd.hpp>
+#include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/node_description.hpp>
 #include <cassandra/options.hpp>
 #include <memory>
+#include <userver/cache/lru_map.hpp>
 #include <userver/clients/dns/resolver_fwd.hpp>
 #include <userver/concurrent/background_task_storage.hpp>
 #include <userver/concurrent/queue.hpp>
@@ -51,6 +54,10 @@ public:
         OptionalCommandControl statement_cmd_ctl
     );
 
+    ResultSet BatchExecute(
+        const BatchQueryStore& store, OptionalCommandControl statement_cmd_ctl
+    );
+
 private:
     using RecentCounter = userver::utils::statistics::
         RecentPeriod<userver::utils::statistics::RelaxedCounter<size_t>, size_t>;
@@ -81,6 +88,9 @@ private:
     userver::concurrent::BackgroundTaskStorageCore _connect_task_storage;
     userver::concurrent::BackgroundTaskStorageCore _close_task_storage;
 
+    // prepared statements cache
+    // cassandra prepare statements per node and use ShortBytes as ID
+    userver::cache::LruMap<std::string, io::ShortBytes> _prepared_statements_map;
     std::atomic<size_t> wait_count_;
     RecentCounter recent_conn_errors_;
 
@@ -89,7 +99,6 @@ private:
     using Consumer = ConnectionQueue::MultiConsumer;
     using Producer = ConnectionQueue::MultiProducer;
 
-    std::shared_ptr<StreamPool> _stream_pool_ptr;
     std::shared_ptr<ConnectionQueue> _queue;
     Consumer _conn_consumer;
     Producer _conn_producer;

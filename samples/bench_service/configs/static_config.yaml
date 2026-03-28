@@ -1,6 +1,6 @@
 components_manager:
     event_thread_pool: # ev pools to deal with OS events
-        threads: $event_threads
+        threads: $event-threads
         threads#fallback: 2
     task_processors: # Task processor is an executor for coroutine tasks
         main-task-processor: # Make a task processor for CPU-bound coroutine tasks.

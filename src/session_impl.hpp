@@ -24,6 +24,10 @@ public:
         OptionalCommandControl statement_cmd_ctl
     );
 
+    ResultSet BatchExecute(
+        const BatchQueryStore& store, OptionalCommandControl statement_cmd_ctl
+    );
+
 private:
     std::shared_ptr<ConnectionPool> FindPool();
     void CreateTopology(std::vector<NodeDescription> node_description);

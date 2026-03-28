@@ -13,6 +13,7 @@
 #include <cassandra/io/protocol/types.hpp>
 #include <cassandra/io/string_types.hpp>
 #include <cstddef>
+#include <vector>
 
 namespace cassandra {
 class QueryParameters {
@@ -22,7 +23,7 @@ public:
     template <class ParamsHolder>
     explicit QueryParameters(ParamsHolder& ph)
         : _size(ph.Size()), _values(ph.ParamBuffers()) {}
-    const io::Bytes* ParamBuffers() { return _values; }
+    const io::Bytes* ParamBuffers() const { return _values; }
 
     bool Empty() const { return !_size; }
     std::size_t Size() const { return _size; }
@@ -80,6 +81,36 @@ public:
     static const io::Bytes* ParamBuffers() { return nullptr; }
 
     static void Write() {}
+};
+
+class DynamicQueryParameters {
+public:
+    DynamicQueryParameters() = default;
+    DynamicQueryParameters(const DynamicQueryParameters&) = delete;
+    DynamicQueryParameters(DynamicQueryParameters&&) = delete;
+    DynamicQueryParameters& operator=(const DynamicQueryParameters&) = delete;
+    DynamicQueryParameters& operator=(DynamicQueryParameters&&) = delete;
+
+    const io::Bytes* ParamBuffers() { return _args->data(); }
+    std::size_t Size() const { return _args->size(); }
+
+    std::shared_ptr<std::vector<io::Bytes>> ParamHolder() { return _args; }
+    template <typename T>
+    void Write(std::size_t index, const T& arg) {
+        // add some checks for parameter type mapping
+        io::BufferWriter writer(_args->at(index));
+        writer.Write(arg);
+    }
+    template <typename... Args>
+    void Write(const Args&... args) {
+        _args->resize(sizeof...(args));
+        std::size_t index = 0;
+        (Write(index++, args), ...);
+    }
+
+private:
+    std::shared_ptr<std::vector<io::Bytes>> _args =
+        std::make_shared<std::vector<io::Bytes>>();
 };
 }  // namespace detail
 }  // namespace cassandra

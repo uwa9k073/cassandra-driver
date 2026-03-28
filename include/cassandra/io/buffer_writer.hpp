@@ -8,9 +8,6 @@
 #include <cassandra/io/map_types.hpp>
 #include <cassandra/io/protocol/types.hpp>
 #include <cassandra/io/string_types.hpp>
-#include <cstddef>
-#include <type_traits>
-#include <vector>
 
 namespace cassandra::io {
 

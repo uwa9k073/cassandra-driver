@@ -9,7 +9,6 @@
 #include <cassandra/result_set.hpp>
 #include <io/protocol/column_option.hpp>
 #include <io/protocol/events/schema_change.hpp>
-#include <span>
 #include <userver/logging/log.hpp>
 #include <utility>
 #include <variant>
@@ -42,17 +41,17 @@ class ErrorMessage : public ResponseMessage {
 public:
     ErrorMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
 
-    Int GetErrorCode() const { return error_code; }
+    ErrorCode GetErrorCode() const { return error_code; }
     String GetErrorMessage() const { return error_message; }
 
     void DoParseBody(RawBufferView buffer) override {
         auto reader = BufferReader<BufferView>{buffer};
-        error_code = reader.Read<Int>();
+        error_code = static_cast<ErrorCode>(reader.Read<Int>());
         error_message = reader.Read<String>();
     }
 
 private:
-    Int error_code;
+    ErrorCode error_code;
     String error_message;
 };
 
@@ -246,6 +245,15 @@ public:
             row_kind.columns_count,
             row_kind.rows_count
         };
+    }
+
+    io::ShortBytes GetPreparedStatementId() {
+        if (_kind != ResultKind::kPrepared) {
+            LOG_DEBUG("Message is not a prepared result");
+            return {};
+        }
+        auto& prepared_kind = std::get<PreparedKind>(_payload);
+        return prepared_kind.id;
     }
 
 private:

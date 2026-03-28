@@ -60,4 +60,10 @@ ResultSet SessionImpl::Execute(
     return FindPool()->Execute(level, query, params, statement_cmd_ctl);
 }
 
+ResultSet SessionImpl::BatchExecute(
+    const BatchQueryStore& store, OptionalCommandControl statement_cmd_ctl
+) {
+    return FindPool()->BatchExecute(store, statement_cmd_ctl);
+}
+
 }  // namespace cassandra::detail

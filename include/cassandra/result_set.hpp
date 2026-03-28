@@ -34,14 +34,18 @@ public:
 
     template <class T>
     T AsSingleRow(io::RowTag tag) const {
-        LOG_DEBUG(
-            "BUFFER_DATA_ROW_TAG: ",
-            std::string{
-                reinterpret_cast<const char*>(_rows_content.data()),
-                _rows_content.size()
-            }
-        );
         return Front().As<T>(tag);
+    }
+
+    template <class Container>
+    Container AsContainer(io::RowTag tag) const {
+        using ElementType = typename Container::value_type;
+        Container result;
+        result.reserve(_rows_content.size());
+        for (const auto& row : _rows_content) {
+            result.push_back(Row(row, _columns_count).As<ElementType>(tag));
+        }
+        return result;
     }
 
     Row Front() const { return Row(_rows_content.front(), _columns_count); }

@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
+#include <cassandra/io/buffer_reader.hpp>
+#include <cassandra/io/buffer_writer.hpp>
+#include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/protocol/lz4_utils.hpp>
-#include "cassandra/io/buffer_reader.hpp"
-#include "cassandra/io/buffer_writer.hpp"
-#include "cassandra/io/cassandra_types.hpp"
-#include "cassandra/io/protocol/types.hpp"
+#include <cassandra/io/protocol/types.hpp>
 
 TEST(Lz4Compressor, Compress) {
     cassandra::io::String input("Hello, World!");

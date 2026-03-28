@@ -5,6 +5,7 @@
 #include <userver/components/component_list.hpp>
 #include <userver/components/minimal_server_component_list.hpp>
 #include <userver/components/run.hpp>
+#include <userver/concurrent/background_task_storage.hpp>
 #include <userver/congestion_control/component.hpp>
 #include <userver/formats/json/value_builder.hpp>
 #include <userver/logging/log.hpp>
@@ -88,9 +89,7 @@ const ::cassandra::Query kInsertQuery{
 };
 const ::cassandra::Query kSelectQuery{"select id, name from benchmark_ks.my_table"};
 
-const ::cassandra::Query kTruncQuery{
-    "TRUNCATE TABLE benchmark_ks.my_table"
-};
+const ::cassandra::Query kTruncQuery{"TRUNCATE TABLE benchmark_ks.my_table"};
 
 struct MyRow {
     cassandra::io::Int id;
