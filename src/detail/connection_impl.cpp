@@ -478,4 +478,28 @@ io::ShortBytes ConnectionImpl::Prepare(const io::LongString& query_name) {
     return result->GetPreparedStatementId();
 }
 
+ResultSet ConnectionImpl::BatchExecute(
+    Consistency level,
+    std::vector<BatchStatement>&& store,
+    OptionalCommandControl statement_cmd_ctl
+) {
+    auto statement_command_control = statement_cmd_ctl.value_or(CommandControl{
+        std::chrono::seconds{3},
+        std::chrono::seconds{1},
+        CommandControl::PreparedStatementsOptionOverride::kNoOverride
+    });
+
+    auto response = ExecuteMessageAsync(
+        std::make_unique<io::protocol::BatchMessage>(std::move(store), level),
+        userver::engine::Deadline::FromDuration(
+            statement_command_control.network_timeout_ms
+        )
+    );
+
+    auto* result = dynamic_cast<io::protocol::ResultMessage*>(response.get());
+    if (!result) throw std::runtime_error("Unexpected response type");
+
+    return result->GetResultSet();
+}
+
 }  // namespace cassandra::detail

@@ -62,6 +62,12 @@ public:
         OptionalCommandControl statement_cmd_ctl
     );
 
+    ResultSet BatchExecute(
+        Consistency level,
+        std::vector<BatchStatement>&& store,
+        OptionalCommandControl statement_cmd_ctl
+    );
+
     io::ShortBytes Prepare(const io::LongString& query_name);
 
     ~ConnectionImpl();

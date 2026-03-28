@@ -177,7 +177,7 @@ private:
 class BatchMessage final : public RequestMessage {
 public:
     BatchMessage(
-        const std::vector<BatchStatement>& queries, Consistency consistency_level
+        std::vector<BatchStatement>&& queries, Consistency consistency_level
     )
         : RequestMessage(FrameHeader{.opcode = Opcode::kBatch}),
           _queries(queries),

@@ -16,6 +16,8 @@
 #include <userver/engine/deadline.hpp>
 #include <userver/engine/io/sockaddr.hpp>
 #include <userver/utils/zstring_view.hpp>
+#include "cassandra/options.hpp"
+#include "cassandra/result_set.hpp"
 
 namespace cassandra::detail {
 namespace {
@@ -153,4 +155,11 @@ io::ShortBytes Connection::Prepare(const io::LongString& query_name) {
     return _pimpl->Prepare(query_name);
 }
 
+ResultSet Connection::BatchExecute(
+    Consistency level,
+    std::vector<BatchStatement>&& store,
+    OptionalCommandControl statement_cmd_ctl
+) {
+    return _pimpl->BatchExecute(level, std::move(store), statement_cmd_ctl);
+}
 }  // namespace cassandra::detail
