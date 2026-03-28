@@ -1,20 +1,20 @@
 #pragma once
 
+#include <cassandra/batch_query.hpp>
 #include <cassandra/cassandra_fwd.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/node_description.hpp>
 #include <cassandra/options.hpp>
 #include <memory>
+#include <userver/cache/lru_map.hpp>
 #include <userver/clients/dns/resolver_fwd.hpp>
 #include <userver/concurrent/background_task_storage.hpp>
 #include <userver/concurrent/queue.hpp>
 #include <userver/engine/task/task_processor_fwd.hpp>
-#include <userver/cache/lru_map.hpp>
 #include <userver/rcu/rcu.hpp>
 #include <userver/utils/statistics/fwd.hpp>
 #include <userver/utils/statistics/recentperiod.hpp>
 #include <userver/utils/statistics/relaxed_counter.hpp>
-#include <cassandra/batch_query.hpp>
 
 namespace cassandra::detail {
 class ConnectionPool : public std::enable_shared_from_this<ConnectionPool> {

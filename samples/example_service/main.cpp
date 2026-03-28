@@ -6,8 +6,8 @@
 #include <userver/components/run.hpp>
 #include <userver/congestion_control/component.hpp>
 #include <userver/formats/json/value_builder.hpp>
-#include <userver/formats/serialize/to.hpp>
 #include <userver/formats/serialize/common_containers.hpp>
+#include <userver/formats/serialize/to.hpp>
 #include <userver/logging/log.hpp>
 #include <userver/server/handlers/ping.hpp>
 #include <userver/server/handlers/tests_control.hpp>
@@ -185,8 +185,7 @@ userver::formats::json::Value CassandraBatch::HandleRequestJsonThrow(
     if (_session_ptr) {
         _session_ptr->Execute(cassandra::Consistency::kLocalOne, kTruncQuery);
 
-        auto data =
-            request_json["data"].As<std::vector<MyRow>>();
+        auto data = request_json["data"].As<std::vector<MyRow>>();
 
         cassandra::BatchQueryStore batch_store(cassandra::Consistency::kLocalOne);
 

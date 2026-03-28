@@ -49,7 +49,8 @@ ConnectionPool::ConnectionPool(
           settings.connecting_limit ? settings.connecting_limit
                                     : kUnlimitedConnecting
       ),
-      connecting_semaphore_(kUnlimitedConnecting), _metrics(std::move(metrics)) {}
+      connecting_semaphore_(kUnlimitedConnecting),
+      _metrics(std::move(metrics)) {}
 
 std::shared_ptr<ConnectionPool> ConnectionPool::Create(
     NodeDescription description,
@@ -403,33 +404,33 @@ ResultSet ConnectionPool::BatchExecute(
     std::vector<BatchStatement> batch_statements;
     batch_statements.reserve(queries_view.size());
 
-    // if (!statement_cmd_ctl.has_value() ||
-    //     statement_cmd_ctl->prepared_statements_enabled ==
-    //         CommandControl::PreparedStatementsOptionOverride::kNoOverride) {
-    //     std::ranges::transform(
-    //         queries_view,
-    //         std::back_inserter(batch_statements),
-    //         [this, &conn](const BatchQuery& el) {
-    //             auto statement = el.GetQuery().GetStatement().GetUnderlying();
-    //             auto prepared_id_ptr =
-    //             this->_prepared_statements_map.Get(statement);
-
-    //             auto prepared_id = prepared_id_ptr
-    //                                    ? *prepared_id_ptr
-    //                                    :
-    //                                    conn->Prepare(el.GetQuery().GetStatement());
-    //             return BatchStatement{prepared_id, el.GetParams()};
-    //         }
-    //     );
-    // } else {
-    std::ranges::transform(
-        queries_view,
-        std::back_inserter(batch_statements),
-        [](const BatchQuery& el) {
-            return BatchStatement{el.GetQuery().GetStatement(), el.GetParams()};
-        }
-    );
-    // }
+    if (!statement_cmd_ctl.has_value() ||
+        statement_cmd_ctl->prepared_statements_enabled ==
+            CommandControl::PreparedStatementsOptionOverride::kNoOverride) {
+        std::ranges::transform(
+            queries_view,
+            std::back_inserter(batch_statements),
+            [this, &conn](const BatchQuery& el) {
+                auto statement = el.GetQuery().GetStatement().GetUnderlying();
+                auto prepared_id_ptr = this->_prepared_statements_map.Get(statement);
+                if (prepared_id_ptr) {
+                    return BatchStatement{*prepared_id_ptr, el.GetParams()};
+                } else {
+                    auto prepared_id = conn->Prepare(el.GetQuery().GetStatement());
+                    this->_prepared_statements_map.Put(statement, prepared_id);
+                    return BatchStatement{prepared_id, el.GetParams()};
+                }
+            }
+        );
+    } else {
+        std::ranges::transform(
+            queries_view,
+            std::back_inserter(batch_statements),
+            [](const BatchQuery& el) {
+                return BatchStatement{el.GetQuery().GetStatement(), el.GetParams()};
+            }
+        );
+    }
     return conn->BatchExecute(
         store.ConsistencyLevel(), batch_statements, statement_cmd_ctl
     );
