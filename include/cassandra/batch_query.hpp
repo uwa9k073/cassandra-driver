@@ -15,26 +15,28 @@ namespace cassandra {
 class BatchQuery {
 public:
     template <typename... Args>
-    constexpr BatchQuery(Query query, Args&&... args) : _query{std::move(query)} {
-        detail::StaticQueryParameters<sizeof...(Args)> params;
+    BatchQuery(const Query& query, Args&&... args) : _query{query} {
+        detail::DynamicQueryParameters params;
         params.Write(args...);
         _params = QueryParameters{params};
+        _params_holder = params.ParamHolder();
     }
 
     template <typename... Args>
-    constexpr BatchQuery(std::string_view query, Args&&... args)
-        : _query{std::move(query)} {
-        detail::StaticQueryParameters<sizeof...(Args)> params;
+    BatchQuery(std::string_view query, Args&&... args) : _query{std::move(query)} {
+        detail::DynamicQueryParameters params;
         params.Write(args...);
         _params = QueryParameters{params};
+        _params_holder = params.ParamHolder();
     }
 
     template <typename... Args>
-    constexpr BatchQuery(userver::utils::StringLiteral query, Args&&... args)
+    BatchQuery(userver::utils::StringLiteral query, Args&&... args)
         : _query{std::move(query)} {
-        detail::StaticQueryParameters<sizeof...(Args)> params;
+        detail::DynamicQueryParameters params;
         params.Write(args...);
         _params = QueryParameters{params};
+        _params_holder = params.ParamHolder();
     }
 
     const Query& GetQuery() const { return _query; }
@@ -43,10 +45,12 @@ public:
 private:
     Query _query;
     QueryParameters _params;
+
+    std::shared_ptr<std::vector<io::Bytes>> _params_holder;
 };
 
 struct BatchStatement {
-    enum class Kind : io::Byte { kString, kId };
+    enum class Kind : io::Byte { kString = 0, kId = 1 };
     Kind kind;
     std::variant<io::LongString, io::ShortBytes> query;
     QueryParameters params;
@@ -62,8 +66,8 @@ public:
     explicit BatchQueryStore(Consistency level) : _consistency{level} {}
 
     template <typename... Args>
-    [[maybe_unused]] BatchQueryStore& AddQuery(Query query, Args&&... args) {
-        _queries.emplace_back(std::move(query), std::forward<Args>(args)...);
+    [[maybe_unused]] BatchQueryStore& AddQuery(const Query& query, Args&&... args) {
+        _queries.emplace_back(query, std::forward<Args>(args)...);
         return *this;
     }
 

@@ -5,6 +5,9 @@
 #include <userver/components/minimal_server_component_list.hpp>
 #include <userver/components/run.hpp>
 #include <userver/congestion_control/component.hpp>
+#include <userver/formats/json/value_builder.hpp>
+#include <userver/formats/serialize/to.hpp>
+#include <userver/formats/serialize/common_containers.hpp>
 #include <userver/logging/log.hpp>
 #include <userver/server/handlers/ping.hpp>
 #include <userver/server/handlers/tests_control.hpp>
@@ -79,7 +82,8 @@ int main(int argc, char* argv[]) {
                               .Append<userver::server::handlers::TestsControl>()
                               .Append<userver::congestion_control::Component>()
                               .Append<components::Cassandra>("cassandra-component")
-                              .Append<views::Cassandra>();
+                              .Append<views::Cassandra>()
+                              .Append<views::CassandraBatch>();
 
     return userver::utils::DaemonMain(argc, argv, component_list);
 }
@@ -100,10 +104,28 @@ const ::cassandra::Query kInsertQuery{
 };
 const ::cassandra::Query kSelectQuery{"select id, name from benchmark_ks.my_table"};
 
+const ::cassandra::Query kSelectLimitQuery{
+    "select id, name from benchmark_ks.my_table LIMIT ?"
+};
+
+const ::cassandra::Query kTruncQuery{"TRUNCATE TABLE benchmark_ks.my_table"};
+
 struct MyRow {
     cassandra::io::Int id;
     std::string name;
 };
+
+MyRow Parse(const userver::formats::json::Value& row, userver::formats::parse::To<MyRow>) {
+    return MyRow{row["id"].As<int>(), row["name"].As<std::string>()};
+}
+
+userver::formats::json::Value
+Serialize(const MyRow& row, userver::formats::serialize::To<userver::formats::json::Value>) {
+    userver::formats::json::ValueBuilder builder;
+    builder["id"] = static_cast<int>(row.id);
+    builder["name"] = row.name;
+    return builder.ExtractValue();
+}
 
 userver::formats::json::Value Cassandra::HandleRequestJsonThrow(
     const HttpRequest& request,
@@ -161,20 +183,24 @@ userver::formats::json::Value CassandraBatch::HandleRequestJsonThrow(
     RequestContext& /*context*/
 ) const {
     if (_session_ptr) {
-        auto id = request_json["id"].As<int>();
-        auto name = request_json["name"].As<std::string>();
+        _session_ptr->Execute(cassandra::Consistency::kLocalOne, kTruncQuery);
+
+        auto data =
+            request_json["data"].As<std::vector<MyRow>>();
 
         cassandra::BatchQueryStore batch_store(cassandra::Consistency::kLocalOne);
-        batch_store.AddQuery(kInsertQuery, id, name).AddQuery(kSelectQuery);
 
-        auto result = _session_ptr->BatchExecute(batch_store);
-
-        auto select_result =
-            _session_ptr->Execute(cassandra::Consistency::kLocalOne, kSelectQuery);
-        if (!select_result.RowsAffected()) {
-            request.SetResponseStatus(userver::server::http::HttpStatus::NotFound);
-            return {};
+        for (const auto& [id, name] : data) {
+            batch_store.AddQuery(kInsertQuery, id, name);
         }
+
+        auto batch_result = _session_ptr->BatchExecute(batch_store);
+
+        auto select_result = _session_ptr->Execute(
+            cassandra::Consistency::kLocalOne,
+            kSelectLimitQuery,
+            static_cast<int>(data.size())
+        );
 
         LOG_DEBUG(
             "RowsAffected={}, ColumnsAffected={}",
@@ -182,11 +208,8 @@ userver::formats::json::Value CassandraBatch::HandleRequestJsonThrow(
             select_result.ColumnsAffected()
         );
         auto cassandra_row =
-            select_result.AsSingleRow<MyRow>(cassandra::io::kRowTag);
-
-        return userver::formats::json::MakeObject(
-            "id", cassandra_row.id, "name", cassandra_row.name
-        );
+            select_result.AsContainer<std::vector<MyRow>>(cassandra::io::kRowTag);
+        return userver::formats::json::ValueBuilder(cassandra_row).ExtractValue();
     } else {
         request.SetResponseStatus(
             userver::server::http::HttpStatus::InternalServerError

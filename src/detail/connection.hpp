@@ -1,9 +1,9 @@
 #pragma once
 
+#include <cassandra/batch_query.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/node_description.hpp>
 #include <cassandra/options.hpp>
-#include <detail/connection_impl.hpp>
 #include <memory>
 #include <userver/clients/dns/resolver_fwd.hpp>
 #include <userver/concurrent/background_task_storage_fwd.hpp>
@@ -12,7 +12,6 @@
 #include <userver/engine/task/task_processor_fwd.hpp>
 #include <userver/tracing/scope_time.hpp>
 #include <userver/utils/statistics/fwd.hpp>
-#include "cassandra/batch_query.hpp"
 
 namespace cassandra::detail {
 
@@ -54,7 +53,7 @@ public:
 
     ResultSet BatchExecute(
         Consistency level,
-        std::vector<BatchStatement>&& batch_statements,
+        const std::vector<BatchStatement>& batch_statements,
         OptionalCommandControl statement_cmd_ctl
     );
 

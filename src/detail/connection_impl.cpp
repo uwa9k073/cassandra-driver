@@ -175,6 +175,7 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsy
     std::unique_ptr<io::protocol::RequestMessage> message,
     userver::engine::Deadline deadline
 ) {
+    LOG_DEBUG("ASYNC EXECUTE");
     StreamGuard guard(_stream_pool);
     message->SetStreamId(guard.GetStreamId());
 
@@ -480,7 +481,7 @@ io::ShortBytes ConnectionImpl::Prepare(const io::LongString& query_name) {
 
 ResultSet ConnectionImpl::BatchExecute(
     Consistency level,
-    std::vector<BatchStatement>&& store,
+    const std::vector<BatchStatement>& store,
     OptionalCommandControl statement_cmd_ctl
 ) {
     auto statement_command_control = statement_cmd_ctl.value_or(CommandControl{
@@ -489,12 +490,16 @@ ResultSet ConnectionImpl::BatchExecute(
         CommandControl::PreparedStatementsOptionOverride::kNoOverride
     });
 
+    LOG_DEBUG("PROCESSING BATCH STATEMENT");
+
     auto response = ExecuteMessageAsync(
-        std::make_unique<io::protocol::BatchMessage>(std::move(store), level),
+        std::make_unique<io::protocol::BatchMessage>(store, level),
         userver::engine::Deadline::FromDuration(
             statement_command_control.network_timeout_ms
         )
     );
+
+    LOG_DEBUG("PROCESSING BATCH STATEMENT ENDS");
 
     auto* result = dynamic_cast<io::protocol::ResultMessage*>(response.get());
     if (!result) throw std::runtime_error("Unexpected response type");

@@ -177,7 +177,7 @@ private:
 class BatchMessage final : public RequestMessage {
 public:
     BatchMessage(
-        std::vector<BatchStatement>&& queries, Consistency consistency_level
+        const std::vector<BatchStatement>& queries, Consistency consistency_level
     )
         : RequestMessage(FrameHeader{.opcode = Opcode::kBatch}),
           _queries(queries),
@@ -186,25 +186,33 @@ public:
     void SerializeBody(RawBuffer& buffer) override {
         BufferWriter writer(buffer);
         writer.Write(_type);
+        LOG_DEBUG("WRITING QUERIES");
         writer.Write<Short>(_queries.size());
         for (const auto& batch_query : _queries) {
             writer.Write<Byte>(static_cast<Byte>(batch_query.kind));
             if (batch_query.kind == BatchStatement::Kind::kString) {
+                LOG_DEBUG("WRITING STRING QUERY");
                 writer.Write<LongString>(std::get<LongString>(batch_query.query));
             } else {
+                LOG_DEBUG("WRITING PREPARED QUERY");
                 writer.Write<ShortBytes>(std::get<ShortBytes>(batch_query.query));
             }
+            LOG_DEBUG(
+                "WRITING BATCH STATEMENT QUERY PARAMS, size={}",
+                batch_query.params.Size()
+            );
+            writer.Write<Short>(batch_query.params.Size());
             if (!batch_query.params.Empty()) {
-                writer.Write<Short>(batch_query.params.Size());
-                auto* buffers = batch_query.params.ParamBuffers();
+                const auto* buffers = batch_query.params.ParamBuffers();
                 for (std::size_t i = 0; i < batch_query.params.Size(); ++i) {
+                    LOG_DEBUG("WRITING PARAM: {}", i);
                     writer.Write<io::Bytes>(buffers[i]);
                 }
             }
         }
 
-        writer.Write(static_cast<Short>(_consistency_level));
-        writer.Write(flags);
+        writer.Write<Short>(static_cast<Short>(_consistency_level));
+        writer.Write<Byte>(flags);
     }
 
 private:

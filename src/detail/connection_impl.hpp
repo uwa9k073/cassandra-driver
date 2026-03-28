@@ -64,7 +64,7 @@ public:
 
     ResultSet BatchExecute(
         Consistency level,
-        std::vector<BatchStatement>&& store,
+        const std::vector<BatchStatement>& store,
         OptionalCommandControl statement_cmd_ctl
     );
 

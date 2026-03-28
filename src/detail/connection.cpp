@@ -157,7 +157,7 @@ io::ShortBytes Connection::Prepare(const io::LongString& query_name) {
 
 ResultSet Connection::BatchExecute(
     Consistency level,
-    std::vector<BatchStatement>&& store,
+    const std::vector<BatchStatement>& store,
     OptionalCommandControl statement_cmd_ctl
 ) {
     return _pimpl->BatchExecute(level, std::move(store), statement_cmd_ctl);

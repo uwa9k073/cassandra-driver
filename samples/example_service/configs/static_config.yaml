@@ -62,6 +62,10 @@ components_manager:
             path: /cassandra
             method: POST
             task_processor: main-task-processor
+        cassandra-batch:
+            path: /cassandra/batch
+            method: POST
+            task_processor: main-task-processor
 
         cassandra-component:
             keyspace: $cassandra-keyspace
