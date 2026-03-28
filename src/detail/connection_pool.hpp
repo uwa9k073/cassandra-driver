@@ -9,12 +9,11 @@
 #include <userver/concurrent/background_task_storage.hpp>
 #include <userver/concurrent/queue.hpp>
 #include <userver/engine/task/task_processor_fwd.hpp>
-#include <userver/rcu/rcu.hpp>
-#include <userver/rcu/rcu_map.hpp>
+#include <userver/cache/lru_map.hpp>
 #include <userver/utils/statistics/fwd.hpp>
 #include <userver/utils/statistics/recentperiod.hpp>
 #include <userver/utils/statistics/relaxed_counter.hpp>
-#include "cassandra/batch_query.hpp"
+#include <cassandra/batch_query.hpp>
 
 namespace cassandra::detail {
 class ConnectionPool : public std::enable_shared_from_this<ConnectionPool> {
@@ -90,7 +89,7 @@ private:
 
     // prepared statements cache
     // cassandra prepare statements per node and use ShortBytes as ID
-    userver::rcu::RcuMap<std::string, io::ShortBytes> _prepared_statements_map;
+    userver::cache::LruMap<std::string, io::ShortBytes> _prepared_statements_map;
     std::atomic<size_t> wait_count_;
     RecentCounter recent_conn_errors_;
 

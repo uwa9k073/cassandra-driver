@@ -383,7 +383,7 @@ ResultSet ConnectionPool::Execute(
         } else {
             LOG_DEBUG("PREPARE");
             auto prepared_id = conn->Prepare(query.GetStatement());
-            _prepared_statements_map.Emplace(
+            _prepared_statements_map.Put(
                 query.GetStatement().GetUnderlying(), prepared_id
             );
 
