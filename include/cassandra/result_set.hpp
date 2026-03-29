@@ -5,27 +5,17 @@
 #include <cassandra/io/row_types.hpp>
 #include <cassandra/row.hpp>
 #include <userver/logging/log.hpp>
-#include <vector>
-
+#include <cassandra/detail/result_wrapper.hpp>
 namespace cassandra {
 class ResultSet {
 public:
-    bool Empty() const { return _rows_content.empty(); }
+    bool Empty() const { return !_pimpl || _pimpl->Empty(); }
 
-    auto RowsAffected() const { return _columns_count; }
+    auto RowsAffected() const { return _pimpl->RowsAffected(); }
 
-    auto ColumnsAffected() const { return _rows_count; }
+    auto ColumnsAffected() const { return _pimpl->ColumnsAffected(); }
 
-    ResultSet() : _rows_content({}), _columns_count(0), _rows_count(0){};
-
-    ResultSet(
-        std::vector<io::protocol::BytesBuffer>&& rows,
-        io::Int columns_count,
-        io::Int rows_count
-    )
-        : _rows_content(rows),
-          _columns_count(columns_count),
-          _rows_count(rows_count) {}
+    ResultSet(std::shared_ptr<detail::ResultWrapper> pimpl) : _pimpl(pimpl) {}
 
     template <class T>
     T AsSingleRow(io::FieldTag tag) const {
@@ -39,21 +29,22 @@ public:
 
     template <class Container>
     Container AsContainer(io::RowTag tag) const {
+        auto content = _pimpl->RowsContentView();
         using ElementType = typename Container::value_type;
         Container result;
-        result.reserve(_rows_content.size());
-        for (const auto& row : _rows_content) {
-            result.push_back(Row(row, _columns_count).As<ElementType>(tag));
+        result.reserve(content.size());
+        for (const auto& row : content) {
+            result.push_back(Row(row, _pimpl->ColumnsAffected()).As<ElementType>(tag)
+            );
         }
         return result;
     }
 
-    Row Front() const { return Row(_rows_content.front(), _columns_count); }
+    Row Front() const {
+        return Row(_pimpl->RowsContentView().front(), _pimpl->ColumnsAffected());
+    }
 
 private:
-    std::vector<io::protocol::BytesBuffer> _rows_content;
-
-    io::Int _columns_count;
-    io::Int _rows_count;
+    std::shared_ptr<detail::ResultWrapper> _pimpl;
 };
 }  // namespace cassandra

@@ -1,13 +1,13 @@
 #pragma once
 
 #include <boost/endian/conversion.hpp>
+#include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/protocol/types.hpp>
 #include <cstddef>
 #include <cstring>
 #include <stdexcept>
 #include <type_traits>
 #include <userver/utils/void_t.hpp>
-#include "cassandra/io/cassandra_types.hpp"
 
 namespace cassandra::io::detail {
 template <typename T>
