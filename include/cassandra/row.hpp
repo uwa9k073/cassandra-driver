@@ -8,15 +8,14 @@
 #include <type_traits>
 #include <userver/compiler/demangle.hpp>
 #include <userver/logging/log.hpp>
-#include <vector>
 
 namespace cassandra {
+    
+// make sure that the buffer is valid for the lifetime of the Row object
 class Row {
 public:
-    Row(io::protocol::BytesBuffer&& buffer, int columns_count)
+    Row(io::protocol::BytesBufferView buffer, int columns_count)
         : _row_content(std::move(buffer)), _columns_count(columns_count) {}
-    Row(const io::protocol::BytesBuffer& buffer, int columns_count)
-        : _row_content(buffer), _columns_count(columns_count) {}
 
     io::protocol::BytesBufferView GetBufferView() const { return _row_content; }
 
@@ -41,7 +40,7 @@ public:
     size_t Size() const { return _columns_count; }
 
 private:
-    std::vector<io::Bytes> _row_content;
+    io::protocol::BytesBufferView _row_content;
     int _columns_count;
 
     template <typename T>
