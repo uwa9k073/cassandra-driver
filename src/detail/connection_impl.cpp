@@ -175,6 +175,7 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsy
     std::unique_ptr<io::protocol::RequestMessage> message,
     userver::engine::Deadline deadline
 ) {
+    using Duration = decltype(deadline.TimeLeft());
     LOG_DEBUG("ASYNC EXECUTE");
     StreamGuard guard(_stream_pool);
     message->SetStreamId(guard.GetStreamId());
@@ -182,8 +183,10 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsy
     SendMessage(std::move(message), deadline);
     std::shared_ptr<io::protocol::ResponseMessage> result;
     while (!_received_message_consumer_map[guard.GetStreamId()].PopNoblock(result)) {
-        // MarkBroken();
-        // throw std::runtime_error("Timeout");
+        if(deadline.TimeLeft() == Duration::zero()) {
+            MarkBroken();
+            throw exceptions::ConnectionError("Timeout");
+        }
     }
 
     CheckError(result);
