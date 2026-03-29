@@ -162,4 +162,8 @@ ResultSet Connection::BatchExecute(
 ) {
     return _pimpl->BatchExecute(level, std::move(store), statement_cmd_ctl);
 }
+
+void Connection::Close(){
+    _pimpl->Close().Wait();
+}
 }  // namespace cassandra::detail

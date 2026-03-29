@@ -10,7 +10,7 @@
 #include <userver/logging/log.hpp>
 
 namespace cassandra {
-    
+
 // make sure that the buffer is valid for the lifetime of the Row object
 class Row {
 public:

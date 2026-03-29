@@ -35,6 +35,8 @@ public:
 
     bool IsBroken() const;
 
+    void Close();
+
     ResultSet Execute(
         Consistency level,
         const Query& query,

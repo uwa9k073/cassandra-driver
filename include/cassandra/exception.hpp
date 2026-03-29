@@ -3,7 +3,7 @@
 #include <fmt/core.h>
 #include <stdexcept>
 #include <string_view>
-#include "cassandra/io/protocol/types.hpp"
+#include <cassandra/io/protocol/types.hpp>
 namespace cassandra::exceptions {
 class Error : public std::runtime_error {
     using runtime_error::runtime_error;

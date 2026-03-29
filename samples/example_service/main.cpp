@@ -103,7 +103,9 @@ const ::cassandra::Query kInsertQuery{
     "insert into benchmark_ks.my_table (id, name) values (?, ?)"
 };
 const ::cassandra::Query kSelectQuery{"select id, name from benchmark_ks.my_table"};
-const ::cassandra::Query kSelectByIdQuery{"select id, name from benchmark_ks.my_table where id = ? ALLOW FILTERING"};
+const ::cassandra::Query kSelectByIdQuery{
+    "select id, name from benchmark_ks.my_table where id = ? ALLOW FILTERING"
+};
 
 const ::cassandra::Query kSelectLimitQuery{
     "select id, name from benchmark_ks.my_table LIMIT ?"
@@ -141,8 +143,9 @@ userver::formats::json::Value Cassandra::HandleRequestJsonThrow(
             cassandra::Consistency::kLocalOne, kInsertQuery, id, name
         );
 
-        auto select_result =
-            _session_ptr->Execute(cassandra::Consistency::kLocalOne, kSelectByIdQuery, id);
+        auto select_result = _session_ptr->Execute(
+            cassandra::Consistency::kLocalOne, kSelectByIdQuery, id
+        );
         if (!select_result.RowsAffected()) {
             request.SetResponseStatus(userver::server::http::HttpStatus::NotFound);
             return {};

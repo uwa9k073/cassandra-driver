@@ -1,11 +1,11 @@
 #pragma once
 
+#include <cassandra/detail/result_wrapper.hpp>
 #include <cassandra/io/buffer_reader.hpp>
 #include <cassandra/io/protocol/types.hpp>
 #include <cassandra/io/row_types.hpp>
 #include <cassandra/row.hpp>
 #include <userver/logging/log.hpp>
-#include <cassandra/detail/result_wrapper.hpp>
 namespace cassandra {
 class ResultSet {
 public:

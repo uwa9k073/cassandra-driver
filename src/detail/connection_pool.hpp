@@ -12,6 +12,7 @@
 #include <userver/concurrent/queue.hpp>
 #include <userver/engine/task/task_processor_fwd.hpp>
 #include <userver/rcu/rcu.hpp>
+#include <userver/utils/periodic_task.hpp>
 #include <userver/utils/statistics/fwd.hpp>
 #include <userver/utils/statistics/recentperiod.hpp>
 #include <userver/utils/statistics/relaxed_counter.hpp>
@@ -69,9 +70,12 @@ private:
     Connection* Pop(userver::engine::Deadline);
 
     void DeleteConnection(Connection* connection);
-    void DeleteBrokenConnection(Connection* connection);
+    void DropBrokenConnection(Connection* connection);
     void DropExpiredConnection(Connection* connection);
     void DropOutdatedConnection(Connection* connection);
+    
+    
+    Connection* AcquireImmediate();
 
     [[nodiscard]] userver::engine::TaskWithResult<bool> Connect(
         userver::engine::SemaphoreLock lock, ConnectionSettings&& conn_settings
@@ -106,5 +110,9 @@ private:
     userver::engine::Semaphore connecting_semaphore_;
 
     userver::utils::statistics::MetricsStoragePtr _metrics;
+
+    userver::utils::PeriodicTask _maintain_task;
+    void Maintain();
+    void StartMaintainTask();
 };
 }  // namespace cassandra::detail
