@@ -36,6 +36,7 @@
 #include <userver/tracing/tags.hpp>
 #include <userver/utils/trivial_map.hpp>
 #include <utility>
+#include "cassandra/io/protocol/lz4_utils.hpp"
 
 namespace cassandra::detail {
 
@@ -230,11 +231,11 @@ void ConnectionImpl::CqlHandshake(bool use_compression) {
     if (use_compression &&
         std::ranges::find(compression_options, io::String("lz4")) !=
             compression_options.end()) {
-        _compressor_ptr = std::make_unique<io::protocol::Lz4Compressor>();
         message = ExecuteMessage(
             io::protocol::StartupMessage{"lz4"},
             userver::engine::Deadline::FromDuration(std::chrono::seconds{10})
         );
+        _compressor_ptr = std::make_unique<io::protocol::Lz4Compressor>();
     } else {
         message = ExecuteMessage(
             io::protocol::StartupMessage{},
@@ -305,7 +306,7 @@ void ConnectionImpl::SendMessage(
     userver::engine::Deadline deadline
 ) {
     io::protocol::RawBuffer buffer;
-    message->Serialize(buffer);
+    message->Serialize(buffer, _compressor_ptr.get());
 
     auto lock = std::unique_lock(_send_mutex);
 
@@ -343,7 +344,8 @@ std::shared_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(
 }
 
 std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ReadFrame(
-    userver::engine::Deadline deadline
+    userver::engine::Deadline deadline,
+    io::protocol::Compressor* compressor
 ) {
     constexpr size_t kHeaderSize = io::protocol::FrameHeader::kHeaderSize;
 
@@ -375,7 +377,7 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ReadFrame(
 
     LOG_DEBUG() << "BUFFER SIZE: "
                 << body_buffer.size();  // Will now correctly print 102
-    message->ParseBody(body_buffer);
+    message->ParseBody(body_buffer, compressor);
 
     return message;
 }
@@ -388,7 +390,7 @@ void ConnectionImpl::ReceiverLoop() {
     while (!userver::engine::current_task::ShouldCancel()) {
         std::shared_ptr<io::protocol::ResponseMessage> frame;
         try {
-            frame = ReadFrame(deadline);
+            frame = ReadFrame(deadline, _compressor_ptr.get());
         } catch (const userver::engine::io::IoException& e) {
             LOG_DEBUG() << "ReaderLoop: socket closed, exiting";
             MarkBroken();

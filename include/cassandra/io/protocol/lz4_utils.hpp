@@ -6,13 +6,20 @@
 #include <memory>
 
 namespace cassandra::io::protocol {
-class Lz4Compressor {
+    
+class Compressor {
+public:
+    virtual ~Compressor() = default;
+    virtual Int Compress(RawBufferView source, RawBuffer& output) = 0;
+    virtual RawBuffer Decompress(RawBufferView input) = 0;
+};
+class Lz4Compressor : public Compressor {
 public:
     Lz4Compressor() = default;
     ~Lz4Compressor() = default;
-    Int Compress(RawBufferView source, RawBuffer& output);
-    RawBuffer Decompress(RawBufferView input);
+    Int Compress(RawBufferView source, RawBuffer& output) override;
+    RawBuffer Decompress(RawBufferView input) override;
 };
 
-using CompressorPtr = std::unique_ptr<Lz4Compressor>;
+using CompressorPtr = std::unique_ptr<Compressor>;
 }  // namespace cassandra::io::protocol

@@ -26,9 +26,10 @@ public:
         return header;
     }
 
-    void ParseBody(RawBufferView buffer, Lz4Compressor* compressor = nullptr) {
+    void ParseBody(RawBufferView buffer, Compressor* compressor = nullptr) {
         if (compressor) {
             auto uncompressed_buffer = compressor->Decompress(buffer);
+            LOG_DEBUG("Decompression success");
             DoParseBody(uncompressed_buffer);
         } else {
             DoParseBody(buffer);

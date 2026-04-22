@@ -18,7 +18,7 @@ class RequestMessage : public Message {
 public:
     RequestMessage(FrameHeader&& frame) : Message(std::move(frame)) {}
 
-    void Serialize(RawBuffer& buffer, Lz4Compressor* compressor_ptr = nullptr) {
+    void Serialize(RawBuffer& buffer, Compressor* compressor_ptr = nullptr) {
         if (!compressor_ptr) {
             // Serialize the message header
             _header.Serialize(buffer);

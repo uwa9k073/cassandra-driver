@@ -102,7 +102,8 @@ private:
         userver::engine::Deadline deadline
     );
     std::shared_ptr<io::protocol::ResponseMessage> ReadFrame(
-        userver::engine::Deadline deadline
+        userver::engine::Deadline deadline,
+        io::protocol::Compressor* compressor = nullptr
     );
 
     std::shared_ptr<io::protocol::ResponseMessage> ExecuteMessage(
