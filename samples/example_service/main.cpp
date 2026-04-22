@@ -9,6 +9,7 @@
 #include <userver/formats/serialize/common_containers.hpp>
 #include <userver/formats/serialize/to.hpp>
 #include <userver/logging/log.hpp>
+#include <userver/server/handlers/log_level.hpp>
 #include <userver/server/handlers/ping.hpp>
 #include <userver/server/handlers/tests_control.hpp>
 #include <userver/storages/secdist/component.hpp>
@@ -82,6 +83,7 @@ int main(int argc, char* argv[]) {
                               .Append<userver::server::handlers::TestsControl>()
                               .Append<userver::congestion_control::Component>()
                               .Append<components::Cassandra>("cassandra-component")
+                              .Append<userver::server::handlers::LogLevel>()
                               .Append<views::Cassandra>()
                               .Append<views::CassandraBatch>();
 
@@ -103,7 +105,9 @@ const ::cassandra::Query kInsertQuery{
     "insert into benchmark_ks.my_table (id, name) values (?, ?)"
 };
 const ::cassandra::Query kSelectQuery{"select id, name from benchmark_ks.my_table"};
-const ::cassandra::Query kSelectByIdQuery{"select id, name from benchmark_ks.my_table where id = ? ALLOW FILTERING"};
+const ::cassandra::Query kSelectByIdQuery{
+    "select id, name from benchmark_ks.my_table where id = ? ALLOW FILTERING"
+};
 
 const ::cassandra::Query kSelectLimitQuery{
     "select id, name from benchmark_ks.my_table LIMIT ?"
@@ -141,8 +145,9 @@ userver::formats::json::Value Cassandra::HandleRequestJsonThrow(
             cassandra::Consistency::kLocalOne, kInsertQuery, id, name
         );
 
-        auto select_result =
-            _session_ptr->Execute(cassandra::Consistency::kLocalOne, kSelectByIdQuery, id);
+        auto select_result = _session_ptr->Execute(
+            cassandra::Consistency::kLocalOne, kSelectByIdQuery, id
+        );
         if (!select_result.RowsAffected()) {
             request.SetResponseStatus(userver::server::http::HttpStatus::NotFound);
             return {};

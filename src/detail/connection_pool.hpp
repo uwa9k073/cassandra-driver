@@ -6,12 +6,13 @@
 #include <cassandra/node_description.hpp>
 #include <cassandra/options.hpp>
 #include <memory>
-#include <userver/cache/lru_map.hpp>
+#include <userver/cache/nway_lru_cache.hpp>
 #include <userver/clients/dns/resolver_fwd.hpp>
 #include <userver/concurrent/background_task_storage.hpp>
 #include <userver/concurrent/queue.hpp>
 #include <userver/engine/task/task_processor_fwd.hpp>
 #include <userver/rcu/rcu.hpp>
+#include <userver/utils/periodic_task.hpp>
 #include <userver/utils/statistics/fwd.hpp>
 #include <userver/utils/statistics/recentperiod.hpp>
 #include <userver/utils/statistics/relaxed_counter.hpp>
@@ -69,9 +70,11 @@ private:
     Connection* Pop(userver::engine::Deadline);
 
     void DeleteConnection(Connection* connection);
-    void DeleteBrokenConnection(Connection* connection);
+    void DropBrokenConnection(Connection* connection);
     void DropExpiredConnection(Connection* connection);
     void DropOutdatedConnection(Connection* connection);
+
+    Connection* AcquireImmediate();
 
     [[nodiscard]] userver::engine::TaskWithResult<bool> Connect(
         userver::engine::SemaphoreLock lock, ConnectionSettings&& conn_settings
@@ -90,7 +93,7 @@ private:
 
     // prepared statements cache
     // cassandra prepare statements per node and use ShortBytes as ID
-    userver::cache::LruMap<std::string, io::ShortBytes> _prepared_statements_map;
+    userver::cache::NWayLRU<std::string, io::ShortBytes> _prepared_statements_map;
     std::atomic<size_t> wait_count_;
     RecentCounter recent_conn_errors_;
 
@@ -106,5 +109,9 @@ private:
     userver::engine::Semaphore connecting_semaphore_;
 
     userver::utils::statistics::MetricsStoragePtr _metrics;
+
+    userver::utils::PeriodicTask _maintain_task;
+    void Maintain();
+    void StartMaintainTask();
 };
 }  // namespace cassandra::detail

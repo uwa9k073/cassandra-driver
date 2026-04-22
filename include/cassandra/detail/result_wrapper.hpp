@@ -1,8 +1,7 @@
 #pragma once
 
-
-#include <cassandra/io/protocol/types.hpp>
 #include <cassandra/cassandra_fwd.hpp>
+#include <cassandra/io/protocol/types.hpp>
 
 namespace cassandra::detail {
 class ResultWrapper {
@@ -32,4 +31,4 @@ private:
     io::Int _columns_count;
     io::Int _rows_count;
 };
-}  // namespace detail
+}  // namespace cassandra::detail
