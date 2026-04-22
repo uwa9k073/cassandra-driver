@@ -6,7 +6,7 @@
 #include <memory>
 
 namespace cassandra::io::protocol {
-    
+
 class Compressor {
 public:
     virtual ~Compressor() = default;

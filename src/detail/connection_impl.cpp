@@ -344,8 +344,7 @@ std::shared_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(
 }
 
 std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ReadFrame(
-    userver::engine::Deadline deadline,
-    io::protocol::Compressor* compressor
+    userver::engine::Deadline deadline, io::protocol::Compressor* compressor
 ) {
     constexpr size_t kHeaderSize = io::protocol::FrameHeader::kHeaderSize;
 
