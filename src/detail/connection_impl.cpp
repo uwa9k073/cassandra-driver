@@ -142,7 +142,7 @@ ConnectionImpl::ConnectionImpl(
     _received_message_consumer_map.reserve(StreamPool::kMaxStreams);
 
     for (size_t i = 0; i < StreamPool::kMaxStreams; ++i) {
-        _received_message_queue_map.emplace_back(RecvMessageQueue::Create(10));
+        _received_message_queue_map.emplace_back(RecvMessageQueue::Create(1));
         auto back = _received_message_queue_map.back();
         _received_message_producer_map.emplace_back(back->GetProducer());
         _received_message_consumer_map.emplace_back(back->GetConsumer());
@@ -180,10 +180,15 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsy
     StreamGuard guard(_stream_pool);
     message->SetStreamId(guard.GetStreamId());
 
-    SendMessage(std::move(message), deadline);
+    auto task = userver::engine::CriticalAsyncNoSpan(
+        bg_task_processor_,
+        [this, request = std::move(message), deadline]() mutable {
+            SendMessage(std::move(request), deadline);
+        }
+    );
     std::shared_ptr<io::protocol::ResponseMessage> result;
     while (!_received_message_consumer_map[guard.GetStreamId()].PopNoblock(result)) {
-        if(deadline.TimeLeft() == Duration::zero()) {
+        if (deadline.TimeLeft() == Duration::zero()) {
             MarkBroken();
             throw exceptions::ConnectionError("Timeout");
         }

@@ -45,7 +45,7 @@ ConnectionPool::ConnectionPool(
       _settings(settings),
       _connection_settings(connection_settings),
       _bg_task_processor(bg_task_processor),
-      _prepared_statements_map(100),
+      _prepared_statements_map(8, 256),
       _queue(ConnectionQueue::Create()),
       _conn_consumer(_queue->GetMultiConsumer()),
       _conn_producer(_queue->GetMultiProducer()),
@@ -216,8 +216,6 @@ constexpr std::chrono::seconds kRecentErrorPeriod{15};
 constexpr auto kPendingConnectsMax{1};
 void ConnectionPool::TryCreateConnectionAsync() {
     auto conn_settings = _connection_settings.ReadCopy();
-    // Checking errors is more expensive than incrementing an atomic,
-    // so we check it only if we can start a new connection.
     if (recent_conn_errors_.GetStatsForPeriod(kRecentErrorPeriod, true) <
         conn_settings.recent_errors_threshold) {
         userver::engine::SemaphoreLock size_lock{size_semaphore_, std::try_to_lock};
@@ -317,27 +315,11 @@ void ConnectionPool::DropOutdatedConnection(Connection* connection) {
 ) {
     auto shared_this = shared_from_this();
 
-    // auto config = GetConfigSource().GetSnapshot();
-    // CheckDeadlineIsExpired(config);
     ConnectionPtr connection{Pop(deadline), std::move(shared_this)};
-    // ++stats_.connection.used;
-    // CheckDeadlineIsExpired(config);
-
-    // connection->UpdateDefaultCommandControl();
     return connection;
 }
 
 void ConnectionPool::Release(Connection* connection) {
-    // UASSERT(connection);
-    // using DecGuard =
-    // storages::postgres::SizeGuard<USERVER_NAMESPACE::utils::statistics::RelaxedCounter<uint32_t>>;
-    // DecGuard dg{stats_.connection.used, DecGuard::DontIncrement{}};
-
-    // std::optional<Connection::Statistics> connection_stats{};
-    // Grab stats only if connection is not in transaction
-    // if (!connection->IsInTransaction()) {
-    //     connection_stats.emplace(connection->GetStatsAndReset());
-    // }
     if (connection->IsExpired()) {
         DropExpiredConnection(connection);
     } else if (connection->IsBroken()) {
@@ -346,25 +328,6 @@ void ConnectionPool::Release(Connection* connection) {
         LOG_DEBUG("PUSHING CONNECTION");
         Push(connection);
     }
-    // else {
-    //     // Connection cleanup is done asynchronously while returning control to
-    //     // the user
-    //     close_task_storage_.Detach(USERVER_NAMESPACE::utils::CriticalAsync(
-    //         "clear_conn_after_cancel",
-    //         [this, connection, dec_cnt = std::move(dg)] {
-    //             LOG_LIMITED_WARNING() << "Released connection in busy state.
-    //             Trying to clean up..."; TESTPOINT("pg_cleanup",
-    //             formats::json::Value{}); CleanupConnection(connection);
-    //         }
-    //     ));
-    // }
-
-    // // We want to account the stats AFTER the connection is returned to the pool,
-    // // because the procedure is somewhat heavy and there's no point to prevent the
-    // // connection from being reused
-    // if (connection_stats.has_value()) {
-    //     AccountConnectionStats(std::move(*connection_stats));
-    // }
 }
 
 ResultSet ConnectionPool::Execute(
@@ -449,73 +412,93 @@ void ConnectionPool::StartMaintainTask() {
     );
 }
 
-
 const Query kPing{"SELECT cluster_name FROM system.local"};
 constexpr auto kIdleDropLimit = 1;
 
-constexpr  StaticQueryParameters<0> kNoParams;
+constexpr StaticQueryParameters<0> kNoParams;
 
 void ConnectionPool::Maintain() {
-
     if (wait_count_ > 0) {
-        LOG_DEBUG() << "No ping required for connection pool to node: " << _description.contact_point.GetUnderlying();
+        LOG_DEBUG() << "No ping required for connection pool to node: "
+                    << _description.contact_point.GetUnderlying();
         return;
     }
 
-
-    LOG_DEBUG() << "Ping connection pool " << _description.contact_point.GetUnderlying();
+    LOG_DEBUG() << "Ping connection pool "
+                << _description.contact_point.GetUnderlying();
     auto count = size_semaphore_.UsedApprox();
     auto drop_left = kIdleDropLimit;
     auto settings = _settings.Read();
     while (count > 0) {
         try {
             auto deleter = [this](Connection* c) { DeleteConnection(c); };
-            std::unique_ptr<Connection, decltype(deleter)> conn(AcquireImmediate(), deleter);
+            std::unique_ptr<Connection, decltype(deleter)> conn(
+                AcquireImmediate(), deleter
+            );
             if (!conn) {
-                LOG_DEBUG() << "All connections to `" << _description.contact_point.GetUnderlying() << "` are busy";
+                LOG_DEBUG() << "All connections to `"
+                            << _description.contact_point.GetUnderlying()
+                            << "` are busy";
                 break;
             }
             if (count > settings->min_size && drop_left > 0) {
                 --drop_left;
-                LOG_DEBUG() << "Drop idle connection to `" << _description.contact_point.GetUnderlying() << '`';
+                LOG_DEBUG() << "Drop idle connection to `"
+                            << _description.contact_point.GetUnderlying() << '`';
                 conn->Close();
             } else {
-                // Cannot use ConnectionPtr here as we must not use
-                // shared_from_this() here (this would prolong pool's lifetime and
-                // can cause a deadlock on the periodic task). But we can be sure
-                // that `this` outlives the task.
                 const auto releaser = [this](Connection* c) { Release(c); };
-                std::unique_ptr<Connection, decltype(releaser)> capture(conn.release(), releaser);
-                auto prepared_id_ptr = _prepared_statements_map.Get(kPing.GetStatement().GetUnderlying());
-                if(!prepared_id_ptr){
+                std::unique_ptr<Connection, decltype(releaser)> capture(
+                    conn.release(), releaser
+                );
+                auto prepared_id_ptr =
+                    _prepared_statements_map.Get(kPing.GetStatement().GetUnderlying()
+                    );
+                if (!prepared_id_ptr) {
                     auto prepared_id = capture->Prepare(kPing.GetStatement());
-                    _prepared_statements_map.Put(kPing.GetStatement().GetUnderlying(), prepared_id);
-                    capture->ExecutePrepared(Consistency::kLocalOne, prepared_id, QueryParameters{kNoParams}, std::nullopt);
+                    _prepared_statements_map.Put(
+                        kPing.GetStatement().GetUnderlying(), prepared_id
+                    );
+                    capture->ExecutePrepared(
+                        Consistency::kLocalOne,
+                        prepared_id,
+                        QueryParameters{kNoParams},
+                        std::nullopt
+                    );
                 } else {
-                    try{
-                        capture->ExecutePrepared(Consistency::kLocalOne, *prepared_id_ptr, QueryParameters{kNoParams}, std::nullopt);
+                    try {
+                        capture->ExecutePrepared(
+                            Consistency::kLocalOne,
+                            *prepared_id_ptr,
+                            QueryParameters{kNoParams},
+                            std::nullopt
+                        );
                     } catch (const exceptions::Unprepared& e) {
-                        LOG_LIMITED_WARNING("Prepared statements were discatrded on node: {}", _description.contact_point.GetUnderlying());
-                        _prepared_statements_map.Clear();
+                        LOG_LIMITED_WARNING(
+                            "Prepared statements were discatrded on node: {}",
+                            _description.contact_point.GetUnderlying()
+                        );
+                        _prepared_statements_map.Invalidate();
                     }
                 }
             }
         } catch (const exceptions::RuntimeError& e) {
-            LOG_LIMITED_WARNING() << "Exception while pinging connection to `" << _description.contact_point.GetUnderlying() << "`: " << e;
+            LOG_LIMITED_WARNING()
+                << "Exception while pinging connection to `"
+                << _description.contact_point.GetUnderlying() << "`: " << e;
         }
         --count;
     }
 }
 
-
 Connection* ConnectionPool::AcquireImmediate() {
     Connection* conn = nullptr;
     while (_conn_consumer.PopNoblock(conn)) {
-
         if (conn->IsExpired()) {
             DropExpiredConnection(conn);
             continue;
-        } if(conn->IsBroken()){
+        }
+        if (conn->IsBroken()) {
             DropBrokenConnection(conn);
             continue;
         }

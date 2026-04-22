@@ -73,6 +73,7 @@ public:
     ~ConnectionImpl();
 
     userver::engine::Task Close();
+
 private:
     userver::engine::io::Socket _socket;
     userver::engine::TaskProcessor& bg_task_processor_;
@@ -116,7 +117,6 @@ private:
     void ReceiverLoop();
 
     void MarkBroken();
-
 
     std::vector<std::shared_ptr<RecvMessageQueue>> _received_message_queue_map;
     std::vector<RecvMessageQueue::Producer> _received_message_producer_map;

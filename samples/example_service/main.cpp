@@ -9,6 +9,7 @@
 #include <userver/formats/serialize/common_containers.hpp>
 #include <userver/formats/serialize/to.hpp>
 #include <userver/logging/log.hpp>
+#include <userver/server/handlers/log_level.hpp>
 #include <userver/server/handlers/ping.hpp>
 #include <userver/server/handlers/tests_control.hpp>
 #include <userver/storages/secdist/component.hpp>
@@ -82,6 +83,7 @@ int main(int argc, char* argv[]) {
                               .Append<userver::server::handlers::TestsControl>()
                               .Append<userver::congestion_control::Component>()
                               .Append<components::Cassandra>("cassandra-component")
+                              .Append<userver::server::handlers::LogLevel>()
                               .Append<views::Cassandra>()
                               .Append<views::CassandraBatch>();
 
