@@ -340,7 +340,15 @@ ResultSet ConnectionPool::Execute(
 
     if (!statement_cmd_ctl.has_value() ||
         statement_cmd_ctl->prepared_statements_enabled ==
+            CommandControl::PreparedStatementsOptionOverride::kEnabled ||
+        statement_cmd_ctl->prepared_statements_enabled ==
             CommandControl::PreparedStatementsOptionOverride::kNoOverride) {
+        if (statement_cmd_ctl.has_value()) {
+            LOG_DEBUG(
+                "PREPARED OVERRIDE: {}",
+                static_cast<int>(statement_cmd_ctl->prepared_statements_enabled)
+            );
+        }
         LOG_DEBUG("TRYING TO GET PREPARED");
         auto prepared_id_ptr =
             _prepared_statements_map.Get(query.GetStatement().GetUnderlying());
@@ -374,8 +382,8 @@ ResultSet ConnectionPool::BatchExecute(
     batch_statements.reserve(queries_view.size());
 
     if (!statement_cmd_ctl.has_value() ||
-        statement_cmd_ctl->prepared_statements_enabled ==
-            CommandControl::PreparedStatementsOptionOverride::kNoOverride) {
+        statement_cmd_ctl->prepared_statements_enabled !=
+            CommandControl::PreparedStatementsOptionOverride::kDisabled) {
         std::ranges::transform(
             queries_view,
             std::back_inserter(batch_statements),

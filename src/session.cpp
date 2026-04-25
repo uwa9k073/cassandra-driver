@@ -5,6 +5,7 @@
 #include <vector>
 #include "cassandra/batch_query.hpp"
 #include "cassandra/options.hpp"
+#include "cassandra/result_set.hpp"
 #include "session_impl.hpp"
 
 namespace cassandra {
@@ -37,5 +38,13 @@ ResultSet Session::DoExecute(
 
 ResultSet Session::BatchExecute(const BatchQueryStore& batch_store) {
     return _pimpl->BatchExecute(batch_store, std::nullopt);
+}
+
+ResultSet Session::BatchExecute(
+    const BatchQueryStore& batch_store, CommandControl statement_cmd_ctl
+) {
+    return _pimpl->BatchExecute(
+        batch_store, OptionalCommandControl{statement_cmd_ctl}
+    );
 }
 }  // namespace cassandra

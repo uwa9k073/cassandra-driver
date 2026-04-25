@@ -104,7 +104,7 @@ userver::formats::json::Value Cassandra::HandleRequestJsonThrow(
     if (_session_ptr) {
         auto turn_count = request_json["turnCount"].As<int>();
         auto loop_count = request_json["loopCount"].As<int>();
-        auto data = request_json["data"].As<std::string>();
+        std::string data = "name";
 
         std::vector<int> results;
 
@@ -113,7 +113,16 @@ userver::formats::json::Value Cassandra::HandleRequestJsonThrow(
             auto start = userver::utils::datetime::Now();
             for (int id = 0; id < loop_count; ++id) {
                 _session_ptr->Execute(
-                    cassandra::Consistency::kLocalOne, kInsertQuery, id, data
+                    cassandra::Consistency::kLocalOne,
+                    ::cassandra::CommandControl{
+                        std::chrono::seconds{10},
+                        std::chrono::seconds{10},
+                        cassandra::CommandControl::PreparedStatementsOptionOverride::
+                            kDisabled
+                    },
+                    kInsertQuery,
+                    id,
+                    data
                 );
             }
             auto end = userver::utils::datetime::Now();

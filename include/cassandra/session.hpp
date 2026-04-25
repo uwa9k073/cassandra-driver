@@ -40,7 +40,30 @@ public:
         return Execute(level, std::nullopt, query, std::forward<Args>(args)...);
     }
 
+    template <typename... Args>
+    ResultSet Execute(
+        Consistency level,
+        CommandControl statement_cmd_ctl,
+        const Query& query,
+        Args&&... args
+    ) {
+        LOG_DEBUG(
+            "EXECUTE WITH CTL: {}",
+            static_cast<int>(statement_cmd_ctl.prepared_statements_enabled)
+        );
+        return Execute(
+            level,
+            OptionalCommandControl{statement_cmd_ctl},
+            query,
+            std::forward<Args>(args)...
+        );
+    }
+
     ResultSet BatchExecute(const BatchQueryStore& store);
+
+    ResultSet BatchExecute(
+        const BatchQueryStore& store, CommandControl statement_cmd_ctl
+    );
 
     template <typename... Args>
     ResultSet Execute(
