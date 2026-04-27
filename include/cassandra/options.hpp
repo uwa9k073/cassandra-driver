@@ -2,7 +2,7 @@
 
 #include <cassandra/cassandra_fwd.hpp>
 #include <cassandra/io/cassandra_types.hpp>
-#include <cstdint>
+#include <cstddef>
 #include <optional>
 #include <string>
 
@@ -25,8 +25,10 @@ namespace cassandra {
  * asynchronously during construction.
  */
 enum class InitMode {
-    kSync,   ///< Initialize connections synchronously during Session construction
-    kAsync   ///< Initialize connections asynchronously after Session construction
+    kSync,  ///< Initialize connections synchronously during Session
+            ///< construction
+    kAsync  ///< Initialize connections asynchronously after Session
+            ///< construction
 };
 
 /**
@@ -35,7 +37,8 @@ enum class InitMode {
  *
  * Consistency levels control how many replicas must acknowledge a query
  * before the response is returned to the client. Higher consistency levels
- * provide stronger guarantees but may have higher latency and availability costs.
+ * provide stronger guarantees but may have higher latency and availability
+ * costs.
  *
  * @details
  * The consistency level determines the trade-off between availability,
@@ -84,7 +87,8 @@ enum class Consistency : io::Short {
      * A majority of replicas must acknowledge the request.
      * For replication factor (RF) = 3, quorum = 2 replicas.
      * For RF = 5, quorum = 3 replicas.
-     * Good general-purpose consistency level balancing consistency and availability.
+     * Good general-purpose consistency level balancing consistency and
+     * availability.
      */
     kQuorum = 0x0004,
 
@@ -133,11 +137,12 @@ enum class Consistency : io::Short {
 
 /**
  * @struct CommandControl
- * @brief Execution parameters controlling timeout and prepared statement behavior
+ * @brief Execution parameters controlling timeout and prepared statement
+ * behavior
  *
- * CommandControl provides per-query control over execution timeouts and whether
- * prepared statements should be used. These settings override session defaults
- * for individual queries or batches.
+ * CommandControl provides per-query control over execution timeouts and
+ * whether prepared statements should be used. These settings override session
+ * defaults for individual queries or batches.
  *
  * @details
  * The CommandControl structure allows fine-grained control over:
@@ -145,9 +150,10 @@ enum class Consistency : io::Short {
  * - **Statement timeout**: Server-side timeout for query execution
  * - **Prepared statements**: Whether to use prepared statements for this query
  *
- * All fields are optional. A zero/default value means no override (use session defaults).
+ * All fields are optional. A zero/default value means no override (use session
+ * defaults).
  *
- * @example
+ * @par Example
  * @code
  * using cassandra::CommandControl;
  * using cassandra::Consistency;
@@ -171,7 +177,7 @@ enum class Consistency : io::Short {
  * );
  * @endcode
  *
- * @see Session::Execute for using CommandControl with queries
+ * @see cassandra::Session::Execute for using CommandControl with queries
  */
 struct CommandControl {
     /**
@@ -187,8 +193,8 @@ struct CommandControl {
     /**
      * @brief Overall timeout for the command (network operation timeout)
      *
-     * Specifies the maximum time to wait for a response from the Cassandra server.
-     * A zero value means use the session default timeout.
+     * Specifies the maximum time to wait for a response from the Cassandra
+     * server. A zero value means use the session default timeout.
      *
      * @details
      * This is the wall-clock timeout for the entire operation including:
@@ -217,7 +223,8 @@ struct CommandControl {
      * @brief Override for prepared statement usage
      *
      * Controls whether prepared statements should be used for this command.
-     * A kNoOverride value means use the session's default prepared statement setting.
+     * A kNoOverride value means use the session's default prepared statement
+     * setting.
      */
     PreparedStatementsOptionOverride prepared_statements_enabled{
         PreparedStatementsOptionOverride::kNoOverride
@@ -252,10 +259,10 @@ struct CommandControl {
      *         settings copied from this instance
      *
      * @details
-     * This is a convenience method for creating modified copies of CommandControl.
-     * It follows the builder pattern with immutable semantics.
+     * This is a convenience method for creating modified copies of
+     * CommandControl. It follows the builder pattern with immutable semantics.
      *
-     * @example
+     * @par Example
      * @code
      * CommandControl ctl(5s, 3s);
      * CommandControl longer_ctl = ctl.WithExecuteTimeout(10s);
@@ -271,13 +278,14 @@ struct CommandControl {
      *
      * @param s The new statement timeout
      *
-     * @return A new CommandControl with the statement timeout updated and other
-     *         settings copied from this instance
+     * @return A new CommandControl with the statement timeout updated and
+     * other settings copied from this instance
      *
      * @details
-     * This is a convenience method for creating modified copies of CommandControl.
+     * This is a convenience method for creating modified copies of
+     * CommandControl.
      *
-     * @example
+     * @par Example
      * @code
      * CommandControl ctl(5s, 3s);
      * CommandControl longer_stmt_ctl = ctl.WithStatementTimeout(4s);
@@ -318,7 +326,7 @@ struct CommandControl {
  * Used to distinguish between "no override specified" (std::nullopt) and
  * "use these controls" (contains a CommandControl).
  *
- * @see CommandControl for timeout and execution control options
+ * @see cassandra::CommandControl for timeout and execution control options
  */
 using OptionalCommandControl = std::optional<CommandControl>;
 
@@ -383,7 +391,7 @@ inline constexpr std::size_t kDefaultConnectingLimit = 0;
  * The connecting_limit controls how aggressively the pool expands by
  * limiting simultaneous connection establishment.
  *
- * @example
+ * @par Example
  * @code
  * using cassandra::PoolSettings;
  *
@@ -404,7 +412,8 @@ inline constexpr std::size_t kDefaultConnectingLimit = 0;
  * };
  * @endcode
  *
- * @see SessionSettings for using PoolSettings in session configuration
+ * @see cassandra::SessionSettings for using PoolSettings in session
+ * configuration
  */
 struct PoolSettings final {
     /**
@@ -463,6 +472,10 @@ struct PoolSettings final {
      */
     std::size_t connecting_limit{kDefaultConnectingLimit};
 
+    std::size_t prepared_statement_cache_ways;
+    std::size_t prepared_statement_cache_way_size;
+    bool prepared_statement_cache_enabled;
+
     /**
      * @brief Equality comparison operator
      *
@@ -489,7 +502,7 @@ struct PoolSettings final {
  * - Maximum time-to-live for connections
  * - Error handling and reconnection thresholds
  *
- * @example
+ * @par Example
  * @code
  * using cassandra::ConnectionSettings;
  *
@@ -499,7 +512,8 @@ struct PoolSettings final {
  * };
  * @endcode
  *
- * @see SessionSettings for using ConnectionSettings in session configuration
+ * @see cassandra::SessionSettings for using cassandra::ConnectionSettings in
+ * session configuration
  */
 struct ConnectionSettings {
     /**
@@ -544,7 +558,7 @@ struct ConnectionSettings {
  * accessing the same keyspace and cluster. It can be customized for
  * different workload characteristics.
  *
- * @example
+ * @par Example
  * @code
  * using cassandra::SessionSettings;
  * using cassandra::PoolSettings;
@@ -575,9 +589,9 @@ struct ConnectionSettings {
  * };
  * @endcode
  *
- * @see Session for creating sessions with these settings
- * @see PoolSettings for connection pool tuning
- * @see ConnectionSettings for per-connection options
+ * @see cassandra::Session for creating sessions with these settings
+ * @see cassandra::PoolSettings for connection pool tuning
+ * @see cassandra::ConnectionSettings for per-connection options
  */
 struct SessionSettings {
     /**
@@ -587,7 +601,7 @@ struct SessionSettings {
      * by default. This is required and must be a valid keyspace name
      * that exists on the cluster.
      *
-     * @example
+     * @par Example
      * @code
      * SessionSettings settings{
      *     .keyspace_name = "my_application_keyspace"
@@ -602,7 +616,7 @@ struct SessionSettings {
      * Configures the pool of connections used by this session.
      * Default settings work well for most applications.
      *
-     * @see PoolSettings for detailed configuration options
+     * @see cassandra::PoolSettings for detailed configuration options
      */
     PoolSettings pool_settings{};
 
@@ -611,9 +625,8 @@ struct SessionSettings {
      *
      * Configures behavior of individual connections within the pool.
      *
-     * @see ConnectionSettings for available options
+     * @see cassandra::ConnectionSettings for available options
      */
     ConnectionSettings connection_settings{};
 };
-
 }  // namespace cassandra

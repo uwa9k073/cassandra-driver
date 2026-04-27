@@ -111,6 +111,8 @@ private:
     userver::utils::statistics::MetricsStoragePtr _metrics;
 
     userver::utils::PeriodicTask _maintain_task;
+    bool _prepared_statements_cache_enabled;
+
     void Maintain();
     void StartMaintainTask();
 };

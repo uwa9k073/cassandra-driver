@@ -17,8 +17,9 @@ namespace cassandra {
  * a query execution. It allows accessing query results as single rows,
  * containers of rows, or individual field values.
  *
- * @see Session::Execute for query execution that returns ResultSet objects
- * @see Row for accessing individual row data
+ * @see cassandra::Session::Execute for query execution that returns ResultSet
+ * objects
+ * @see cassandra::Row for accessing individual row data
  */
 
 /**
@@ -40,7 +41,7 @@ namespace cassandra {
  * The ResultSet provides type-safe access to query results through template
  * methods that automatically deserialize Cassandra data types to C++ types.
  *
- * @example
+ * @par Example
  * @code
  * using cassandra::Session;
  * using cassandra::Query;
@@ -48,7 +49,8 @@ namespace cassandra {
  *
  * // Execute a query that returns a single row
  * Query select_user("SELECT id, name, email FROM users WHERE id = ?");
- * ResultSet result = session.Execute(Consistency::kQuorum, select_user, user_id);
+ * ResultSet result = session.Execute(Consistency::kQuorum, select_user,
+ * user_id);
  *
  * if (!result.Empty()) {
  *     // Extract as a struct
@@ -60,13 +62,15 @@ namespace cassandra {
  *     User user = result.AsSingleRow<User>(io::kRowTag);
  *
  *     // Or extract multiple rows into a container
- *     std::vector<User> all_users = result.AsContainer<std::vector<User>>(io::kRowTag);
+ *     std::vector<User> all_users =
+ * result.AsContainer<std::vector<User>>(io::kRowTag);
  * }
  * @endcode
  *
- * @see Session::Execute for query execution
- * @see Row for low-level row data access
- * @see io::RowTag and io::FieldTag for result extraction options
+ * @see cassandra::Session::Execute for query execution
+ * @see cassandra::Row for low-level row data access
+ * @see cassandra::io::RowTag and cassandra::io::FieldTag for result extraction
+ * options
  */
 class ResultSet {
 public:
@@ -79,7 +83,7 @@ public:
      * @details This method should be called before attempting to access rows
      * to avoid undefined behavior.
      *
-     * @example
+     * @par Example
      * @code
      * ResultSet result = session.Execute(Consistency::kQuorum, query, id);
      * if (!result.Empty()) {
@@ -94,16 +98,16 @@ public:
      * @brief Gets the number of rows affected by the query
      *
      * @return The number of rows that were affected by an UPDATE, INSERT, or
-     *         DELETE query. For SELECT queries, this typically returns 0 unless
-     *         the query modified the result set in some way.
+     *         DELETE query. For SELECT queries, this typically returns 0
+     * unless the query modified the result set in some way.
      *
-     * @details This is primarily useful for mutation operations (INSERT, UPDATE,
-     * DELETE) to determine how many rows were modified.
+     * @details This is primarily useful for mutation operations (INSERT,
+     * UPDATE, DELETE) to determine how many rows were modified.
      *
-     * @example
+     * @par Example
      * @code
-     * ResultSet result = session.Execute(Consistency::kQuorum, delete_query, id);
-     * LOG_INFO() << "Deleted " << result.RowsAffected() << " rows";
+     * ResultSet result = session.Execute(Consistency::kQuorum, delete_query,
+     * id); LOG_INFO() << "Deleted " << result.RowsAffected() << " rows";
      * @endcode
      */
     auto RowsAffected() const { return _pimpl->RowsAffected(); }
@@ -117,7 +121,7 @@ public:
      * @details This indicates the number of columns returned by the query.
      * This is useful for validation or when iterating through row data.
      *
-     * @example
+     * @par Example
      * @code
      * ResultSet result = session.Execute(Consistency::kQuorum, query);
      * LOG_DEBUG() << "Result has " << result.ColumnsAffected() << " columns";
@@ -131,8 +135,8 @@ public:
      * @param pimpl A shared pointer to the underlying result wrapper
      *
      * @details This is an internal constructor used by the driver. Client code
-     * does not typically construct ResultSet objects directly; they are returned
-     * by Session::Execute methods.
+     * does not typically construct ResultSet objects directly; they are
+     * returned by Session::Execute methods.
      *
      * @internal
      */
@@ -142,8 +146,10 @@ public:
      * @brief Extracts the first row as a single value or struct
      *
      * @tparam T The C++ type to deserialize the row into. Can be:
-     *           - A simple type like int, std::string for single-column results
-     *           - A struct with fields matching the query columns (with io::RowTag)
+     *           - A simple type like int, std::string for single-column
+     * results
+     *           - A struct with fields matching the query columns (with
+     * io::RowTag)
      *
      * @param tag io::FieldTag to extract a single field from the first column,
      *            or io::RowTag to extract an entire row as a struct
@@ -157,7 +163,7 @@ public:
      * result set and want to extract it as a C++ value or struct. It calls
      * Front() to get the first row and then deserializes it.
      *
-     * @example
+     * @par Example
      * @code
      * // Extract a single column value
      * Query count_query("SELECT COUNT(*) FROM users WHERE active = true");
@@ -167,8 +173,8 @@ public:
      * // Extract an entire row as a struct
      * struct User { int id; std::string name; };
      * Query user_query("SELECT id, name FROM users WHERE id = ?");
-     * ResultSet result = session.Execute(Consistency::kQuorum, user_query, user_id);
-     * User user = result.AsSingleRow<User>(io::kRowTag);
+     * ResultSet result = session.Execute(Consistency::kQuorum, user_query,
+     * user_id); User user = result.AsSingleRow<User>(io::kRowTag);
      * @endcode
      *
      * @see Front() for accessing just the first row
@@ -180,10 +186,11 @@ public:
     }
 
     /**
-     * @brief Extracts the first row as a single value or struct (row-level extraction)
+     * @brief Extracts the first row as a single value or struct (row-level
+     * extraction)
      *
-     * @tparam T The C++ type to deserialize the row into. This should be a struct
-     *           with fields matching the query columns.
+     * @tparam T The C++ type to deserialize the row into. This should be a
+     * struct with fields matching the query columns.
      *
      * @param tag io::RowTag indicating row-level extraction
      *
@@ -193,9 +200,10 @@ public:
      *         to the requested type, or if the result set is empty
      *
      * @details This is the row-level version of AsSingleRow. It extracts an
-     * entire row from the result set and deserializes it into the specified struct type.
+     * entire row from the result set and deserializes it into the specified
+     * struct type.
      *
-     * @example
+     * @par Example
      * @code
      * struct Product {
      *     int id;
@@ -204,11 +212,13 @@ public:
      * };
      *
      * Query query("SELECT id, name, price FROM products WHERE id = ?");
-     * ResultSet result = session.Execute(Consistency::kQuorum, query, product_id);
+     * ResultSet result = session.Execute(Consistency::kQuorum, query,
+     * product_id);
      *
      * if (!result.Empty()) {
      *     Product product = result.AsSingleRow<Product>(io::kRowTag);
-     *     LOG_INFO() << "Product: " << product.name << " - $" << product.price;
+     *     LOG_INFO() << "Product: " << product.name << " - $" <<
+     * product.price;
      * }
      * @endcode
      *
@@ -223,14 +233,15 @@ public:
     /**
      * @brief Extracts all rows into a container of a specific type
      *
-     * @tparam Container A container type that supports push_back() and reserve()
-     *                   (e.g., std::vector, std::list)
+     * @tparam Container A container type that supports push_back() and
+     * reserve() (e.g., std::vector, std::list)
      *
      * @param tag io::RowTag indicating that each row should be extracted as
      *            a complete row (not just a single field)
      *
      * @return A container filled with deserialized rows. The container type's
-     *         value_type T is automatically deduced from the Container parameter.
+     *         value_type T is automatically deduced from the Container
+     * parameter.
      *
      * @throws cassandra::exceptions::Error if any row cannot be deserialized
      *         to the container's value_type
@@ -239,7 +250,7 @@ public:
      * deserializes each one into the container's value type. It automatically
      * reserves space in the container for efficiency.
      *
-     * @example
+     * @par Example
      * @code
      * struct User {
      *     int id;
@@ -251,15 +262,17 @@ public:
      * ResultSet result = session.Execute(Consistency::kQuorum, query);
      *
      * // Extract all rows into a vector
-     * std::vector<User> users = result.AsContainer<std::vector<User>>(io::kRowTag);
-     * LOG_INFO() << "Found " << users.size() << " active users";
+     * std::vector<User> users =
+     * result.AsContainer<std::vector<User>>(io::kRowTag); LOG_INFO() << "Found
+     * " << users.size() << " active users";
      *
      * for (const auto& user : users) {
      *     LOG_DEBUG() << user.name << " <" << user.email << ">";
      * }
      *
      * // Also works with other container types
-     * std::list<User> user_list = result.AsContainer<std::list<User>>(io::kRowTag);
+     * std::list<User> user_list =
+     * result.AsContainer<std::list<User>>(io::kRowTag);
      * @endcode
      *
      * @see AsSingleRow() for extracting just the first row
@@ -293,7 +306,7 @@ public:
      * This method is useful for manual row data extraction when you need
      * more control over deserialization.
      *
-     * @example
+     * @par Example
      * @code
      * ResultSet result = session.Execute(Consistency::kQuorum, query);
      *

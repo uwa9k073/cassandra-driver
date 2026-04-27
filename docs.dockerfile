@@ -6,7 +6,7 @@ COPY . .
 
 RUN apt update -y && apt install git graphviz doxygen -y
 
-RUN git submodule update --init third_party/doxygen-awesome-css.git
+RUN git submodule update --init third_party/doxygen-awesome-css
 
 RUN doxygen scripts/docs/doxygen.conf
 

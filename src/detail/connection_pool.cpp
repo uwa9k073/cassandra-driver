@@ -25,6 +25,24 @@
 
 namespace cassandra::detail {
 
+namespace {
+bool CanPrepareStatement(
+    OptionalCommandControl command_control, bool prepared_statement_cache_enabled
+) {
+    if (!prepared_statement_cache_enabled) {
+        return false;
+    }
+
+    if (command_control &&
+        command_control.value().prepared_statements_enabled ==
+            CommandControl::PreparedStatementsOptionOverride::kDisabled) {
+        return false;
+    }
+
+    return true;
+}
+}  // namespace
+
 constexpr std::chrono::seconds kMaintainInterval{30};
 constexpr auto kUnlimitedConnecting = std::numeric_limits<std::size_t>::max();
 
@@ -54,7 +72,9 @@ ConnectionPool::ConnectionPool(
                                     : kUnlimitedConnecting
       ),
       connecting_semaphore_(kUnlimitedConnecting),
-      _metrics(std::move(metrics)) {}
+      _metrics(std::move(metrics)),
+      _prepared_statements_cache_enabled(settings.prepared_statement_cache_enabled) {
+}
 
 std::shared_ptr<ConnectionPool> ConnectionPool::Create(
     NodeDescription description,
@@ -280,7 +300,10 @@ Connection* ConnectionPool::Pop(userver::engine::Deadline deadline) {
     );
 }
 
-ConnectionPool::~ConnectionPool() { Clear(); }
+ConnectionPool::~ConnectionPool() {
+    _maintain_task.Stop();
+    Clear();
+}
 
 void ConnectionPool::Clear() {
     Connection* connection = nullptr;
@@ -338,11 +361,7 @@ ResultSet ConnectionPool::Execute(
 ) {
     auto conn = Acquire(userver::engine::Deadline{});
 
-    if (!statement_cmd_ctl.has_value() ||
-        statement_cmd_ctl->prepared_statements_enabled ==
-            CommandControl::PreparedStatementsOptionOverride::kEnabled ||
-        statement_cmd_ctl->prepared_statements_enabled ==
-            CommandControl::PreparedStatementsOptionOverride::kNoOverride) {
+    if (CanPrepareStatement(statement_cmd_ctl, _prepared_statements_cache_enabled)) {
         if (statement_cmd_ctl.has_value()) {
             LOG_DEBUG(
                 "PREPARED OVERRIDE: {}",
@@ -381,9 +400,7 @@ ResultSet ConnectionPool::BatchExecute(
     std::vector<BatchStatement> batch_statements;
     batch_statements.reserve(queries_view.size());
 
-    if (!statement_cmd_ctl.has_value() ||
-        statement_cmd_ctl->prepared_statements_enabled !=
-            CommandControl::PreparedStatementsOptionOverride::kDisabled) {
+    if (CanPrepareStatement(statement_cmd_ctl, _prepared_statements_cache_enabled)) {
         std::ranges::transform(
             queries_view,
             std::back_inserter(batch_statements),

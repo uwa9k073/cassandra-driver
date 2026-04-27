@@ -1,93 +1,102 @@
 components_manager:
-    event_thread_pool: # ev pools to deal with OS events
-        threads: $event-threads
-        threads#fallback: 2
-    task_processors: # Task processor is an executor for coroutine tasks
-        main-task-processor: # Make a task processor for CPU-bound coroutine tasks.
-            worker_threads: $worker-threads # Process tasks in 4 threads.
+  event_thread_pool: # ev pools to deal with OS events
+    threads: $event-threads
+    threads#fallback: 2
+  task_processors: # Task processor is an executor for coroutine tasks
+    main-task-processor: # Make a task processor for CPU-bound coroutine tasks.
+      worker_threads: $worker-threads # Process tasks in 4 threads.
 
-        fs-task-processor: # Make a separate task processor for filesystem bound tasks.
-            worker_threads: $worker-fs-threads
+    fs-task-processor: # Make a separate task processor for filesystem bound tasks.
+      worker_threads: $worker-fs-threads
 
-        monitor-task-processor: # for monitoring
-            thread_name: mon-worker
-            worker_threads: $worker-monitor-threads
-            worker_threads#fallback: 1
+    monitor-task-processor: # for monitoring
+      thread_name: mon-worker
+      worker_threads: $worker-monitor-threads
+      worker_threads#fallback: 1
 
-    default_task_processor: main-task-processor
+  default_task_processor: main-task-processor
 
-    components: # Configuring components that were registered via component_list
-        server:
-            listener: # configuring the main listening socket...
-                port: $server-port # ...to listen on this port and...
-                task_processor: main-task-processor # ...process incoming requests on this task processor.
-            listener-monitor:
-                # Listen on localhost:8085 for developer/utility requests
-                port: $monitor-server-port
-                port#fallback: 8086
-                connection:
-                    in_buffer_size: 32768
-                    requests_queue_size_threshold: 100
-                task_processor: monitor-task-processor
+  components: # Configuring components that were registered via component_list
+    server:
+      listener: # configuring the main listening socket...
+        port: $server-port # ...to listen on this port and...
+        task_processor: main-task-processor # ...process incoming requests on this task processor.
+      listener-monitor:
+        # Listen on localhost:8085 for developer/utility requests
+        port: $monitor-server-port
+        port#fallback: 8086
+        connection:
+          in_buffer_size: 32768
+          requests_queue_size_threshold: 100
+        task_processor: monitor-task-processor
 
-        logging:
-            fs-task-processor: fs-task-processor
-            loggers:
-                default:
-                    file_path: "@stderr"
-                    level: $logger-level
-                    overflow_behavior: discard # Drop logs if the system is too busy to write them down.
+    logging:
+      fs-task-processor: fs-task-processor
+      loggers:
+        default:
+          file_path: "@stderr"
+          level: $logger-level
+          overflow_behavior: discard # Drop logs if the system is too busy to write them down.
 
-        # Dynamic config options. Cache is disabled, updates are disabled.
-        dynamic-config:
-            # For most of userver dynamic configs, defaults are used, some are overridden here.
-            # See userver "dynamic config" docs for what configs exist.
-            defaults:
-                HTTP_CLIENT_CONNECTION_POOL_SIZE: 1000
+    # Dynamic config options. Cache is disabled, updates are disabled.
+    dynamic-config:
+      # For most of userver dynamic configs, defaults are used, some are overridden here.
+      # See userver "dynamic config" docs for what configs exist.
+      defaults:
+        HTTP_CLIENT_CONNECTION_POOL_SIZE: 1000
 
-        testsuite-support: {}
+    testsuite-support: {}
 
-        congestion-control:
+    congestion-control:
 
-        secdist: {}
-        default-secdist-provider:
-            config: $secdist-path
-            config#env: SECDIST_PATH
+    secdist: {}
+    default-secdist-provider:
+      config: $secdist-path
+      config#env: SECDIST_PATH
 
-        http-client:
-            load-enabled: $is_testing
-            fs-task-processor: fs-task-processor
+    http-client:
+      load-enabled: $is_testing
+      fs-task-processor: fs-task-processor
 
-        dns-client:
-            fs-task-processor: fs-task-processor
+    dns-client:
+      fs-task-processor: fs-task-processor
 
-        tests-control:
-            load-enabled: $is-testing
-            path: /tests/{action}
-            method: POST
-            task_processor: main-task-processor
+    tests-control:
+      load-enabled: $is-testing
+      path: /tests/{action}
+      method: POST
+      task_processor: main-task-processor
 
-        handler-ping:
-            path: /ping
-            method: GET
-            task_processor: main-task-processor
-            throttling_enabled: false
-            url_trailing_slash: strict-match
+    handler-ping:
+      path: /ping
+      method: GET
+      task_processor: main-task-processor
+      throttling_enabled: false
+      url_trailing_slash: strict-match
 
-        cassandra-view:
-            path: /cassandra
-            method: POST
-            task_processor: main-task-processor
-        cassandra-batch:
-            path: /cassandra/batch
-            method: POST
-            task_processor: main-task-processor
+    cassandra-view:
+      path: /cassandra
+      method: POST
+      task_processor: main-task-processor
+    cassandra-batch:
+      path: /cassandra/batch
+      method: POST
+      task_processor: main-task-processor
 
-        cassandra-component:
-            keyspace: $cassandra-keyspace
+    cassandra-component:
+      keyspace: $cassandra-keyspace
+      blocking_task_processor: fs-task-processor
+      dns_resolver: async
+      min-pool-size: 5
+      max-pool-size: 100
+      sync-start: false
+      persistent-prepared-statements: true
+      max-ttl-sec: 3600
+      prepared-statement-cache-ways: 16
+      prepared-statement-cache-way-size: 200
+      max-queue-size: 1000
 
-        handler-log-level:
-            path: /service/log-level/{level}
-            method: GET,PUT
-            task_processor: monitor-task-processor
-
+    handler-log-level:
+      path: /service/log-level/{level}
+      method: GET,PUT
+      task_processor: monitor-task-processor

@@ -28,6 +28,7 @@
 #include <userver/yaml_config/fwd.hpp>
 #include <userver/yaml_config/merge_schemas.hpp>
 #include <userver/yaml_config/schema.hpp>
+#include <cassandra_configs.hpp>
 
 namespace components {
 
@@ -49,22 +50,18 @@ properties:
     keyspace:
         type: string
         description: keyspace name
-    default-consistency-level:
-        type: string
-        description: default consistency level
     blocking_task_processor:
         type: string
-        description: name of task processor for background blocking
-        operations defaultDescription:
-        engine::current_task::GetBlockingTaskProcessor()
-    min_pool_size:
+        description: name of task processor for background blocking operations
+        defaultDescription: engine::current_task::GetBlockingTaskProcessor()
+    min-pool-size:
         type: integer
         description: |
             number of connections created initially by this component
             instance to each of the provided PostgreSQL hosts. Connections
             are kept even without requests
         defaultDescription: 4
-    max_pool_size:
+    max-pool-size:
         type: integer
         description: |
             maximum number of connections that can be created by this
@@ -86,35 +83,19 @@ properties:
         type: boolean
         description: cache prepared statements or not
         defaultDescription: true
-    user-types-enabled:
-        type: boolean
-        description: disabling will disallow use of user-defined types
-        defaultDescription: true
-    ignore_unused_query_params:
-        type: boolean
-        description: disable check for not-NULL query params that are not
-        used in query defaultDescription: false
     max-ttl-sec:
         type: integer
         minimum: 1
         description: the maximum lifetime for connections
-    discard-all-on-connect:
-        type: boolean
-        description: execute discard all on new connections
-        defaultDescription: true
-    deadline-propagation-enabled:
-        type: boolean
-        description: whether statement timeout is affected by deadline
-        propagation defaultDescription: true
-    monitoring-dbalias:
-        type: string
-        description: name of the database for monitorings
-        defaultDescription: calculated from dbalias or dbconnection options
-    max_prepared_cache_size:
+    prepared-statement-cache-ways:
         type: integer
-        description: prepared statements cache size limit
+        description: prepared statements cache ways via NWayLRU
+        defaultDescription: 16
+    prepared-statement-cache-way-size:
+        type: integer
+        description: prepared statements cache way size via NWayLRU
         defaultDescription: 200
-    max_queue_size:
+    max-queue-size:
         type: integer
         description: |
             maximum number of clients waiting for a connection.
@@ -146,9 +127,12 @@ Cassandra::Cassandra(
 
     auto metrics = context.FindComponent<userver::components::StatisticsStorage>()
                        .GetMetricsStorage();
+    
+    auto pool_settings = config.As<cassandra::PoolSettings>();
+    auto connection_settings = config.As<cassandra::ConnectionSettings>();
 
     cassandra::SessionSettings session_settings{
-        .keyspace_name = keyspace, .pool_settings = {}
+        .keyspace_name = keyspace, .pool_settings = pool_settings, .connection_settings = connection_settings
     };
     _database->_session = std::make_shared<cassandra::Session>(
         cluster_desc, resolver, bg_task_processor, session_settings, metrics
@@ -157,7 +141,7 @@ Cassandra::Cassandra(
 }
 userver::yaml_config::Schema Cassandra::GetStaticConfigSchema() {
     return userver::yaml_config::MergeSchemas<userver::components::ComponentBase>(
-        kSimpleStaticConfigSchema
+        kFullStaticConfigSchema
     );
 }
 

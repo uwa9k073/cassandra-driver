@@ -25,16 +25,17 @@ using SessionImplPtr = std::unique_ptr<SessionImpl>;
  *
  * This file provides the Session class which is the main interface for
  * executing queries against a Cassandra database. It manages connections,
- * connection pooling, and provides both single-query and batch-query execution.
+ * connection pooling, and provides both single-query and batch-query
+ * execution.
  */
 
 /**
  * @class Session
  * @brief Main interface for executing queries against a Cassandra cluster
  *
- * The Session class manages a pool of connections to Cassandra nodes and provides
- * methods for executing queries with various consistency levels and command controls.
- * It supports:
+ * The Session class manages a pool of connections to Cassandra nodes and
+ * provides methods for executing queries with various consistency levels and
+ * command controls. It supports:
  *
  * - Single query execution with parameterization
  * - Batch query execution
@@ -44,17 +45,19 @@ using SessionImplPtr = std::unique_ptr<SessionImpl>;
  * - Query preparation and caching
  *
  * @details
- * Session objects are thread-safe and designed to be long-lived. They should typically
- * be created once during application startup and shared across multiple threads.
+ * Session objects are thread-safe and designed to be long-lived. They should
+ * typically be created once during application startup and shared across
+ * multiple threads.
  *
- * The Session uses a pimpl (Pointer to Implementation) pattern where all actual work
- * is delegated to SessionImpl. This allows for clean separation between the public
- * interface and internal implementation details.
+ * The Session uses a pimpl (Pointer to Implementation) pattern where all
+ * actual work is delegated to SessionImpl. This allows for clean separation
+ * between the public interface and internal implementation details.
  *
- * Query execution is asynchronous with respect to the server but synchronous from
- * the client's perspective - Execute methods block until a result is received.
+ * Query execution is asynchronous with respect to the server but synchronous
+ * from the client's perspective - Execute methods block until a result is
+ * received.
  *
- * @example
+ * @par Example
  * @code
  * using cassandra::Session;
  * using cassandra::NodeDescription;
@@ -107,21 +110,22 @@ public:
     /**
      * @brief Constructs a new Cassandra session
      *
-     * @param node_description A vector of node descriptions specifying Cassandra
-     *                         cluster nodes to connect to
-     * @param resolver A pointer to the DNS resolver used for hostname resolution
-     *                (can be nullptr if using IP addresses)
-     * @param task_processor A reference to the userver task processor for handling
-     *                      asynchronous operations
+     * @param node_description A vector of node descriptions specifying
+     * Cassandra cluster nodes to connect to
+     * @param resolver A pointer to the DNS resolver used for hostname
+     * resolution (can be nullptr if using IP addresses)
+     * @param task_processor A reference to the userver task processor for
+     * handling asynchronous operations
      * @param session_settings Configuration settings for the session including
      *                        keyspace, pool settings, and connection settings
-     * @param metrics_storage An optional metrics storage for collecting statistics
-     *                       about query execution
+     * @param metrics_storage An optional metrics storage for collecting
+     * statistics about query execution
      *
      * @details
      * The Session constructor initializes all necessary internal structures,
-     * connection pools, and prepares to connect to the specified Cassandra nodes.
-     * Actual connections are established lazily when the first query is executed.
+     * connection pools, and prepares to connect to the specified Cassandra
+     * nodes. Actual connections are established lazily when the first query is
+     * executed.
      *
      * The session takes ownership of the internal implementation and manages
      * its lifecycle automatically.
@@ -157,19 +161,21 @@ public:
      *
      * @return A ResultSet containing the query results
      *
-     * @throws cassandra::exceptions::SessionError if the session cannot be established
+     * @throws cassandra::exceptions::SessionError if the session cannot be
+     * established
      * @throws cassandra::exceptions::ConnectionError if connection fails
-     * @throws cassandra::exceptions::FrameError or subclasses for Cassandra protocol errors
+     * @throws cassandra::exceptions::FrameError or subclasses for Cassandra
+     * protocol errors
      *
      * @details
-     * This template method accepts a query as a string view along with any number
-     * of parameters. The parameters are serialized according to their types and
-     * sent to the Cassandra server.
+     * This template method accepts a query as a string view along with any
+     * number of parameters. The parameters are serialized according to their
+     * types and sent to the Cassandra server.
      *
      * This overload is useful for simple queries where you want to pass the
      * query string inline along with parameters.
      *
-     * @example
+     * @par Example
      * @code
      * // Query with parameters
      * ResultSet result = session->Execute(
@@ -196,9 +202,11 @@ public:
      *
      * @return A ResultSet containing the query results
      *
-     * @throws cassandra::exceptions::SessionError on session establishment failure
+     * @throws cassandra::exceptions::SessionError on session establishment
+     * failure
      * @throws cassandra::exceptions::ConnectionError on connection failure
-     * @throws cassandra::exceptions::FrameError or subclasses for Cassandra protocol errors
+     * @throws cassandra::exceptions::FrameError or subclasses for Cassandra
+     * protocol errors
      *
      * @details
      * This is the standard way to execute queries. It accepts a Query object
@@ -206,7 +214,7 @@ public:
      *
      * No CommandControl is specified, so the session's default timeouts apply.
      *
-     * @example
+     * @par Example
      * @code
      * Query q("SELECT * FROM profiles WHERE user_id = ?");
      * ResultSet result = session->Execute(Consistency::kOne, q, user_id);
@@ -223,23 +231,25 @@ public:
      * @tparam Args Parameter types to bind to query placeholders
      *
      * @param level The consistency level for query execution
-     * @param statement_cmd_ctl Command control specifying timeouts and prepared
-     *                          statement handling options
+     * @param statement_cmd_ctl Command control specifying timeouts and
+     * prepared statement handling options
      * @param query The Query object containing the CQL statement
      * @param args Variable arguments to bind to query placeholders
      *
      * @return A ResultSet containing the query results
      *
-     * @throws cassandra::exceptions::SessionError on session establishment failure
+     * @throws cassandra::exceptions::SessionError on session establishment
+     * failure
      * @throws cassandra::exceptions::ConnectionError on connection failure
-     * @throws cassandra::exceptions::FrameError or subclasses for Cassandra protocol errors
+     * @throws cassandra::exceptions::FrameError or subclasses for Cassandra
+     * protocol errors
      *
      * @details
      * This overload allows specifying per-query command controls such as
      * individual timeouts and prepared statement options. These settings
      * override the session defaults for this specific query.
      *
-     * @example
+     * @par Example
      * @code
      * CommandControl cmd_ctl(
      *     std::chrono::milliseconds{5000},  // network timeout
@@ -278,13 +288,16 @@ public:
     /**
      * @brief Executes multiple queries as a single batch operation
      *
-     * @param store A BatchQueryStore containing multiple queries with parameters
+     * @param store A BatchQueryStore containing multiple queries with
+     * parameters
      *
      * @return A ResultSet with batch execution results
      *
-     * @throws cassandra::exceptions::SessionError on session establishment failure
+     * @throws cassandra::exceptions::SessionError on session establishment
+     * failure
      * @throws cassandra::exceptions::ConnectionError on connection failure
-     * @throws cassandra::exceptions::FrameError or subclasses for Cassandra protocol errors
+     * @throws cassandra::exceptions::FrameError or subclasses for Cassandra
+     * protocol errors
      *
      * @details
      * Batch execution groups multiple queries together and sends them to
@@ -296,12 +309,13 @@ public:
      *
      * Batch operations use the session's default command controls.
      *
-     * @example
+     * @par Example
      * @code
      * BatchQueryStore batch(Consistency::kQuorum);
-     * batch.AddQuery("INSERT INTO users (id, name) VALUES (?, ?)", user1_id, "Alice");
-     * batch.AddQuery("INSERT INTO users (id, name) VALUES (?, ?)", user2_id, "Bob");
-     * batch.AddQuery("INSERT INTO users (id, name) VALUES (?, ?)", user3_id, "Charlie");
+     * batch.AddQuery("INSERT INTO users (id, name) VALUES (?, ?)", user1_id,
+     * "Alice"); batch.AddQuery("INSERT INTO users (id, name) VALUES (?, ?)",
+     * user2_id, "Bob"); batch.AddQuery("INSERT INTO users (id, name) VALUES
+     * (?, ?)", user3_id, "Charlie");
      *
      * ResultSet result = session->BatchExecute(batch);
      * @endcode
@@ -313,21 +327,24 @@ public:
     /**
      * @brief Executes a batch with custom command control
      *
-     * @param store A BatchQueryStore containing multiple queries with parameters
-     * @param statement_cmd_ctl Command control specifying timeouts and prepared
-     *                          statement handling for this batch operation
+     * @param store A BatchQueryStore containing multiple queries with
+     * parameters
+     * @param statement_cmd_ctl Command control specifying timeouts and
+     * prepared statement handling for this batch operation
      *
      * @return A ResultSet with batch execution results
      *
-     * @throws cassandra::exceptions::SessionError on session establishment failure
+     * @throws cassandra::exceptions::SessionError on session establishment
+     * failure
      * @throws cassandra::exceptions::ConnectionError on connection failure
-     * @throws cassandra::exceptions::FrameError or subclasses for Cassandra protocol errors
+     * @throws cassandra::exceptions::FrameError or subclasses for Cassandra
+     * protocol errors
      *
      * @details
      * This is the same as BatchExecute(const BatchQueryStore&) but allows
      * specifying per-batch command controls to override session defaults.
      *
-     * @example
+     * @par Example
      * @code
      * CommandControl cmd_ctl(
      *     std::chrono::milliseconds{10000},  // longer timeout for batch
@@ -349,7 +366,8 @@ public:
     );
 
     /**
-     * @brief Internal query execution method (protected template specialization)
+     * @brief Internal query execution method (protected template
+     * specialization)
      *
      * @tparam Args Parameter types
      *

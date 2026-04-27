@@ -41,7 +41,7 @@ namespace cassandra {
  * the result set's buffer. Therefore, the Row is only valid for the
  * lifetime of the ResultSet that created it.
  *
- * @example
+ * @par Example
  * @code
  * using cassandra::Row;
  * using cassandra::io::FieldTag;
@@ -91,10 +91,11 @@ public:
      *
      * @details
      * Returns the raw buffer containing all serialized columns. This is useful
-     * for advanced use cases where you need direct access to the wire-format data.
-     * Typically, you should use the As() methods for type-safe conversion instead.
+     * for advanced use cases where you need direct access to the wire-format
+     * data. Typically, you should use the As() methods for type-safe
+     * conversion instead.
      *
-     * @example
+     * @par Example
      * @code
      * Row row = result_set.Front();
      * auto buffer = row.GetBufferView();
@@ -117,7 +118,7 @@ public:
      * (io::kFieldTag). It's primarily useful for extracting single column
      * values. For multi-column conversions, use As() with io::kRowTag.
      *
-     * @example
+     * @par Example
      * @code
      * int value = row.As<int>();  // Extracts first column as int
      * @endcode
@@ -147,12 +148,12 @@ public:
      * This is useful for queries that return a single column or when you
      * only care about the first column of each row.
      *
-     * @example
+     * @par Example
      * @code
      * // Query returns only one column
-     * ResultSet result = session.Execute(Consistency::kQuorum, "SELECT COUNT(*) FROM table");
-     * Row row = result.Front();
-     * int count = row.As<int>(io::kFieldTag);
+     * ResultSet result = session.Execute(Consistency::kQuorum, "SELECT
+     * COUNT(*) FROM table"); Row row = result.Front(); int count =
+     * row.As<int>(io::kFieldTag);
      * @endcode
      */
     template <class T>
@@ -183,7 +184,7 @@ public:
      * in order. If the row has fewer columns than the struct expects, or
      * if there's a type mismatch, an exception is thrown.
      *
-     * @example
+     * @par Example
      * @code
      * struct Product {
      *     int id;
@@ -214,10 +215,11 @@ public:
      * @return The number of columns in the row
      *
      * @details
-     * Returns the column count that was specified when the Row was constructed.
-     * All rows from the same query result have the same column count.
+     * Returns the column count that was specified when the Row was
+     * constructed. All rows from the same query result have the same column
+     * count.
      *
-     * @example
+     * @par Example
      * @code
      * Row row = result_set.Front();
      * LOG_INFO() << "Row has " << row.Size() << " columns";
@@ -411,7 +413,8 @@ struct TupleDataExtractor<std::tuple<T...>>
  * This implementation:
  * 1. Determines the struct's tuple representation using io::RowType
  * 2. Validates that the row has enough columns for all struct members
- * 3. Logs a warning if the row has more columns than the struct (unused columns)
+ * 3. Logs a warning if the row has more columns than the struct (unused
+ * columns)
  * 4. Extracts all columns into the struct using TupleDataExtractor
  */
 template <typename T>
@@ -424,7 +427,8 @@ void Row::To(T&& val, io::RowTag) const {
 
     if (tuple_size > Size()) {
         throw ::cassandra::exceptions::Error(fmt::format(
-            "Row size ({}) is less than the number of data members in C++ user "
+            "Row size ({}) is less than the number of data members in C++ "
+            "user "
             "datatype ({})",
             Size(),
             tuple_size

@@ -38,7 +38,7 @@ namespace cassandra {
  * instead, they are created implicitly through BatchQueryStore::AddQuery()
  * methods and managed internally by the BatchQueryStore.
  *
- * @example
+ * @par Example
  * @code
  * using cassandra::BatchQuery;
  *
@@ -48,11 +48,12 @@ namespace cassandra {
  * batch.AddQuery("INSERT INTO users (id, name) VALUES (?, ?)", 2, "Bob");
  *
  * // Or directly (less common):
- * BatchQuery bq("INSERT INTO events (id, timestamp) VALUES (?, ?)", event_id, now);
+ * BatchQuery bq("INSERT INTO events (id, timestamp) VALUES (?, ?)", event_id,
+ * now);
  * @endcode
  *
- * @see BatchQueryStore for batch construction and execution
- * @see Session::BatchExecute for executing batch queries
+ * @see cassandra::BatchQueryStore for batch construction and execution
+ * @see cassandra::Session::BatchExecute for executing batch queries
  */
 class BatchQuery {
 public:
@@ -65,11 +66,11 @@ public:
      * @param args Query parameters to bind to ? placeholders in order
      *
      * @details
-     * Creates a BatchQuery by storing the query and serializing the parameters.
-     * Parameters are stored in a DynamicQueryParameters object and a shared
-     * pointer is kept to manage their lifetime.
+     * Creates a BatchQuery by storing the query and serializing the
+     * parameters. Parameters are stored in a DynamicQueryParameters object and
+     * a shared pointer is kept to manage their lifetime.
      *
-     * @example
+     * @par Example
      * @code
      * cassandra::Query q("INSERT INTO users (id, name) VALUES (?, ?)");
      * cassandra::BatchQuery bq(q, 123, std::string("John"));
@@ -95,7 +96,7 @@ public:
      * Creates a BatchQuery from a string view. The string view is converted
      * to a Query object internally.
      *
-     * @example
+     * @par Example
      * @code
      * cassandra::BatchQuery bq(
      *     std::string_view("UPDATE stats SET count = count + 1 WHERE id = ?"),
@@ -123,12 +124,11 @@ public:
      * Creates a BatchQuery from a compile-time string literal. This is
      * the preferred method for queries known at compile time.
      *
-     * @example
+     * @par Example
      * @code
      * cassandra::BatchQuery bq(
-     *     userver::utils::StringLiteral{"INSERT INTO log (id, msg) VALUES (?, ?)"},
-     *     log_id,
-     *     "Error occurred"
+     *     userver::utils::StringLiteral{"INSERT INTO log (id, msg) VALUES (?,
+     * ?)"}, log_id, "Error occurred"
      * );
      * @endcode
      */
@@ -148,7 +148,7 @@ public:
      *
      * @details Returns the CQL query string wrapped in a Query object.
      *
-     * @example
+     * @par Example
      * @code
      * BatchQuery bq(query, param1, param2);
      * const Query& q = bq.GetQuery();
@@ -163,7 +163,7 @@ public:
      *
      * @details Returns the bound parameters that will be sent to Cassandra.
      *
-     * @example
+     * @par Example
      * @code
      * BatchQuery bq(query, param1, param2);
      * const QueryParameters& params = bq.GetParams();
@@ -178,7 +178,8 @@ private:
     /// @brief The bound query parameters
     QueryParameters _params;
 
-    /// @brief Shared pointer holding the parameter data for proper lifetime management
+    /// @brief Shared pointer holding the parameter data for proper lifetime
+    /// management
     std::shared_ptr<std::vector<io::Bytes>> _params_holder;
 };
 
@@ -214,7 +215,8 @@ struct BatchStatement {
     /// @brief The type of query representation (string or ID)
     Kind kind;
 
-    /// @brief The query representation - either CQL string or prepared statement ID
+    /// @brief The query representation - either CQL string or prepared
+    /// statement ID
     std::variant<io::LongString, io::ShortBytes> query;
 
     /// @brief The parameters to bind to this statement
@@ -232,7 +234,8 @@ struct BatchStatement {
         : kind(Kind::kString), query(query), params(params) {}
 
     /**
-     * @brief Constructs a BatchStatement from a prepared statement ID and parameters
+     * @brief Constructs a BatchStatement from a prepared statement ID and
+     * parameters
      *
      * @param id The prepared statement ID
      * @param params The query parameters
@@ -261,7 +264,7 @@ struct BatchStatement {
  *
  * The consistency level applies to all queries in the batch.
  *
- * @example
+ * @par Example
  * @code
  * using cassandra::BatchQueryStore;
  * using cassandra::Consistency;
@@ -278,8 +281,8 @@ struct BatchStatement {
  * ResultSet result = session->BatchExecute(batch);
  * @endcode
  *
- * @see Session::BatchExecute for executing batch queries
- * @see BatchQuery for individual queries in the batch
+ * @see cassandra::Session::BatchExecute for executing batch queries
+ * @see cassandra::BatchQuery for individual queries in the batch
  */
 class BatchQueryStore {
 public:
@@ -293,7 +296,7 @@ public:
      * Creates an empty batch query store. Use AddQuery() to add queries.
      * All queries will be executed with the specified consistency level.
      *
-     * @example
+     * @par Example
      * @code
      * BatchQueryStore batch(Consistency::kLocalQuorum);
      * @endcode
@@ -315,7 +318,7 @@ public:
      * as a BatchQuery object. This method returns *this to allow chaining
      * multiple AddQuery calls.
      *
-     * @example
+     * @par Example
      * @code
      * Query q1("INSERT INTO users (id, name) VALUES (?, ?)");
      * Query q2("INSERT INTO users (id, email) VALUES (?, ?)");
@@ -341,14 +344,15 @@ public:
      *
      * @details
      * Adds a query using a compile-time string literal. This is the preferred
-     * method for queries that are known at compile time. Supports method chaining.
+     * method for queries that are known at compile time. Supports method
+     * chaining.
      *
-     * @example
+     * @par Example
      * @code
      * batch.AddQuery(
-     *     userver::utils::StringLiteral{"INSERT INTO events (id, msg) VALUES (?, ?)"},
-     *     event_id,
-     *     "Event occurred"
+     *     userver::utils::StringLiteral{"INSERT INTO events (id, msg) VALUES
+     * (?,
+     * ?)"}, event_id, "Event occurred"
      * );
      * @endcode
      */
@@ -371,10 +375,10 @@ public:
      * @return A reference to this BatchQueryStore for method chaining
      *
      * @details
-     * Adds a query from a string view. Useful for dynamically constructed queries.
-     * Supports method chaining.
+     * Adds a query from a string view. Useful for dynamically constructed
+     * queries. Supports method chaining.
      *
-     * @example
+     * @par Example
      * @code
      * std::string query_str = BuildQuery();
      * batch.AddQuery(std::string_view{query_str}, param1, param2);
@@ -397,7 +401,7 @@ public:
      * Returns the consistency level that was specified when constructing
      * this BatchQueryStore.
      *
-     * @example
+     * @par Example
      * @code
      * BatchQueryStore batch(Consistency::kQuorum);
      * assert(batch.ConsistencyLevel() == Consistency::kQuorum);
@@ -415,12 +419,13 @@ public:
      * to this batch. This is typically used internally by the driver when
      * preparing to send the batch to Cassandra.
      *
-     * @example
+     * @par Example
      * @code
      * BatchQueryStore batch(Consistency::kQuorum);
      * batch.AddQuery(q1, p1).AddQuery(q2, p2).AddQuery(q3, p3);
      * auto queries = batch.Queries();
-     * std::cout << "Batch contains " << queries.size() << " queries" << std::endl;
+     * std::cout << "Batch contains " << queries.size() << " queries" <<
+     * std::endl;
      * @endcode
      */
     std::span<const BatchQuery> Queries() const { return _queries; }

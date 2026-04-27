@@ -21,9 +21,9 @@ namespace cassandra {
  * @class Query
  * @brief Represents a Cassandra Query Language (CQL) query string
  *
- * The Query class is a lightweight wrapper around a CQL query string that manages
- * the lifetime of the query data. It supports multiple construction methods
- * and is designed to be copyable and movable.
+ * The Query class is a lightweight wrapper around a CQL query string that
+ * manages the lifetime of the query data. It supports multiple construction
+ * methods and is designed to be copyable and movable.
  *
  * @details
  * The Query class provides a unified interface for working with query strings
@@ -37,7 +37,7 @@ namespace cassandra {
  * The Query object itself does not execute anything; it merely represents
  * the query string to be sent to the Cassandra server.
  *
- * @example
+ * @par Example
  * @code
  * using cassandra::Query;
  * using cassandra::Consistency;
@@ -56,16 +56,16 @@ namespace cassandra {
  * ResultSet result = session.Execute(Consistency::kQuorum, q1, user_id);
  * @endcode
  *
- * @see Session::Execute for how to use queries with query execution
- * @see ResultSet for handling query results
+ * @see cassandra::Session::Execute for how to use queries with query execution
+ * @see cassandra::ResultSet for handling query results
  */
 class Query {
 public:
     /**
      * @brief Default constructor creating an empty query
      *
-     * Creates a Query object with no statement. Typically used as a placeholder
-     * or before assignment.
+     * Creates a Query object with no statement. Typically used as a
+     * placeholder or before assignment.
      */
     Query() = default;
 
@@ -89,7 +89,8 @@ public:
      * @brief Move constructor - transfers ownership of query data
      *
      * Efficiently transfers ownership of the query data from the source
-     * to this object. The source object is left in a valid but unspecified state.
+     * to this object. The source object is left in a valid but unspecified
+     * state.
      */
     Query(Query&& other) = default;
 
@@ -120,7 +121,7 @@ public:
      * known query strings. The string view must remain valid during the
      * Query construction.
      *
-     * @example
+     * @par Example
      * @code
      * constexpr std::string_view query = "SELECT * FROM table";
      * Query q(query);
@@ -136,11 +137,13 @@ public:
      *
      * @details StringLiterals are guaranteed to be compile-time known strings,
      * making this constructor suitable for embedding queries at compile time.
-     * This is the recommended way to define queries that are known at compile time.
+     * This is the recommended way to define queries that are known at compile
+     * time.
      *
-     * @example
+     * @par Example
      * @code
-     * Query q(userver::utils::StringLiteral{"SELECT * FROM users WHERE id = ?"});
+     * Query q(userver::utils::StringLiteral{"SELECT * FROM users WHERE id =
+     * ?"});
      * @endcode
      */
     constexpr Query(userver::utils::StringLiteral statement)
@@ -156,7 +159,7 @@ public:
      * for working with legacy C code or when you have a raw pointer to a
      * null-terminated string.
      *
-     * @example
+     * @par Example
      * @code
      * const char* cql = "SELECT * FROM events";
      * Query q(cql);
@@ -173,7 +176,7 @@ public:
      * constructor efficient for dynamically constructed queries. The original
      * std::string is moved into the Query and should not be used afterwards.
      *
-     * @example
+     * @par Example
      * @code
      * std::string dynamic_query = "SELECT * FROM table WHERE id = ?";
      * Query q(dynamic_query);
@@ -207,10 +210,10 @@ public:
      * @return A copy of the underlying io::LongString containing the CQL query
      *
      * @details Returns the internal query string representation. This is
-     * typically used internally by the driver for query preparation and execution.
-     * Client code rarely needs to call this method directly.
+     * typically used internally by the driver for query preparation and
+     * execution. Client code rarely needs to call this method directly.
      *
-     * @example
+     * @par Example
      * @code
      * Query q("SELECT * FROM users");
      * auto statement = q.GetStatement();
