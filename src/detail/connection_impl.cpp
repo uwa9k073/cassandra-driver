@@ -131,10 +131,10 @@ ConnectionImpl::ConnectionImpl(
     userver::engine::SemaphoreLock&& pool_size_lock,
     userver::utils::statistics::MetricsStoragePtr metrics
 )
-    : bg_task_processor_(tp),
-      bg_task_storage_(bts),
-      settings_(settings),
-      pool_size_lock_(std::move(pool_size_lock)),
+    : _bg_task_processor(tp),
+      _bg_task_storage(bts),
+      _settings(settings),
+      _pool_size_lock(std::move(pool_size_lock)),
       _metrics(std::move(metrics)),
       _stream_pool(),
       _broken(false) {
@@ -150,16 +150,16 @@ ConnectionImpl::ConnectionImpl(
     }
 }
 
-ConnectionImpl::~ConnectionImpl() { bg_task_storage_.Detach(Close()); }
+ConnectionImpl::~ConnectionImpl() { _bg_task_storage.Detach(Close()); }
 
 userver::engine::Task ConnectionImpl::Close() {
     userver::engine::io::Socket tmp_sock = std::exchange(_socket, {});
 
     // NOLINTNEXTLINE(cppcoreguidelines-slicing)
     return userver::engine::CriticalAsyncNoSpan(
-        bg_task_processor_,
+        _bg_task_processor,
         [socket = std::move(tmp_sock),
-         sl = std::move(pool_size_lock_),
+         sl = std::move(_pool_size_lock),
          reader_loop = std::move(_receiver_task)]() mutable {
             if (reader_loop.IsValid()) {
                 reader_loop.RequestCancel();
@@ -182,7 +182,7 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsy
     message->SetStreamId(guard.GetStreamId());
 
     auto task = userver::engine::CriticalAsyncNoSpan(
-        bg_task_processor_,
+        _bg_task_processor,
         [this, request = std::move(message), deadline]() mutable {
             SendMessage(std::move(request), deadline);
         }
@@ -212,7 +212,7 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessage(
 
 void ConnectionImpl::StartReceiverLoop() {
     _receiver_task = userver::engine::CriticalAsyncNoSpan(
-        bg_task_processor_, [this]() { ReceiverLoop(); }
+        _bg_task_processor, [this]() { ReceiverLoop(); }
     );
 }
 

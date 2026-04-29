@@ -19,6 +19,10 @@ public:
 
     std::int16_t Acquire(userver::engine::Deadline deadline);
 
+    std::int16_t GetRemainingStreams() const { return _semaphore.RemainingApprox(); }
+
+    std::int16_t GetUsedStreams() const { return _semaphore.UsedApprox(); }
+
     void Release(std::int16_t id);
 
 private:

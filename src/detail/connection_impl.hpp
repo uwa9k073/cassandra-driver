@@ -1,11 +1,10 @@
 #pragma once
 
+#include <cassandra/io/cassandra_types.hpp>
+#include <cassandra/io/protocol/lz4_utils.hpp>
 #include <cassandra/node_description.hpp>
 #include <cassandra/result_set.hpp>
 #include <detail/connection.hpp>
-
-#include <cassandra/io/cassandra_types.hpp>
-#include <cassandra/io/protocol/lz4_utils.hpp>
 #include <detail/stream_pool.hpp>
 #include <io/protocol/request_message.hpp>
 #include <io/protocol/response_message.hpp>
@@ -43,9 +42,11 @@ public:
     );
 
     bool IsExpired() const {
-        return expires_at_.has_value() &&
-               userver::utils::datetime::SteadyNow() > expires_at_;
+        return _expires_at.has_value() &&
+               userver::utils::datetime::SteadyNow() > _expires_at;
     }
+
+    bool IsIdle() const { return _stream_pool.GetUsedStreams() == 0; }
 
     bool IsBroken() const { return _broken.load(std::memory_order_relaxed); }
 
@@ -76,11 +77,11 @@ public:
 
 private:
     userver::engine::io::Socket _socket;
-    userver::engine::TaskProcessor& bg_task_processor_;
-    userver::concurrent::BackgroundTaskStorageCore& bg_task_storage_;
-    ConnectionSettings settings_;
-    std::optional<std::chrono::steady_clock::time_point> expires_at_;
-    userver::engine::SemaphoreLock pool_size_lock_;
+    userver::engine::TaskProcessor& _bg_task_processor;
+    userver::concurrent::BackgroundTaskStorageCore& _bg_task_storage;
+    ConnectionSettings _settings;
+    std::optional<std::chrono::steady_clock::time_point> _expires_at;
+    userver::engine::SemaphoreLock _pool_size_lock;
     userver::utils::statistics::MetricsStoragePtr _metrics;
     StreamPool _stream_pool;
     userver::engine::Mutex _send_mutex;

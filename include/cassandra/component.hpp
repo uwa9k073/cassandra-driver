@@ -40,16 +40,18 @@ namespace components {
 /// | Parameter | Type | Default | Description |
 /// |-----------|------|---------|-------------|
 /// | `keyspace` | string | **required** | Cassandra keyspace for all queries |
-/// | `blocking_task_processor` | string | current blocking processor | Task processor for blocking I/O (DNS, connection setup) |
-/// | `dns_resolver` | string | `async` | `async` or `getaddrinfo` |
-/// | `min-pool-size` | integer | 4 | Connections kept open to each node at all times |
-/// | `max-pool-size` | integer | 15 | Maximum connections to each node |
-/// | `sync-start` | boolean | false | Establish connections synchronously during startup |
-/// | `persistent-prepared-statements` | boolean | true | Cache prepared statements for reuse |
-/// | `max-ttl-sec` | integer | none | Connection lifetime in seconds before recycling |
-/// | `prepared-statement-cache-ways` | integer | 16 | NWayLRU cache lanes for prepared statements |
-/// | `prepared-statement-cache-way-size` | integer | 200 | Entries per cache lane |
-/// | `max-queue-size` | integer | 200 | Max clients waiting for a connection before `PoolError` is thrown |
+/// | `blocking_task_processor` | string | current blocking processor | Task
+/// processor for blocking I/O (DNS, connection setup) | | `dns_resolver` | string |
+/// `async` | `async` or `getaddrinfo` | | `min-pool-size` | integer | 4 |
+/// Connections kept open to each node at all times | | `max-pool-size` | integer |
+/// 15 | Maximum connections to each node | | `sync-start` | boolean | false |
+/// Establish connections synchronously during startup | |
+/// `persistent-prepared-statements` | boolean | true | Cache prepared statements for
+/// reuse | | `max-ttl-sec` | integer | none | Connection lifetime in seconds before
+/// recycling | | `prepared-statement-cache-ways` | integer | 16 | NWayLRU cache
+/// lanes for prepared statements | | `prepared-statement-cache-way-size` | integer |
+/// 200 | Entries per cache lane | | `max-queue-size` | integer | 200 | Max clients
+/// waiting for a connection before `PoolError` is thrown |
 ///
 /// ## Secure configuration (secdist)
 ///
@@ -149,5 +151,4 @@ private:
     /// in this header.
     cassandra::DatabasePtr _database;
 };
-
 }  // namespace components

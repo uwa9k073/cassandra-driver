@@ -29,17 +29,14 @@ namespace {
 bool CanPrepareStatement(
     OptionalCommandControl command_control, bool prepared_statement_cache_enabled
 ) {
-    if (!prepared_statement_cache_enabled) {
-        return false;
+    if (command_control.has_value()) {
+        if (auto mode = command_control.value().prepared_statements_enabled;
+            mode != CommandControl::PreparedStatementsOptionOverride::kNoOverride)
+            return mode ==
+                   CommandControl::PreparedStatementsOptionOverride::kEnabled;
     }
 
-    if (command_control &&
-        command_control.value().prepared_statements_enabled ==
-            CommandControl::PreparedStatementsOptionOverride::kDisabled) {
-        return false;
-    }
-
-    return true;
+    return prepared_statement_cache_enabled;
 }
 }  // namespace
 
@@ -63,15 +60,18 @@ ConnectionPool::ConnectionPool(
       _settings(settings),
       _connection_settings(connection_settings),
       _bg_task_processor(bg_task_processor),
-      _prepared_statements_map(8, 256),
+      _prepared_statements_map(
+          settings.prepared_statement_cache_ways,
+          settings.prepared_statement_cache_way_size
+      ),
       _queue(ConnectionQueue::Create()),
       _conn_consumer(_queue->GetMultiConsumer()),
       _conn_producer(_queue->GetMultiProducer()),
-      size_semaphore_(
+      _size_semaphore(
           settings.connecting_limit ? settings.connecting_limit
                                     : kUnlimitedConnecting
       ),
-      connecting_semaphore_(kUnlimitedConnecting),
+      _connecting_semaphore(kUnlimitedConnecting),
       _metrics(std::move(metrics)),
       _prepared_statements_cache_enabled(settings.prepared_statement_cache_enabled) {
 }
@@ -129,7 +129,7 @@ void ConnectionPool::Init(InitMode init_mode) {
     for (std::size_t i = 0; i < tasks.capacity(); ++i) {
         // Push connect task
         tasks.push_back(Connect(
-            userver::engine::SemaphoreLock{size_semaphore_, std::try_to_lock},
+            userver::engine::SemaphoreLock{_size_semaphore, std::try_to_lock},
             ConnectionSettings{connection_settings}
         ));
     }
@@ -171,7 +171,7 @@ userver::engine::TaskWithResult<bool> ConnectionPool::Connect(
                                              std::move(conn_settings)]() mutable {
         if (!size_lock) {
             size_lock =
-                userver::engine::SemaphoreLock{size_semaphore_, kConnectingTimeout};
+                userver::engine::SemaphoreLock{_size_semaphore, kConnectingTimeout};
         }
         return DoConnect(std::move(size_lock), std::move(conn_settings));
     });
@@ -181,10 +181,10 @@ bool ConnectionPool::DoConnect(
 ) {
     if (!size_lock) return false;
     LOG_TRACE() << "Creating Cassandra connection, current pool size: "
-                << size_semaphore_.UsedApprox();
+                << _size_semaphore.UsedApprox();
 
     const userver::engine::SemaphoreLock connecting_lock{
-        connecting_semaphore_, kConnectingTimeout
+        _connecting_semaphore, kConnectingTimeout
     };
     if (!connecting_lock) {
         LOG_WARNING() << "Pool has too many establishing connections";
@@ -236,9 +236,9 @@ constexpr std::chrono::seconds kRecentErrorPeriod{15};
 constexpr auto kPendingConnectsMax{1};
 void ConnectionPool::TryCreateConnectionAsync() {
     auto conn_settings = _connection_settings.ReadCopy();
-    if (recent_conn_errors_.GetStatsForPeriod(kRecentErrorPeriod, true) <
+    if (_recent_conn_errors.GetStatsForPeriod(kRecentErrorPeriod, true) <
         conn_settings.recent_errors_threshold) {
-        userver::engine::SemaphoreLock size_lock{size_semaphore_, std::try_to_lock};
+        userver::engine::SemaphoreLock size_lock{_size_semaphore, std::try_to_lock};
         if (size_lock ||
             _connect_task_storage.ActiveTasksApprox() <= kPendingConnectsMax) {
             _connect_task_storage.Detach(
@@ -291,10 +291,10 @@ Connection* ConnectionPool::Pop(userver::engine::Deadline deadline) {
             "No available connections found. Connecting: {}. Max "
             "concurrent "
             "connecting: {}. Active: {}. Max active {}",
-            connecting_semaphore_.UsedApprox(),
-            connecting_semaphore_.GetCapacity(),
-            size_semaphore_.UsedApprox(),
-            size_semaphore_.GetCapacity()
+            _connecting_semaphore.UsedApprox(),
+            _connecting_semaphore.GetCapacity(),
+            _size_semaphore.UsedApprox(),
+            _size_semaphore.GetCapacity()
         ),
         _keyspace
     );
@@ -373,7 +373,7 @@ ResultSet ConnectionPool::Execute(
             _prepared_statements_map.Get(query.GetStatement().GetUnderlying());
         if (prepared_id_ptr) {
             LOG_DEBUG("FOUND PREPARED");
-
+            // here we may throws unprepared exception and we need to prepare it same way as on wrong branch of current if-clause
             return conn->ExecutePrepared(
                 level, *prepared_id_ptr, params, statement_cmd_ctl
             );
@@ -443,7 +443,7 @@ constexpr auto kIdleDropLimit = 1;
 constexpr StaticQueryParameters<0> kNoParams;
 
 void ConnectionPool::Maintain() {
-    if (wait_count_ > 0) {
+    if (_wait_count > 0) {
         LOG_DEBUG() << "No ping required for connection pool to node: "
                     << _description.contact_point.GetUnderlying();
         return;
@@ -451,7 +451,7 @@ void ConnectionPool::Maintain() {
 
     LOG_DEBUG() << "Ping connection pool "
                 << _description.contact_point.GetUnderlying();
-    auto count = size_semaphore_.UsedApprox();
+    auto count = _size_semaphore.UsedApprox();
     auto drop_left = kIdleDropLimit;
     auto settings = _settings.Read();
     while (count > 0) {

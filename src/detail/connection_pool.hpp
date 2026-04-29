@@ -94,8 +94,8 @@ private:
     // prepared statements cache
     // cassandra prepare statements per node and use ShortBytes as ID
     userver::cache::NWayLRU<std::string, io::ShortBytes> _prepared_statements_map;
-    std::atomic<size_t> wait_count_;
-    RecentCounter recent_conn_errors_;
+    std::atomic<size_t> _wait_count;
+    RecentCounter _recent_conn_errors;
 
     void TryCreateConnectionAsync();
     using ConnectionQueue = userver::concurrent::NonFifoMpmcQueue<Connection*>;
@@ -105,8 +105,8 @@ private:
     std::shared_ptr<ConnectionQueue> _queue;
     Consumer _conn_consumer;
     Producer _conn_producer;
-    userver::engine::Semaphore size_semaphore_;
-    userver::engine::Semaphore connecting_semaphore_;
+    userver::engine::Semaphore _size_semaphore;
+    userver::engine::Semaphore _connecting_semaphore;
 
     userver::utils::statistics::MetricsStoragePtr _metrics;
 
@@ -115,5 +115,6 @@ private:
 
     void Maintain();
     void StartMaintainTask();
+    void StopMaintainTask();
 };
 }  // namespace cassandra::detail

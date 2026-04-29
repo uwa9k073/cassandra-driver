@@ -6,6 +6,7 @@
 #include <cassandra/options.hpp>
 #include <cassandra/secdist.hpp>
 #include <cassandra/session.hpp>
+#include <cassandra_configs.hpp>
 #include <memory>
 #include <string_view>
 #include <userver/clients/dns/resolver_utils.hpp>
@@ -28,7 +29,6 @@
 #include <userver/yaml_config/fwd.hpp>
 #include <userver/yaml_config/merge_schemas.hpp>
 #include <userver/yaml_config/schema.hpp>
-#include <cassandra_configs.hpp>
 
 namespace components {
 
@@ -127,12 +127,14 @@ Cassandra::Cassandra(
 
     auto metrics = context.FindComponent<userver::components::StatisticsStorage>()
                        .GetMetricsStorage();
-    
+
     auto pool_settings = config.As<cassandra::PoolSettings>();
     auto connection_settings = config.As<cassandra::ConnectionSettings>();
 
     cassandra::SessionSettings session_settings{
-        .keyspace_name = keyspace, .pool_settings = pool_settings, .connection_settings = connection_settings
+        .keyspace_name = keyspace,
+        .pool_settings = pool_settings,
+        .connection_settings = connection_settings
     };
     _database->_session = std::make_shared<cassandra::Session>(
         cluster_desc, resolver, bg_task_processor, session_settings, metrics
