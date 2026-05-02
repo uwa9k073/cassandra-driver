@@ -14,7 +14,8 @@ namespace cassandra::io {
 template <class Buffer>
 class BufferWriter {
 public:
-    // CTAD: Template argument 'Buffer' is deduced from the constructor argument
+    // CTAD: Template argument 'Buffer' is deduced from the constructor
+    // argument
     explicit BufferWriter(Buffer& buffer) noexcept : buffer_(buffer) {}
 
     template <class T>

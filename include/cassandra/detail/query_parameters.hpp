@@ -55,8 +55,8 @@ public:
         writer.Write(arg);
     }
 
-    // used with Session::Execute(ConsistencyLevel level, LongString query, Args...
-    // args) this binds only the values, not the names
+    // used with Session::Execute(ConsistencyLevel level, LongString query,
+    // Args... args) this binds only the values, not the names
     template <typename... Args>
     void Write(const Args&... args) {
         if constexpr (sizeof...(Args) != ParamsCount) {
