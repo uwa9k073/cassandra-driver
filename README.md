@@ -15,7 +15,7 @@
 
 ## Документация
 
-Полная документация, конфигурационный справочник и руководства — в [`docs/index.md`](docs/index.md).
+Полная документация, конфигурационный справочник и руководства — в [документации](docs/index.md).
 
 | Раздел | Описание |
 |--------|----------|
@@ -141,139 +141,6 @@ private:
 
 } // namespace views
 ```
-
----
-
-## Сравнение с cpv-project/cpv-cql-driver
-
-[cpv-cql-driver](https://github.com/cpv-project/cpv-cql-driver) — ещё один C++ драйвер для Cassandra, построенный на фреймворке [Seastar](https://seastar.io/).
-Ниже приведено сравнение подходов на одинаковых задачах.
-
-### Модель асинхронности
-
-cpv использует фьючерсы Seastar с цепочками `.then()`. Этот драйвер использует корутины userver — код выглядит синхронно, но выполняется асинхронно в рамках планировщика userver.
-
-**cpv-cql-driver**
-```cpp
-session.query(cql::Command("SELECT id, name FROM users WHERE id = ?")
-    .addParameter(cql::Int(42))
-    .setConsistency(cql::ConsistencyLevel::Quorum))
-.then([] (cql::ResultSet result) {
-    cql::Int  id;
-    cql::Text name;
-    result.fill(id, name);
-    std::cout << id << " " << name << "\n";
-});
-```
-
-**userver-cql-driver**
-```cpp
-static const cassandra::Query kQuery{"SELECT id, name FROM users WHERE id = ?"};
-
-auto result = session->Execute(cassandra::Consistency::kQuorum, kQuery, 42);
-auto row    = result.AsSingleRow<UserRow>(cassandra::io::kRowTag);
-LOG_INFO("{} {}", row.id, row.name);
-```
-
----
-
-### INSERT с параметрами
-
-**cpv-cql-driver**
-```cpp
-auto cmd = cql::Command("INSERT INTO users (id, name) VALUES (?, ?)")
-    .setConsistency(cql::ConsistencyLevel::Quorum)
-    .addParameters(cql::Int(1), cql::Text("alice"));
-
-session.execute(std::move(cmd)).then([] {
-    std::cout << "inserted\n";
-});
-```
-
-**userver-cql-driver**
-```cpp
-static const cassandra::Query kInsert{"INSERT INTO users (id, name) VALUES (?, ?)"};
-
-session->Execute(cassandra::Consistency::kQuorum, kInsert, 1, std::string{"alice"});
-```
-
----
-
-### SELECT нескольких строк
-
-**cpv-cql-driver**
-```cpp
-session.query(cql::Command("SELECT id, name FROM users")
-    .setConsistency(cql::ConsistencyLevel::One))
-.then([] (cql::ResultSet result) {
-    cql::Int  id;
-    cql::Text name;
-    for (std::size_t i = 0; i < result.getRowsCount(); ++i) {
-        result.fill(id, name);   // позиционное заполнение в цикле
-        std::cout << id << " " << name << "\n";
-    }
-});
-```
-
-**userver-cql-driver**
-```cpp
-static const cassandra::Query kSelect{"SELECT id, name FROM users"};
-
-struct UserRow { cassandra::io::Int id; std::string name; };
-
-auto result = session->Execute(cassandra::Consistency::kOne, kSelect);
-auto rows   = result.AsContainer<std::vector<UserRow>>(cassandra::io::kRowTag);
-
-for (const auto& row : rows) {
-    LOG_DEBUG("{} {}", row.id, row.name);
-}
-```
-
----
-
-### Batch-операции
-
-**cpv-cql-driver**
-```cpp
-auto batch = cql::BatchCommand()
-    .addQuery("INSERT INTO users (id, name) VALUES (?, ?)")
-    .openParameterSet().addParameters(cql::Int(1), cql::Text("alice"))
-    .addQuery("INSERT INTO users (id, name) VALUES (?, ?)")
-    .openParameterSet().addParameters(cql::Int(2), cql::Text("bob"));
-
-session.execute(std::move(batch)).then([] {
-    std::cout << "batch done\n";
-});
-```
-
-**userver-cql-driver**
-```cpp
-static const cassandra::Query kInsert{"INSERT INTO users (id, name) VALUES (?, ?)"};
-
-cassandra::BatchQueryStore batch(cassandra::Consistency::kQuorum);
-batch.AddQuery(kInsert, 1, std::string{"alice"});
-batch.AddQuery(kInsert, 2, std::string{"bob"});
-
-session->BatchExecute(batch);
-```
-
----
-
-### Итоговое сравнение
-
-| Характеристика | userver-cql-driver | cpv-cql-driver |
-|----------------|-------------------|----------------|
-| Базовый фреймворк | [userver](https://userver.tech/) | [Seastar](https://seastar.io/) |
-| Модель асинхронности | Stackful-корутины (синхронный стиль) | Futures + `.then()` |
-| Интеграция с компонентной системой | ✅ Нативный userver-компонент | ❌ Отсутствует |
-| Конфигурация через secdist | ✅ Да | ❌ Нет |
-| Извлечение строк | Типобезопасно через агрегатные структуры | Позиционное `result.fill(a, b, ...)` |
-| Binding параметров | Variadic-templates `Execute(..., p1, p2)` | Builder `.addParameters(p1, p2)` |
-| Batch-операции | ✅ `BatchQueryStore` + `BatchExecute` | ✅ `BatchCommand` |
-| Кэш prepared statements | ✅ NWayLRU, настраивается | ✅ Есть |
-| Пул соединений | ✅ Настраиваемый min/max/TTL | ✅ Есть |
-| Последний релиз | активная разработка | 2019 |
-| Лицензия | Apache-2.0 | MIT |
 
 ## Лицензия
 
