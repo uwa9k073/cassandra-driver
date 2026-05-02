@@ -15,19 +15,30 @@ public:
     static constexpr int16_t kServerStreamId = -1;  // Для EVENT сообщений
     static constexpr size_t kTotalStreams = 32768;
     static constexpr size_t kMaxStreams = 1024;  // Ограничение по умолчанию
-    StreamPool() : _semaphore(kMaxStreams), _next_id(0) {}
+    StreamPool()
+        : _queue(Queue::Create(kMaxStreams)),
+          _consumer(_queue->GetConsumer()),
+          _producer(_queue->GetProducer()) {
+              for (int16_t i = kMinClientStreamId; static_cast<size_t>(i) < kMaxStreams; ++i) {
+                  _producer.PushNoblock(i);
+              }
+          }
 
     std::int16_t Acquire(userver::engine::Deadline deadline);
-
-    std::int16_t GetRemainingStreams() const { return _semaphore.RemainingApprox(); }
-
-    std::int16_t GetUsedStreams() const { return _semaphore.UsedApprox(); }
+    std::size_t GetRemainingStreams() const noexcept { return _queue->GetSizeApproximate(); }
+    std::size_t GetUsedStreams() const noexcept { return kMaxStreams- GetRemainingStreams(); }
 
     void Release(std::int16_t id);
 
 private:
-    userver::engine::Semaphore _semaphore;
-    std::atomic<std::int16_t> _next_id;
+    using Queue = userver::concurrent::NonFifoMpmcQueue<int>;
+    using Consumer = Queue::Consumer;
+    using Producer = Queue::Producer;
+    std::shared_ptr<Queue> _queue;
+    Consumer _consumer;
+    Producer _producer;
+
+    std::atomic<std::size_t> _used_streams{0};
 };
 
 class StreamGuard {

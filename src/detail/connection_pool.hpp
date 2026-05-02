@@ -10,12 +10,15 @@
 #include <userver/clients/dns/resolver_fwd.hpp>
 #include <userver/concurrent/background_task_storage.hpp>
 #include <userver/concurrent/queue.hpp>
+#include <userver/concurrent/variable.hpp>
+#include <userver/engine/shared_mutex.hpp>
 #include <userver/engine/task/task_processor_fwd.hpp>
 #include <userver/rcu/rcu.hpp>
 #include <userver/utils/periodic_task.hpp>
 #include <userver/utils/statistics/fwd.hpp>
 #include <userver/utils/statistics/recentperiod.hpp>
 #include <userver/utils/statistics/relaxed_counter.hpp>
+#include <vector>
 
 namespace cassandra::detail {
 class ConnectionPool : public std::enable_shared_from_this<ConnectionPool> {
@@ -43,10 +46,7 @@ public:
 
     ~ConnectionPool();
 
-    std::shared_ptr<StreamPool> GetStreamPool();
-
-    [[nodiscard]] ConnectionPtr Acquire(userver::engine::Deadline);
-    void Release(Connection* connection);
+    [[nodiscard]] Connection* Acquire(userver::engine::Deadline);
 
     ResultSet Execute(
         Consistency level,
@@ -66,15 +66,7 @@ private:
     void Init(InitMode mode);
     void Clear();
 
-    void Push(Connection* connection);
-    Connection* Pop(userver::engine::Deadline);
-
-    void DeleteConnection(Connection* connection);
-    void DropBrokenConnection(Connection* connection);
-    void DropExpiredConnection(Connection* connection);
-    void DropOutdatedConnection(Connection* connection);
-
-    Connection* AcquireImmediate();
+    std::shared_ptr<Connection> AcquireImmediate();
 
     [[nodiscard]] userver::engine::TaskWithResult<bool> Connect(
         userver::engine::SemaphoreLock lock, ConnectionSettings&& conn_settings
@@ -102,9 +94,8 @@ private:
     using Consumer = ConnectionQueue::MultiConsumer;
     using Producer = ConnectionQueue::MultiProducer;
 
-    std::shared_ptr<ConnectionQueue> _queue;
-    Consumer _conn_consumer;
-    Producer _conn_producer;
+    userver::concurrent::Variable<std::vector<Connection*>, userver::engine::Mutex> _connections;
+
     userver::engine::Semaphore _size_semaphore;
     userver::engine::Semaphore _connecting_semaphore;
 

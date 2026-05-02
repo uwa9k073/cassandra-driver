@@ -16,7 +16,6 @@ namespace detail {
 class Connection;
 class ConnectionPool;
 class StreamPool;
-class ConnectionPtr;
 
 class ResultWrapper;
 using ResultWrapperPtr = std::shared_ptr<const ResultWrapper>;

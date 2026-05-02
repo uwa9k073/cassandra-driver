@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cassandra/batch_query.hpp>
-#include <cassandra/detail/connection_ptr.hpp>
 #include <cassandra/exception.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/options.hpp>
@@ -13,6 +12,8 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <ranges>
+#include <span>
 #include <userver/engine/async.hpp>
 #include <userver/engine/deadline.hpp>
 #include <userver/engine/semaphore.hpp>
@@ -67,6 +68,9 @@ ConnectionPool::ConnectionPool(
       _queue(ConnectionQueue::Create()),
       _conn_consumer(_queue->GetMultiConsumer()),
       _conn_producer(_queue->GetMultiProducer()),
+      _wait_drop_queue(ConnectionQueue::Create()),
+      _wait_drop_conn_consumer(_wait_drop_queue->GetMultiConsumer()),
+      _wait_drop_conn_producer(_wait_drop_queue->GetMultiProducer()),
       _size_semaphore(
           settings.connecting_limit ? settings.connecting_limit
                                     : kUnlimitedConnecting
@@ -250,55 +254,6 @@ void ConnectionPool::TryCreateConnectionAsync() {
     }
 }
 
-Connection* ConnectionPool::Pop(userver::engine::Deadline deadline) {
-    if (userver::engine::current_task::ShouldCancel()) {
-        throw exceptions::PoolError(
-            "Task was cancelled before trying to get a connection"
-        );
-    }
-
-    if (deadline.IsReached()) {
-        // ++stats_.connection.error_timeout;
-        throw exceptions::PoolError(
-            "Deadline reached before trying to get a connection"
-        );
-    }
-    Connection* connection = nullptr;
-    auto conn_settings = _connection_settings.Read();
-
-    while (_conn_consumer.PopNoblock(connection)) {
-        if (connection->IsExpired()) {
-            DropExpiredConnection(connection);
-            continue;
-        } else if (connection->IsBroken()) {
-            DropBrokenConnection(connection);
-            continue;
-        }
-        return connection;
-    }
-
-    TryCreateConnectionAsync();
-    if (_conn_consumer.Pop(connection, deadline)) {
-        return connection;
-    }
-    if (userver::engine::current_task::ShouldCancel()) {
-        throw exceptions::PoolError("Task was cancelled while waiting for connection"
-        );
-    }
-
-    throw exceptions::PoolError(
-        fmt::format(
-            "No available connections found. Connecting: {}. Max "
-            "concurrent "
-            "connecting: {}. Active: {}. Max active {}",
-            _connecting_semaphore.UsedApprox(),
-            _connecting_semaphore.GetCapacity(),
-            _size_semaphore.UsedApprox(),
-            _size_semaphore.GetCapacity()
-        ),
-        _keyspace
-    );
-}
 
 ConnectionPool::~ConnectionPool() {
     _maintain_task.Stop();
@@ -306,51 +261,41 @@ ConnectionPool::~ConnectionPool() {
 }
 
 void ConnectionPool::Clear() {
-    Connection* connection = nullptr;
-    while (_conn_consumer.PopNoblock(connection)) {
-        delete connection;
-    }
     _close_task_storage.CancelAndWait();
 }
 
-void ConnectionPool::DeleteConnection(Connection* connection) {
-    // stats incrementing
-    delete connection;
-}
-
-void ConnectionPool::DropBrokenConnection(Connection* connection) {
-    LOG_WARNING("Released connection in closed state. Deleting...");
-    DeleteConnection(connection);
-}
-
-void ConnectionPool::DropExpiredConnection(Connection* connection) {
-    LOG_INFO("Dropping expired connection");
-    DeleteConnection(connection);
-}
-
-void ConnectionPool::DropOutdatedConnection(Connection* connection) {
-    LOG_INFO("Dropping outdated connection");
-    DeleteConnection(connection);
-}
-
-[[nodiscard]] ConnectionPtr ConnectionPool::Acquire(
+[[nodiscard]] Connection* ConnectionPool::Acquire(
     userver::engine::Deadline deadline
-) {
-    auto shared_this = shared_from_this();
+)  {
 
-    ConnectionPtr connection{Pop(deadline), std::move(shared_this)};
-    return connection;
-}
-
-void ConnectionPool::Release(Connection* connection) {
-    if (connection->IsExpired()) {
-        DropExpiredConnection(connection);
-    } else if (connection->IsBroken()) {
-        DropBrokenConnection(connection);
-    } else {
-        LOG_DEBUG("PUSHING CONNECTION");
-        Push(connection);
+    if(deadline.IsReached()) {
+        return nullptr;
     }
+    auto locked = _connections.Lock();
+
+
+    // firstly erase expired and broken connections
+    // if connection is expired and not idle skips it and continues to create a new connection
+    // needed connection with less stream id in use
+    for (auto it = locked->begin(); it != locked->end();) {
+        if (((*it)->IsExpired() && (*it)->IsIdle())) {
+            auto to_drop = *it;
+            DropExpiredConnection(to_drop);
+            it = locked->erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    // find a connection with less stream id in use
+    Connection* conn = nullptr;
+    for (auto it = locked->begin(); it != locked->end(); ++it) {
+        if (conn == nullptr || (*it)->GetUsedStreams() < conn->GetUsedStreams()) {
+            conn = *it;
+        }
+    }
+
+    return conn;
 }
 
 ResultSet ConnectionPool::Execute(
@@ -373,7 +318,8 @@ ResultSet ConnectionPool::Execute(
             _prepared_statements_map.Get(query.GetStatement().GetUnderlying());
         if (prepared_id_ptr) {
             LOG_DEBUG("FOUND PREPARED");
-            // here we may throws unprepared exception and we need to prepare it same way as on wrong branch of current if-clause
+            // here we may throws unprepared exception and we need to prepare it same
+            // way as on wrong branch of current if-clause
             return conn->ExecutePrepared(
                 level, *prepared_id_ptr, params, statement_cmd_ctl
             );
@@ -443,6 +389,7 @@ constexpr auto kIdleDropLimit = 1;
 constexpr StaticQueryParameters<0> kNoParams;
 
 void ConnectionPool::Maintain() {
+
     if (_wait_count > 0) {
         LOG_DEBUG() << "No ping required for connection pool to node: "
                     << _description.contact_point.GetUnderlying();

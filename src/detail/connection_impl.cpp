@@ -143,8 +143,7 @@ ConnectionImpl::ConnectionImpl(
     _received_message_consumer_map.reserve(StreamPool::kMaxStreams);
 
     for (size_t i = 0; i < StreamPool::kMaxStreams; ++i) {
-        _received_message_queue_map.emplace_back(RecvMessageQueue::Create(1));
-        auto back = _received_message_queue_map.back();
+        auto back = _received_message_queue_map.emplace_back(RecvMessageQueue::Create(1));
         _received_message_producer_map.emplace_back(back->GetProducer());
         _received_message_consumer_map.emplace_back(back->GetConsumer());
     }
