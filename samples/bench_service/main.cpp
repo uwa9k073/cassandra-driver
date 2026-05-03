@@ -1,6 +1,7 @@
 #include <chrono>
 #include <userver/clients/dns/component.hpp>
 #include <userver/clients/http/component.hpp>
+#include <userver/clients/http/middlewares/pipeline_component.hpp>
 #include <userver/components/component.hpp>
 #include <userver/components/component_list.hpp>
 #include <userver/components/minimal_server_component_list.hpp>
@@ -67,6 +68,8 @@ int main(int argc, char* argv[]) {
                               .Append<userver::server::handlers::TestsControl>()
                               .Append<userver::congestion_control::Component>()
                               .Append<userver::server::handlers::LogLevel>()
+                              .Append<userver::components::HttpClientCore>()
+                              .Append<userver::clients::http::MiddlewarePipelineComponent>()
                               .Append<components::Cassandra>("cassandra-component")
                               .Append<views::Cassandra>();
 

@@ -17,11 +17,11 @@ public:
     static constexpr size_t kMaxStreams = 1024;  // Ограничение по умолчанию
     StreamPool()
         : _queue(Queue::Create(kMaxStreams)),
-          _consumer(_queue->GetConsumer()),
-          _producer(_queue->GetProducer()) {
+          _consumer(_queue->GetMultiConsumer()),
+          _producer(_queue->GetMultiProducer()) {
         for (int16_t i = kMinClientStreamId; static_cast<size_t>(i) < kMaxStreams;
              ++i) {
-            _producer.PushNoblock(i);
+            auto _ = _producer.PushNoblock(i);
         }
     }
 
@@ -37,8 +37,8 @@ public:
 
 private:
     using Queue = userver::concurrent::NonFifoMpmcQueue<int>;
-    using Consumer = Queue::Consumer;
-    using Producer = Queue::Producer;
+    using Consumer = Queue::MultiConsumer;
+    using Producer = Queue::MultiProducer;
     std::shared_ptr<Queue> _queue;
     Consumer _consumer;
     Producer _producer;

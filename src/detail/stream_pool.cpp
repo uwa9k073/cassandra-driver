@@ -15,8 +15,9 @@ std::int16_t StreamPool::Acquire(userver::engine::Deadline deadline) {
 }
 
 void StreamPool::Release(std::int16_t id) {
-    if (!_producer.PushNoblock(id))
+    if (!_producer.PushNoblock(id)) {
         LOG_WARNING() << "Failed to release stream " << id;
+    }
 }
 
 }  // namespace cassandra::detail
