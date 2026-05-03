@@ -19,14 +19,19 @@ public:
         : _queue(Queue::Create(kMaxStreams)),
           _consumer(_queue->GetConsumer()),
           _producer(_queue->GetProducer()) {
-              for (int16_t i = kMinClientStreamId; static_cast<size_t>(i) < kMaxStreams; ++i) {
-                  _producer.PushNoblock(i);
-              }
-          }
+        for (int16_t i = kMinClientStreamId; static_cast<size_t>(i) < kMaxStreams;
+             ++i) {
+            _producer.PushNoblock(i);
+        }
+    }
 
     std::int16_t Acquire(userver::engine::Deadline deadline);
-    std::size_t GetRemainingStreams() const noexcept { return _queue->GetSizeApproximate(); }
-    std::size_t GetUsedStreams() const noexcept { return kMaxStreams- GetRemainingStreams(); }
+    std::size_t GetRemainingStreams() const noexcept {
+        return _queue->GetSizeApproximate();
+    }
+    std::size_t GetUsedStreams() const noexcept {
+        return kMaxStreams - GetRemainingStreams();
+    }
 
     void Release(std::int16_t id);
 
@@ -37,8 +42,6 @@ private:
     std::shared_ptr<Queue> _queue;
     Consumer _consumer;
     Producer _producer;
-
-    std::atomic<std::size_t> _used_streams{0};
 };
 
 class StreamGuard {

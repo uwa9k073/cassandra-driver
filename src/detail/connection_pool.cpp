@@ -65,12 +65,6 @@ ConnectionPool::ConnectionPool(
           settings.prepared_statement_cache_ways,
           settings.prepared_statement_cache_way_size
       ),
-      _queue(ConnectionQueue::Create()),
-      _conn_consumer(_queue->GetMultiConsumer()),
-      _conn_producer(_queue->GetMultiProducer()),
-      _wait_drop_queue(ConnectionQueue::Create()),
-      _wait_drop_conn_consumer(_wait_drop_queue->GetMultiConsumer()),
-      _wait_drop_conn_producer(_wait_drop_queue->GetMultiProducer()),
       _size_semaphore(
           settings.connecting_limit ? settings.connecting_limit
                                     : kUnlimitedConnecting
@@ -219,19 +213,17 @@ bool ConnectionPool::DoConnect(
 
 void ConnectionPool::Push(Connection* conn) {
     // Some cheks for validate connecetion
-
-    auto conn_settings = _connection_settings.Read();
-    if (conn->IsExpired()) {
+    if (conn->IsExpired() && conn->IsIdle()) {
         DropExpiredConnection(conn);
+        return;
+    } else if (conn->IsBroken()) {
+        DropBrokenConnection(conn);
         return;
     }
 
     LOG_DEBUG("PUSH TO QUEUE");
-
-    if (!_conn_producer.PushNoblock(std::move(conn))) {
-        LOG_WARNING("Couldn't push connection back to the pool. Deleting...");
-        DeleteConnection(conn);
-    }
+    auto locked_connections = _connections.Lock();
+    locked_connections->push_back(conn);
 
     LOG_DEBUG("SUCCESS PUSH TO QUEUE");
 }
@@ -254,44 +246,52 @@ void ConnectionPool::TryCreateConnectionAsync() {
     }
 }
 
-
 ConnectionPool::~ConnectionPool() {
     _maintain_task.Stop();
+    _connect_task_storage.CancelAndWait();
     Clear();
 }
 
 void ConnectionPool::Clear() {
+    {
+        auto locked = _connections.Lock();
+        for (auto* conn : locked.GetUnsafeForStableSubobject()) {
+            DeleteConnection(conn);
+        }
+        locked->clear();
+    }
     _close_task_storage.CancelAndWait();
 }
 
-[[nodiscard]] Connection* ConnectionPool::Acquire(
-    userver::engine::Deadline deadline
-)  {
-
-    if(deadline.IsReached()) {
+[[nodiscard]] Connection* ConnectionPool::Acquire(userver::engine::Deadline deadline
+) {
+    if (deadline.IsReached()) {
         return nullptr;
     }
     auto locked = _connections.Lock();
 
-
-    // firstly erase expired and broken connections
-    // if connection is expired and not idle skips it and continues to create a new connection
-    // needed connection with less stream id in use
+    // Remove broken and expired+idle connections
     for (auto it = locked->begin(); it != locked->end();) {
-        if (((*it)->IsExpired() && (*it)->IsIdle())) {
-            auto to_drop = *it;
-            DropExpiredConnection(to_drop);
+        Connection* c = *it;
+        if (c->IsBroken()) {
+            DropBrokenConnection(c);
+            it = locked->erase(it);
+        } else if (c->IsExpired() && c->IsIdle()) {
+            DropExpiredConnection(c);
             it = locked->erase(it);
         } else {
             ++it;
         }
     }
 
-    // find a connection with less stream id in use
+    // Select least-loaded connection eligible for new requests.
+    // Expired+busy connections stay in the vector until their streams
+    // finish, but must not receive new requests.
     Connection* conn = nullptr;
-    for (auto it = locked->begin(); it != locked->end(); ++it) {
-        if (conn == nullptr || (*it)->GetUsedStreams() < conn->GetUsedStreams()) {
-            conn = *it;
+    for (auto* c : *locked) {
+        if (c->IsExpired()) continue;
+        if (conn == nullptr || c->GetUsedStreams() < conn->GetUsedStreams()) {
+            conn = c;
         }
     }
 
@@ -388,8 +388,17 @@ constexpr auto kIdleDropLimit = 1;
 
 constexpr StaticQueryParameters<0> kNoParams;
 
-void ConnectionPool::Maintain() {
+void ConnectionPool::Release(Connection* connection) {
+    if (connection->IsExpired() && connection->IsIdle()) {
+        DropExpiredConnection(connection);
+    } else if (connection->IsBroken()) {
+        DropBrokenConnection(connection);
+    } else {
+        Push(connection);
+    }
+}
 
+void ConnectionPool::Maintain() {
     if (_wait_count > 0) {
         LOG_DEBUG() << "No ping required for connection pool to node: "
                     << _description.contact_point.GetUnderlying();
@@ -398,10 +407,21 @@ void ConnectionPool::Maintain() {
 
     LOG_DEBUG() << "Ping connection pool "
                 << _description.contact_point.GetUnderlying();
-    auto count = _size_semaphore.UsedApprox();
+
+    // Берём размер из вектора, а не из семафора:
+    // семафор освобождается асинхронно (при завершении close-таски),
+    // поэтому UsedApprox() может включать соединения в процессе закрытия
+    // и завышать реальный размер пула.
+    size_t pool_size;
+    {
+        auto locked = _connections.Lock();
+        pool_size = locked->size();
+    }
+
     auto drop_left = kIdleDropLimit;
     auto settings = _settings.Read();
-    while (count > 0) {
+
+    while (pool_size > 0) {
         try {
             auto deleter = [this](Connection* c) { DeleteConnection(c); };
             std::unique_ptr<Connection, decltype(deleter)> conn(
@@ -413,7 +433,12 @@ void ConnectionPool::Maintain() {
                             << "` are busy";
                 break;
             }
-            if (count > settings->min_size && drop_left > 0) {
+
+            // Добавлено conn->IsIdle(): нельзя закрывать соединение,
+            // у которого есть активные стримы — это оборвёт pending-запросы.
+            // Если соединение занято, оно попадёт в ping-ветку и
+            // вернётся в пул через Release().
+            if (pool_size > settings->min_size && drop_left > 0 && conn->IsIdle()) {
                 --drop_left;
                 LOG_DEBUG() << "Drop idle connection to `"
                             << _description.contact_point.GetUnderlying() << '`';
@@ -447,7 +472,7 @@ void ConnectionPool::Maintain() {
                         );
                     } catch (const exceptions::Unprepared& e) {
                         LOG_LIMITED_WARNING(
-                            "Prepared statements were discatrded on node: {}",
+                            "Prepared statements were discarded on node: {}",
                             _description.contact_point.GetUnderlying()
                         );
                         _prepared_statements_map.Invalidate();
@@ -459,24 +484,50 @@ void ConnectionPool::Maintain() {
                 << "Exception while pinging connection to `"
                 << _description.contact_point.GetUnderlying() << "`: " << e;
         }
-        --count;
+        --pool_size;
     }
 }
 
 Connection* ConnectionPool::AcquireImmediate() {
     Connection* conn = nullptr;
-    while (_conn_consumer.PopNoblock(conn)) {
+    auto locked_connections = _connections.Lock();
+    auto it = locked_connections->begin();
+    while (it != locked_connections->end()) {
+        conn = *it;
         if (conn->IsExpired()) {
-            DropExpiredConnection(conn);
+            if (conn->IsIdle()) {
+                DropExpiredConnection(conn);
+                it = locked_connections->erase(it);
+            } else {
+                ++it;
+            }
             continue;
         }
         if (conn->IsBroken()) {
             DropBrokenConnection(conn);
+            it = locked_connections->erase(it);
             continue;
         }
+
+        locked_connections->erase(it);
         return conn;
     }
     return nullptr;
+}
+
+void ConnectionPool::DeleteConnection(Connection* connection) {
+    // stats incrementing
+    delete connection;
+}
+
+void ConnectionPool::DropBrokenConnection(Connection* connection) {
+    LOG_WARNING("Released connection in closed state. Deleting...");
+    DeleteConnection(connection);
+}
+
+void ConnectionPool::DropExpiredConnection(Connection* connection) {
+    LOG_INFO("Dropping expired connection");
+    DeleteConnection(connection);
 }
 
 }  // namespace cassandra::detail

@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cassandra/exception.hpp>
 #include <cassandra/io/protocol/frame.hpp>
+#include <cassandra/io/protocol/lz4_utils.hpp>
 #include <cassandra/io/protocol/message.hpp>
 #include <cassandra/io/protocol/types.hpp>
 #include <cassandra/node_description.hpp>
@@ -36,7 +37,6 @@
 #include <userver/tracing/tags.hpp>
 #include <userver/utils/trivial_map.hpp>
 #include <utility>
-#include "cassandra/io/protocol/lz4_utils.hpp"
 
 namespace cassandra::detail {
 
@@ -138,12 +138,13 @@ ConnectionImpl::ConnectionImpl(
       _metrics(std::move(metrics)),
       _stream_pool(),
       _broken(false) {
-    _received_message_queue_map.reserve(StreamPool::kMaxStreams);
-    _received_message_producer_map.reserve(StreamPool::kMaxStreams);
-    _received_message_consumer_map.reserve(StreamPool::kMaxStreams);
+    _received_message_queue_map.reserve(StreamPool::kMaxStreams + 1);
+    _received_message_producer_map.reserve(StreamPool::kMaxStreams + 1);
+    _received_message_consumer_map.reserve(StreamPool::kMaxStreams + 1);
 
-    for (size_t i = 0; i < StreamPool::kMaxStreams; ++i) {
-        auto back = _received_message_queue_map.emplace_back(RecvMessageQueue::Create(1));
+    for (size_t i = 0; i < StreamPool::kMaxStreams + 1; ++i) {
+        auto back =
+            _received_message_queue_map.emplace_back(RecvMessageQueue::Create(1));
         _received_message_producer_map.emplace_back(back->GetProducer());
         _received_message_consumer_map.emplace_back(back->GetConsumer());
     }
@@ -175,7 +176,6 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsy
     std::unique_ptr<io::protocol::RequestMessage> message,
     userver::engine::Deadline deadline
 ) {
-    using Duration = decltype(deadline.TimeLeft());
     LOG_DEBUG("ASYNC EXECUTE");
     StreamGuard guard(_stream_pool);
     message->SetStreamId(guard.GetStreamId());
@@ -187,11 +187,14 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsy
         }
     );
     std::shared_ptr<io::protocol::ResponseMessage> result;
-    while (!_received_message_consumer_map[guard.GetStreamId()].PopNoblock(result)) {
-        if (deadline.TimeLeft() == Duration::zero()) {
-            MarkBroken();
-            throw exceptions::ConnectionError("Timeout");
-        }
+
+    auto pop_result =
+        _received_message_consumer_map[guard.GetStreamId()].Pop(result, deadline);
+
+    task.Wait();
+    if (!pop_result) {
+        MarkBroken();
+        throw exceptions::ConnectionError("Timeout");
     }
 
     CheckError(result);
@@ -402,6 +405,15 @@ void ConnectionImpl::ReceiverLoop() {
         const auto stream_id = frame->GetStreamId();
         if (stream_id < 0) {
             // error handling
+            continue;
+        }
+
+        if (static_cast<size_t>(stream_id) >= StreamPool::kMaxStreams) {
+            LOG_WARNING(
+                "ReceiverLoop: unexpected stream_id={}, max={}",
+                stream_id,
+                StreamPool::kMaxStreams
+            );
             break;
         }
 

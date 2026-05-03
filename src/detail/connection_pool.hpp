@@ -66,7 +66,16 @@ private:
     void Init(InitMode mode);
     void Clear();
 
-    std::shared_ptr<Connection> AcquireImmediate();
+    void Push(Connection* connection);
+    Connection* Pop(userver::engine::Deadline);
+
+    void DeleteConnection(Connection* connection);
+    void DropBrokenConnection(Connection* connection);
+    void DropExpiredConnection(Connection* connection);
+
+    void Release(Connection* connection);
+
+    Connection* AcquireImmediate();
 
     [[nodiscard]] userver::engine::TaskWithResult<bool> Connect(
         userver::engine::SemaphoreLock lock, ConnectionSettings&& conn_settings
@@ -94,7 +103,8 @@ private:
     using Consumer = ConnectionQueue::MultiConsumer;
     using Producer = ConnectionQueue::MultiProducer;
 
-    userver::concurrent::Variable<std::vector<Connection*>, userver::engine::Mutex> _connections;
+    userver::concurrent::Variable<std::vector<Connection*>, userver::engine::Mutex>
+        _connections;
 
     userver::engine::Semaphore _size_semaphore;
     userver::engine::Semaphore _connecting_semaphore;

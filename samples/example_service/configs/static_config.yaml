@@ -55,8 +55,10 @@ components_manager:
       config#env: SECDIST_PATH
 
     http-client:
-      load-enabled: $is_testing
+      core-component: http-client-core
+    http-client-core:
       fs-task-processor: fs-task-processor
+      user-agent#fallback: 'userver-based-service 3.0'
 
     dns-client:
       fs-task-processor: fs-task-processor

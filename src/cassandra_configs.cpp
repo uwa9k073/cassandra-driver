@@ -6,7 +6,9 @@ namespace cassandra {
 ConnectionSettings
 Parse(const userver::yaml_config::YamlConfig& config, userver::formats::parse::To<ConnectionSettings>) {
     return {
-        .max_ttl = std::optional<std::chrono::seconds>(config["max-ttl-sec"].As<std::optional<int>>()),
+        .max_ttl = std::optional<std::chrono::seconds>(
+            config["max-ttl-sec"].As<std::optional<int>>()
+        ),
         .recent_errors_threshold =
             config["recent-errors-threshold"].As<std::size_t>(2),
     };

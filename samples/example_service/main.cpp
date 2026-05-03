@@ -1,5 +1,6 @@
 #include <userver/clients/dns/component.hpp>
 #include <userver/clients/http/component.hpp>
+#include <userver/clients/http/component_core.hpp>
 #include <userver/components/component.hpp>
 #include <userver/components/component_list.hpp>
 #include <userver/components/minimal_server_component_list.hpp>
@@ -9,6 +10,7 @@
 #include <userver/formats/serialize/common_containers.hpp>
 #include <userver/formats/serialize/to.hpp>
 #include <userver/logging/log.hpp>
+#include <userver/server/handlers/http_handler_base.hpp>
 #include <userver/server/handlers/log_level.hpp>
 #include <userver/server/handlers/ping.hpp>
 #include <userver/server/handlers/tests_control.hpp>
@@ -29,6 +31,7 @@
 #include <cassandra/options.hpp>
 #include <cassandra/query.hpp>
 #include <cassandra/result_set.hpp>
+#include <userver/clients/http/middlewares/pipeline_component.hpp>
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
 #include <userver/formats/json/inline.hpp>
@@ -73,19 +76,22 @@ private:
 }  // namespace views
 
 int main(int argc, char* argv[]) {
-    auto component_list = userver::components::MinimalServerComponentList()
-                              .Append<userver::server::handlers::Ping>()
-                              .Append<userver::components::TestsuiteSupport>()
-                              .Append<userver::components::HttpClient>()
-                              .Append<userver::clients::dns::Component>()
-                              .Append<userver::components::Secdist>()
-                              .Append<userver::components::DefaultSecdistProvider>()
-                              .Append<userver::server::handlers::TestsControl>()
-                              .Append<userver::congestion_control::Component>()
-                              .Append<components::Cassandra>("cassandra-component")
-                              .Append<userver::server::handlers::LogLevel>()
-                              .Append<views::Cassandra>()
-                              .Append<views::CassandraBatch>();
+    auto component_list =
+        userver::components::MinimalServerComponentList()
+            .Append<userver::server::handlers::Ping>()
+            .Append<userver::components::TestsuiteSupport>()
+            .Append<userver::components::HttpClient>()
+            .Append<userver::clients::dns::Component>()
+            .Append<userver::components::Secdist>()
+            .Append<userver::components::DefaultSecdistProvider>()
+            .Append<userver::server::handlers::TestsControl>()
+            .Append<userver::congestion_control::Component>()
+            .Append<components::Cassandra>("cassandra-component")
+            .Append<userver::server::handlers::LogLevel>()
+            .Append<userver::components::HttpClientCore>()
+            .Append<userver::clients::http::MiddlewarePipelineComponent>()
+            .Append<views::Cassandra>()
+            .Append<views::CassandraBatch>();
 
     return userver::utils::DaemonMain(argc, argv, component_list);
 }
