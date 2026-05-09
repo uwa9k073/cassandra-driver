@@ -5,7 +5,6 @@
     <tab
             type="usergroup"
             title="Documentation"
-            url="/db/dbd/md__2docs_2docs_2index.html"
             url="@ref md__2docs__2index.html"
         />
     <tab type="topics" visible="yes" title="API Groups" intro="" />
