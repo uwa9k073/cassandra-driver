@@ -48,6 +48,8 @@ public:
 
     bool IsIdle() const { return _stream_pool.GetUsedStreams() == 0; }
 
+    size_t GetUsedStreams() const { return _stream_pool.GetUsedStreams(); }
+
     bool IsBroken() const { return _broken.load(std::memory_order_relaxed); }
 
     ResultSet Execute(

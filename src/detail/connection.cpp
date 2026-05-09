@@ -133,6 +133,10 @@ bool Connection::IsExpired() const { return _pimpl->IsExpired(); }
 
 bool Connection::IsBroken() const { return _pimpl->IsBroken(); }
 
+bool Connection::IsIdle() const { return _pimpl->IsIdle(); }
+
+size_t Connection::GetUsedStreams() const { return _pimpl->GetUsedStreams(); }
+
 ResultSet Connection::Execute(
     Consistency level,
     const Query& query,

@@ -35,6 +35,10 @@ public:
 
     bool IsBroken() const;
 
+    bool IsIdle() const;
+
+    size_t GetUsedStreams() const;
+
     void Close();
 
     ResultSet Execute(

@@ -1,11 +1,14 @@
 #include <cassandra_configs.hpp>
+#include <userver/formats/parse/common_containers.hpp>
 
 namespace cassandra {
 
 ConnectionSettings
 Parse(const userver::yaml_config::YamlConfig& config, userver::formats::parse::To<ConnectionSettings>) {
     return {
-        .max_ttl = std::chrono::seconds(config["max-ttl-sec"].As<int>(30)),
+        .max_ttl = std::optional<std::chrono::seconds>(
+            config["max-ttl-sec"].As<std::optional<int>>()
+        ),
         .recent_errors_threshold =
             config["recent-errors-threshold"].As<std::size_t>(2),
     };

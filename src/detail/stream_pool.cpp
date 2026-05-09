@@ -1,15 +1,23 @@
 #include <detail/stream_pool.hpp>
 #include <userver/logging/log.hpp>
+#include "cassandra/exception.hpp"
 
 namespace cassandra::detail {
 
 std::int16_t StreamPool::Acquire(userver::engine::Deadline deadline) {
-    userver::engine::SemaphoreLock lock(_semaphore, deadline);
-    if (!lock) throw std::runtime_error("StreamPool exhausted");
-    lock.Release();
-    return _next_id.fetch_add(1, std::memory_order_relaxed) % kMaxStreams;
+    int id;
+
+    if (!_consumer.Pop(id, deadline)) {
+        throw ::cassandra::exceptions::ConnectionError("StreamPool exhausted");
+    }
+
+    return id;
 }
 
-void StreamPool::Release(std::int16_t) { _semaphore.unlock_shared(); }
+void StreamPool::Release(std::int16_t id) {
+    if (!_producer.PushNoblock(id)) {
+        LOG_WARNING() << "Failed to release stream " << id;
+    }
+}
 
 }  // namespace cassandra::detail
