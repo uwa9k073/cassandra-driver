@@ -5,7 +5,7 @@
     <tab
             type="usergroup"
             title="Documentation"
-            url="@ref md__2docs__2index.html"
+            url="/d3/d8f/md__2home_2runner_2work_2cassandra-driver_2cassandra-driver_2docs_2index.html"
         />
     <tab type="topics" visible="yes" title="API Groups" intro="" />
     <tab type="namespacelist" visible="yes" title="Namespaces" intro="" />
