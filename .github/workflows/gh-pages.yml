@@ -3,18 +3,13 @@ name: Doxygen Docs
 on:
   push:
     branches: ["develop"]
-
   pull_request:
     branches: ["develop"]
 
 jobs:
-  docs:
+  # Задача 1: Сборка документации и подготовка артефактов
+  build-docs:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,23 +24,37 @@ jobs:
       - name: Build docs
         run: doxygen scripts/docs/doxygen.conf
 
-      - name: Upload generated docs
+      # Для Pull Request: обычный артефакт для проверки
+      - name: Upload generated docs (PR)
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4 # Исправлено для обратной совместимости, обычно actions/upload-artifact@v4
         with:
           name: doxygen-html
           path: docs/html/
 
-      - name: Setup Pages
-        if: github.event_name == 'push'
-        uses: actions/configure-pages@v4
-
-      - name: Upload Pages artifact
+      # Для Push: специальный артефакт для GitHub Pages
+      - name: Upload Pages artifact (Push)
         if: github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/html/
 
+  # Задача 2: Развертывание (запускается ТОЛЬКО при пуше и ПОСЛЕ успешной сборки)
+  deploy-docs:
+    if: github.event_name == 'push'
+    needs: build-docs
+    runs-on: ubuntu-latest
+
+    # КРИТИЧЕСКИЙ БЛОК: активирует вкладку Deployments в GitHub UI
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    permissions:
+      pages: write
+      id-token: write
+
+    steps:
       - name: Deploy to GitHub Pages
-        if: github.event_name == 'push'
+        id: deployment
         uses: actions/deploy-pages@v4
