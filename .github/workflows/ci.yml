@@ -1,0 +1,139 @@
+name: Ubuntu
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - develop
+      - 'feature/**'
+
+env:
+  CC: clang-18
+  CXX: clang++-18
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/userver-framework/ubuntu-24.04-userver:v3.0
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: debug
+            build_dir: build_debug
+            cmake_flags: >-
+              -DCMAKE_BUILD_TYPE=Debug
+              -DUSERVER_SANITIZE="addr ub"
+              -DCASSANDRA_BUILD_SAMPLES=OFF
+
+          - name: release
+            build_dir: build_release
+            cmake_flags: >-
+              -DCMAKE_BUILD_TYPE=Release
+              -DCASSANDRA_BUILD_SAMPLES=OFF
+              -DCMAKE_CXX_FLAGS_RELEASE="-O3"
+
+    name: build-${{ matrix.name }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: |
+          cmake \
+            -B ${{ matrix.build_dir }} \
+            -GNinja \
+            ${{ matrix.cmake_flags }}
+
+      - name: Build
+        run: |
+          cmake --build ${{ matrix.build_dir }} --parallel
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.build_dir }}
+          path: ${{ matrix.build_dir }}
+
+  unittests:
+    needs: build
+
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/userver-framework/ubuntu-24.04-userver:v3.0
+
+    strategy:
+      fail-fast: false
+      matrix:
+        build_dir:
+          - build_debug
+          - build_release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.build_dir }}
+          path: ${{ matrix.build_dir }}
+
+      - name: Run unit tests
+        run: |
+          ctest \
+            --test-dir ${{ matrix.build_dir }} \
+            -R "^userver-cql-driver_unittest$" \
+            --output-on-failure
+
+  benchmarks:
+    needs: build
+
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/userver-framework/ubuntu-24.04-userver:v3.0
+
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build_release
+          path: build_release
+
+      - name: Run benchmarks
+        run: |
+          ctest \
+            --test-dir build_release \
+            -R "^userver-cql-driver_benchmark$" \
+            --output-on-failure
+
+  install:
+    needs: build
+
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/userver-framework/ubuntu-24.04-userver:v3.0
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build_release
+          path: build_release
+
+      - name: Install package
+        run: |
+          cmake --install build_release --prefix install
+
+      - name: Verify package files
+        run: |
+          test -f install/lib/cmake/userver-cql-driver/userver-cql-driverConfig.cmake
