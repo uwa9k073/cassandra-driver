@@ -51,19 +51,94 @@ jobs:
         run: |
           run_as_user.sh cmake --build ${{ matrix.build_dir }} --parallel
 
+<<<<<<< HEAD
       - name: Unit tests
+=======
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.build_dir }}
+          path: ${{ matrix.build_dir }}
+
+  unittests:
+    needs: build
+
+    runs-on: ubuntu-latest
+
+    container:
+      image: kostuwan/ubuntu24.04-userver-ci:v3.0-core
+
+    strategy:
+      fail-fast: false
+      matrix:
+        build_dir:
+          - build_debug
+          - build_release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.build_dir }}
+          path: ${{ matrix.build_dir }}
+
+      - name: Run unit tests
+>>>>>>> dd0dfca (fix: wip)
         run: |
           run_as_user.sh ctest -V --test-dir ${{ matrix.build_dir }} --output-on-failure \
             -R "^userver-cql-driver_unittest$"
 
+<<<<<<< HEAD
       - name: Benchmarks (release only)
         if: matrix.build_dir == 'build_release'
+=======
+  benchmarks:
+    needs: build
+
+    runs-on: ubuntu-latest
+
+    container:
+      image: kostuwan/ubuntu24.04-userver-ci:v3.0-core
+
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build_release
+          path: build_release
+
+      - name: Run benchmarks
+>>>>>>> dd0dfca (fix: wip)
         run: |
           run_as_user.sh ctest -V --test-dir ${{ matrix.build_dir }} --output-on-failure \
             -R "^userver-cql-driver_benchmark$"
 
+<<<<<<< HEAD
       - name: Install check (release only)
         if: matrix.build_dir == 'build_release'
+=======
+  install:
+    needs: build
+
+    runs-on: ubuntu-latest
+
+    container:
+      image: kostuwan/ubuntu24.04-userver-ci:v3.0-core
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build_release
+          path: build_release
+
+      - name: Install package
+>>>>>>> dd0dfca (fix: wip)
         run: |
           run_as_user.sh cmake --install build_release --prefix install
           test -f install/lib/cmake/userver-cql-driver/userver-cql-driverConfig.cmake
