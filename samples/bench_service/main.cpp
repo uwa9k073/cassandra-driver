@@ -58,20 +58,21 @@ private:
 }  // namespace views
 
 int main(int argc, char* argv[]) {
-    auto component_list = userver::components::MinimalServerComponentList()
-                              .Append<userver::server::handlers::Ping>()
-                              .Append<userver::components::TestsuiteSupport>()
-                              .Append<userver::components::HttpClient>()
-                              .Append<userver::clients::dns::Component>()
-                              .Append<userver::components::Secdist>()
-                              .Append<userver::components::DefaultSecdistProvider>()
-                              .Append<userver::server::handlers::TestsControl>()
-                              .Append<userver::congestion_control::Component>()
-                              .Append<userver::server::handlers::LogLevel>()
-                              .Append<userver::components::HttpClientCore>()
-                              .Append<userver::clients::http::MiddlewarePipelineComponent>()
-                              .Append<components::Cassandra>("cassandra-component")
-                              .Append<views::Cassandra>();
+    auto component_list =
+        userver::components::MinimalServerComponentList()
+            .Append<userver::server::handlers::Ping>()
+            .Append<userver::components::TestsuiteSupport>()
+            .Append<userver::components::HttpClient>()
+            .Append<userver::clients::dns::Component>()
+            .Append<userver::components::Secdist>()
+            .Append<userver::components::DefaultSecdistProvider>()
+            .Append<userver::server::handlers::TestsControl>()
+            .Append<userver::congestion_control::Component>()
+            .Append<userver::server::handlers::LogLevel>()
+            .Append<userver::components::HttpClientCore>()
+            .Append<userver::clients::http::MiddlewarePipelineComponent>()
+            .Append<components::Cassandra>("cassandra-component")
+            .Append<views::Cassandra>();
 
     return userver::utils::DaemonMain(argc, argv, component_list);
 }

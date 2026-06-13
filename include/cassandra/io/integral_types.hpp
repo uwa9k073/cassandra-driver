@@ -5,7 +5,47 @@
 #include <cassandra/io/protocol/types.hpp>
 #include <cstddef>
 
-namespace cassandra::io::detail {
+namespace cassandra::io {
+namespace detail {
+
+inline void EnsureSize(size_t offset, size_t required, size_t data_size) {
+    if (offset + required > data_size) {
+        throw std::runtime_error("Buffer underread");
+    }
+}
+
+template <class It, class T>
+void WriteIntBE(It begin, It end, const T& value) {
+    size_t size = sizeof(T);
+    if ((size_t)(end - begin) < size) {
+        throw std::out_of_range("buffer is too small");
+    }
+    auto tmp = boost::endian::native_to_big(value);
+    auto* ptr = reinterpret_cast<std::byte*>(&tmp);
+    // auto* end = ptr + size;
+    std::memcpy(begin, ptr, size);
+}
+
+template <std::integral T>
+[[nodiscard]] T ReadIntBE(protocol::RawBufferView data, size_t& offset) {
+    EnsureSize(offset, sizeof(T), data.size());
+    T value;
+    std::memcpy(&value, data.data() + offset, sizeof(T));
+    offset += sizeof(T);
+    return boost::endian::big_to_native(value);
+}
+
+template <std::integral T>
+void WriteIntBE(protocol::RawBuffer& data, T value) {
+    auto size = sizeof(T);
+    if (data.capacity() < data.size() + size) {
+        data.reserve(data.size() + size);
+    }
+    auto tmp = boost::endian::native_to_big(value);
+    auto* ptr = reinterpret_cast<std::byte*>(&tmp);
+    auto* end = ptr + size;
+    std::copy(ptr, end, std::back_inserter(data));
+}
 
 template <typename T>
 struct IntegralBinaryParser : BufferParserBase<T> {
@@ -32,6 +72,7 @@ struct IntegralBinaryFormatter {
         WriteIntBE(buffer.GetUnderlying(), this->value);
     }
 };
+}  // namespace detail
 
 template <>
 struct BufferParser<Boolean> : detail::IntegralBinaryParser<Boolean> {
@@ -103,4 +144,4 @@ struct BufferFormatter<Short> : detail::IntegralBinaryFormatter<Short> {
     explicit BufferFormatter(Short val) : IntegralBinaryFormatter(val) {}
 };
 
-}  // namespace cassandra::io::detail
+}  // namespace cassandra::io

@@ -9,9 +9,8 @@
 #include <cstdint>
 #include <unordered_map>
 #include <userver/logging/log.hpp>
-#include <variant>
 #include <vector>
-#include "cassandra/batch_query.hpp"
+#include <cassandra/batch_query.hpp>
 
 namespace cassandra::io::protocol {
 class RequestMessage : public Message {

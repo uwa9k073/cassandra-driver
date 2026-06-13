@@ -5,7 +5,7 @@
 #include <cassandra/io/string_types.hpp>
 #include <concepts>
 #include "cassandra/io/protocol/types.hpp"
-namespace cassandra::io::detail {
+namespace cassandra::io {
 
 //  [list]          A [int] n indicating the number of elements in the
 //  list, followed by n
@@ -16,7 +16,8 @@ namespace cassandra::io::detail {
 //  [string list]   A [short] n, followed by n [string].
 //  [short bytes]   A [short] n, followed by n bytes if n >= 0.
 //
-//
+
+namespace detail {
 template <typename T>
 concept SequenceContainerConcept = requires(T container) {
     typename T::value_type;
@@ -58,10 +59,10 @@ struct ListBinaryParser : BufferParserBase<Container> {
     using LenType = typename ListLenBySize<Size>::type;
 
     void operator()(protocol::RawBufferView data, size_t& offset) {
-        size_t count = Read<LenType>(data, offset);
+        size_t count = ReadBuffer<LenType>(data, offset);
         // this->value.reserve(count);
         for (size_t i = 0; i < count; ++i) {
-            this->value.push_back(Read<ElementType>(data, offset));
+            this->value.push_back(ReadBuffer<ElementType>(data, offset));
         }
     }
 };
@@ -82,7 +83,7 @@ struct BytesBinaryParser : BufferParserBase<BytesStrongTypedef> {
     using UnderlyingType = typename BytesStrongTypedef::UnderlyingType;
 
     void operator()(protocol::RawBufferView data, size_t& offset) {
-        SizeType len = Read<SizeType>(data, offset);
+        SizeType len = ReadBuffer<SizeType>(data, offset);
         if (len > 0) {
             UnderlyingType underlying;
             underlying.resize(len);
@@ -102,7 +103,7 @@ struct BytesBinaryFormatter {
 
     void operator()(protocol::RawBuffer& buffer) {
         SizeType size = value.GetUnderlying().size();
-        Write<SizeType>(buffer, size);
+        WriteBuffer<SizeType>(buffer, size);
         if (size <= 0) {
             return;
         }
@@ -122,51 +123,54 @@ struct ListBinaryFormatter {
     explicit ListBinaryFormatter(const Container& value) : value(value) {}
 
     void operator()(protocol::RawBuffer& buffer) {
-        Write<LenType>(buffer, value.size());
+        WriteBuffer<LenType>(buffer, value.size());
         for (const auto& elem : value) {
-            Write<ElementType>(buffer, elem);
+            WriteBuffer<ElementType>(buffer, elem);
         }
     }
 };
 
-template <SequenceContainerConcept Container>
+}  // namespace detail
+
+namespace traits {
+template <detail::SequenceContainerConcept Container>
 struct Input<Container> {
-    using type = ListBinaryParser<Container>;
+    using type = detail::ListBinaryParser<Container>;
 };
 
-template <SequenceContainerConcept Container>
+template <detail::SequenceContainerConcept Container>
 struct Output<Container> {
-    using type = ListBinaryFormatter<Container>;
+    using type = detail::ListBinaryFormatter<Container>;
 };
 
 template <>
 struct Input<StringList> {
-    using type = ListBinaryParser<StringList, 2>;
+    using type = detail::ListBinaryParser<StringList, 2>;
 };
 
 template <>
 struct Output<StringList> {
-    using type = ListBinaryFormatter<StringList, 2>;
+    using type = detail::ListBinaryFormatter<StringList, 2>;
 };
 
 template <>
 struct Input<ShortBytes> {
-    using type = BytesBinaryParser<ShortBytes>;
+    using type = detail::BytesBinaryParser<ShortBytes>;
 };
 
 template <>
 struct Output<ShortBytes> {
-    using type = BytesBinaryFormatter<ShortBytes>;
+    using type = detail::BytesBinaryFormatter<ShortBytes>;
 };
 
 template <>
 struct Input<Bytes> {
-    using type = BytesBinaryParser<Bytes>;
+    using type = detail::BytesBinaryParser<Bytes>;
 };
 
 template <>
 struct Output<Bytes> {
-    using type = BytesBinaryFormatter<Bytes>;
+    using type = detail::BytesBinaryFormatter<Bytes>;
 };
-
-}  // namespace cassandra::io::detail
+}  // namespace traits
+}  // namespace cassandra::io
