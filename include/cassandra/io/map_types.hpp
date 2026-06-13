@@ -6,7 +6,7 @@
 #include <cassandra/io/list_types.hpp>
 #include <cassandra/io/string_types.hpp>
 
-namespace cassandra::io::detail {
+namespace cassandra::io {
 
 //  [string map]        A [short] n, followed by n pair <k><v> where
 //  <k> and <v>
@@ -14,7 +14,7 @@ namespace cassandra::io::detail {
 //  [string multimap]   A [short] n, followed by n pair <k><v> where
 //  <k> is a
 //                      [string] and <v> is a [string list].
-
+namespace detail {
 template <size_t Size>
 struct MapLenBySize;
 
@@ -83,11 +83,11 @@ struct MapBinaryParser : BufferParserBase<Map> {
     using LenType = typename MapLenBySize<Size>::type;
 
     void operator()(std::span<const std::byte> data, size_t& offset) {
-        size_t count = Read<LenType>(data, offset);
+        size_t count = ReadBuffer<LenType>(data, offset);
 
         for (size_t i = 0; i < count; ++i) {
-            auto key = Read<KeyType>(data, offset);
-            auto value = Read<MappedType>(data, offset);
+            auto key = ReadBuffer<KeyType>(data, offset);
+            auto value = ReadBuffer<MappedType>(data, offset);
             this->value.emplace(std::move(key), std::move(value));
         }
     }
@@ -102,51 +102,55 @@ struct MapBinaryFormatter {
     const Map& value;
     explicit MapBinaryFormatter(const Map& value) : value(value) {}
     void operator()(protocol::RawBuffer& data) const {
-        Write<LenType>(data, value.size());
+        WriteBuffer<LenType>(data, value.size());
         for (const auto& [key, val] : value) {
-            Write<KeyType>(data, key);
-            Write<MappedType>(data, val);
+            WriteBuffer<KeyType>(data, key);
+            WriteBuffer<MappedType>(data, val);
         }
     }
 };
 
+}  // namespace detail
+
+namespace traits {
 template <>
 struct Input<StringMap> {
-    using type = MapBinaryParser<StringMap, 2>;
+    using type = detail::MapBinaryParser<StringMap, 2>;
 };
 
 template <>
 struct Input<StringMultiMap> {
-    using type = MapBinaryParser<StringMultiMap, 2>;
+    using type = detail::MapBinaryParser<StringMultiMap, 2>;
 };
 
 template <>
 struct Output<StringMap> {
-    using type = MapBinaryFormatter<StringMap, 2>;
+    using type = detail::MapBinaryFormatter<StringMap, 2>;
 };
 
 template <>
 struct Output<StringMultiMap> {
-    using type = MapBinaryFormatter<StringMultiMap, 2>;
+    using type = detail::MapBinaryFormatter<StringMultiMap, 2>;
 };
 
-template <MapConcept Map>
+template <detail::MapConcept Map>
 struct Input<Map> {
-    using type = MapBinaryParser<Map>;
+    using type = detail::MapBinaryParser<Map>;
 };
 
-template <MapConcept Map>
+template <detail::MapConcept Map>
 struct Output<Map> {
-    using type = MapBinaryFormatter<Map>;
+    using type = detail::MapBinaryFormatter<Map>;
 };
 
 template <>
 struct Input<BytesMap> {
-    using type = MapBinaryParser<BytesMap, 2>;
+    using type = detail::MapBinaryParser<BytesMap, 2>;
 };
 
 template <>
 struct Output<BytesMap> {
-    using type = MapBinaryFormatter<BytesMap, 2>;
+    using type = detail::MapBinaryFormatter<BytesMap, 2>;
 };
-}  // namespace cassandra::io::detail
+}  // namespace traits
+}  // namespace cassandra::io

@@ -2,6 +2,7 @@
 
 #include <fmt/core.h>
 #include <cassandra/exception.hpp>
+#include <cassandra/io/buffer_io.hpp>
 #include <cassandra/io/buffer_io_base.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/floating_point_types.hpp>
@@ -31,7 +32,7 @@ public:
 
     template <class T>
     [[nodiscard]] T Read() {
-        return detail::Read<T>(_buffer.data, _buffer.offset);
+        return ReadBuffer<T>(_buffer.data, _buffer.offset);
     }
 
     protocol::RawBufferView GetSubBuffer(size_t size) {
@@ -49,7 +50,7 @@ public:
 
     template <class T>
     [[nodiscard]] T Read() {
-        return detail::Read<T>(_buffer);
+        return ReadBuffer<T>(_buffer);
     }
 
 private:

@@ -3,11 +3,12 @@
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/integral_types.hpp>
 #include <cassandra/io/protocol/types.hpp>
-#include <concepts>
 #include <cstring>
 #include <userver/utils/strong_typedef.hpp>
 
-namespace cassandra::io::detail {
+namespace cassandra::io {
+
+namespace detail {
 template <std::size_t>
 struct FloatingPointType;
 
@@ -29,7 +30,7 @@ struct FloatingPointBySizeParser {
     using IntType = typename FloatingPointType<Size>::int_type;
 
     static FloatType ParseBuffer(protocol::RawBufferView buf, size_t& offset) {
-        const IntType tmp = Read<IntType>(buf, offset);
+        const IntType tmp = ReadBuffer<IntType>(buf, offset);
         FloatType float_value{};
         std::memcpy(&float_value, &tmp, Size);
         return float_value;
@@ -44,7 +45,7 @@ struct FloatingPointBySizeFormatter {
     static void FormatBuffer(protocol::RawBuffer& buf, FloatType value) {
         IntType tmp{};
         std::memcpy(&tmp, &value, Size);
-        Write<IntType>(buf, tmp);
+        WriteBuffer<IntType>(buf, tmp);
     }
 };
 
@@ -68,25 +69,25 @@ struct FloatingPointBinaryFormatter {
         FloatingPointBySizeFormatter<sizeof(T)>::FormatBuffer(buf, value_);
     }
 };
-
+}  // namespace detail
 template <>
-struct BufferParser<Float> : FloatingPointBinaryParser<Float> {
+struct BufferParser<Float> : detail::FloatingPointBinaryParser<Float> {
     explicit BufferParser(Float& value) : FloatingPointBinaryParser(value) {}
 };
 
 template <>
-struct BufferParser<Double> : FloatingPointBinaryParser<Double> {
+struct BufferParser<Double> : detail::FloatingPointBinaryParser<Double> {
     explicit BufferParser(Double& value) : FloatingPointBinaryParser(value) {}
 };
 
 template <>
-struct BufferFormatter<Float> : FloatingPointBinaryFormatter<Float> {
+struct BufferFormatter<Float> : detail::FloatingPointBinaryFormatter<Float> {
     explicit BufferFormatter(Float value) : FloatingPointBinaryFormatter(value) {}
 };
 
 template <>
-struct BufferFormatter<Double> : FloatingPointBinaryFormatter<Double> {
+struct BufferFormatter<Double> : detail::FloatingPointBinaryFormatter<Double> {
     explicit BufferFormatter(Double value) : FloatingPointBinaryFormatter(value) {}
 };
 
-}  // namespace cassandra::io::detail
+}  // namespace cassandra::io

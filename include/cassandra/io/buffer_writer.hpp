@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cassandra/io/buffer_io_base.hpp>
+#include <cassandra/io/buffer_io.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/floating_point_types.hpp>
 #include <cassandra/io/integral_types.hpp>
@@ -21,7 +21,7 @@ public:
     template <class T>
     void Write(const T& value) {
         // Overload resolution happens here based on the concrete 'Buffer' type
-        detail::Write<T>(buffer_, value);
+        WriteBuffer<T>(buffer_, value);
     }
 
 private:
