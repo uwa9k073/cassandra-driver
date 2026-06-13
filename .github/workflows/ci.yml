@@ -44,14 +44,14 @@ jobs:
 
       - name: Configure
         run: |
-          cmake \
+          run_as_user.sh cmake \
             -B ${{ matrix.build_dir }} \
             -GNinja \
             ${{ matrix.cmake_flags }}
 
       - name: Build
         run: |
-          cmake --build ${{ matrix.build_dir }} --parallel
+          run_as_user.sh cmake --build ${{ matrix.build_dir }} --parallel
 
       - name: Upload build
         uses: actions/upload-artifact@v4
@@ -84,7 +84,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          ctest \
+          run_as_user.sh ctest \
             --test-dir ${{ matrix.build_dir }} \
             -R "^userver-cql-driver_unittest$" \
             --output-on-failure
@@ -97,8 +97,6 @@ jobs:
     container:
       image: kostuwan/ubuntu24.04-userver-ci:v3.0-core
 
-    if: github.event_name == 'push'
-
     steps:
       - uses: actions/checkout@v4
 
@@ -109,7 +107,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          ctest \
+          run_as_user.sh ctest \
             --test-dir build_release \
             -R "^userver-cql-driver_benchmark$" \
             --output-on-failure
