@@ -1,3 +1,17 @@
+name: Ubuntu
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - develop
+      - 'feature/**'
+
+env:
+  CC: clang-18
+  CXX: clang++-18
+
 jobs:
   test:
     runs-on: ubuntu-latest
