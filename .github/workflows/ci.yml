@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: ghcr.io/userver-framework/ubuntu-24.04-userver:v3.0
+      image: kostuwan/ubuntu24.04-userver-ci:v3.0-core
 
     strategy:
       fail-fast: false
@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: ghcr.io/userver-framework/ubuntu-24.04-userver:v3.0
+      image: kostuwan/ubuntu24.04-userver-ci:v3.0-core
 
     strategy:
       fail-fast: false
@@ -95,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: ghcr.io/userver-framework/ubuntu-24.04-userver:v3.0
+      image: kostuwan/ubuntu24.04-userver-ci:v3.0-core
 
     if: github.event_name == 'push'
 
@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: ghcr.io/userver-framework/ubuntu-24.04-userver:v3.0
+      image: kostuwan/ubuntu24.04-userver-ci:v3.0-core
 
     steps:
       - uses: actions/checkout@v4
