@@ -41,10 +41,10 @@
 namespace cassandra::detail {
 
 namespace {
-void CheckError(std::shared_ptr<io::protocol::ResponseMessage> message) {
+void CheckError(io::protocol::ResponseMessage* message) {
     if (message->GetOpcode() == io::protocol::Opcode::kError) {
         auto* error_message =
-            dynamic_cast<io::protocol::ErrorMessage*>(message.get());
+            dynamic_cast<io::protocol::ErrorMessage*>(message);
         auto error_code = error_message->GetErrorCode();
         switch (error_code) {
             case io::protocol::ErrorCode::kServerError:
@@ -172,7 +172,7 @@ userver::engine::Task ConnectionImpl::Close() {
     );
 }
 
-std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsync(
+std::unique_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsync(
     std::unique_ptr<io::protocol::RequestMessage> message,
     userver::engine::Deadline deadline
 ) {
@@ -186,7 +186,7 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsy
             SendMessage(std::move(request), deadline);
         }
     );
-    std::shared_ptr<io::protocol::ResponseMessage> result;
+    std::unique_ptr<io::protocol::ResponseMessage> result = nullptr;
 
     auto pop_result =
         _received_message_consumer_map[guard.GetStreamId()].Pop(result, deadline);
@@ -197,18 +197,18 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsy
         throw exceptions::ConnectionError("Timeout");
     }
 
-    CheckError(result);
+    CheckError(result.get());
 
     return result;
 }
 
-std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessage(
+std::unique_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessage(
     io::protocol::RequestMessage&& message, userver::engine::Deadline deadline
 ) {
     SendMessage(std::move(message), deadline);
 
     auto response = ReadFrame(deadline);
-    CheckError(response);
+    CheckError(response.get());
     return response;
 }
 
@@ -229,7 +229,7 @@ void ConnectionImpl::CqlHandshake(bool use_compression) {
 
     auto compression_options = options.at(io::String("COMPRESSION"));
 
-    std::shared_ptr<io::protocol::ResponseMessage> message;
+    std::unique_ptr<io::protocol::ResponseMessage> message;
     if (use_compression &&
         std::ranges::find(compression_options, io::String("lz4")) !=
             compression_options.end()) {
@@ -318,7 +318,7 @@ void ConnectionImpl::SendMessage(
     }
 }
 
-std::shared_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(
+std::unique_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(
     io::protocol::FrameHeader&& header
 ) {
     auto opcode = header.opcode;
@@ -329,23 +329,23 @@ std::shared_ptr<io::protocol::ResponseMessage> GetResponseMessageFromHeader(
     }
     switch (opcode) {
         case io::protocol::Opcode::kSupported:
-            return std::make_shared<io::protocol::SupportMessage>(std::move(header));
+            return std::make_unique<io::protocol::SupportMessage>(std::move(header));
         case io::protocol::Opcode::kReady:
-            return std::make_shared<io::protocol::ReadyMessage>(std::move(header));
+            return std::make_unique<io::protocol::ReadyMessage>(std::move(header));
         case io::protocol::Opcode::kAuthenticate:
-            return std::make_shared<io::protocol::AuthentificateMessage>(
+            return std::make_unique<io::protocol::AuthentificateMessage>(
                 std::move(header)
             );
         case io::protocol::Opcode::kError:
-            return std::make_shared<io::protocol::ErrorMessage>(std::move(header));
+            return std::make_unique<io::protocol::ErrorMessage>(std::move(header));
         case io::protocol::Opcode::kResult:
-            return std::make_shared<io::protocol::ResultMessage>(std::move(header));
+            return std::make_unique<io::protocol::ResultMessage>(std::move(header));
         default:
             throw std::runtime_error("Unexpected opcode");
     }
 }
 
-std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ReadFrame(
+std::unique_ptr<io::protocol::ResponseMessage> ConnectionImpl::ReadFrame(
     userver::engine::Deadline deadline, io::protocol::Compressor* compressor
 ) {
     constexpr size_t kHeaderSize = io::protocol::FrameHeader::kHeaderSize;
@@ -389,7 +389,7 @@ void ConnectionImpl::ReceiverLoop() {
     const auto deadline = userver::engine::Deadline{};
 
     while (!userver::engine::current_task::ShouldCancel()) {
-        std::shared_ptr<io::protocol::ResponseMessage> frame;
+        std::unique_ptr<io::protocol::ResponseMessage> frame;
         try {
             frame = ReadFrame(deadline, _compressor_ptr.get());
         } catch (const userver::engine::io::IoException& e) {
