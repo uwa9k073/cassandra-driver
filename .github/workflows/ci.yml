@@ -20,8 +20,13 @@ jobs:
     strategy:
       matrix:
         include:
+<<<<<<< HEAD
           - info: debug + clang++-18 + cxx20
             id: ubuntu_clang18_cxx20
+=======
+          - name: debug
+            info: debug clang++-18 + cxx20
+>>>>>>> dbdf39e (fix: wip)
             build_dir: build_debug
             os: ubuntu-24.04
             cmake_flags: >-
@@ -29,10 +34,16 @@ jobs:
               -DUSERVER_SANITIZE="addr ub"
               -DCASSANDRA_BUILD_SAMPLES=OFF
 
+<<<<<<< HEAD
           - build_dir: build_release
             info: release + clang++-18 + cxx20
             id: ubuntu_clang18_cxx20
             os: ubuntu-24.04
+=======
+          - name: release
+            build_dir: build_release
+            info: release clang++-18 + cxx20
+>>>>>>> dbdf39e (fix: wip)
             cmake_flags: >-
               -DCMAKE_BUILD_TYPE=Release
               -DCASSANDRA_BUILD_SAMPLES=OFF
