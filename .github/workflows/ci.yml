@@ -45,7 +45,14 @@ jobs:
 
       - name: Configure
         run: |
+<<<<<<< HEAD
           run_as_user.sh cmake -B ${{ matrix.build_dir }} -GNinja ${{ matrix.cmake_flags }}
+=======
+          run_as_user.sh cmake \
+            -B ${{ matrix.build_dir }} \
+            -GNinja \
+            ${{ matrix.cmake_flags }}
+>>>>>>> 43878c5 (fix: wip)
 
       - name: Build
         run: |
@@ -86,8 +93,15 @@ jobs:
       - name: Run unit tests
 >>>>>>> dd0dfca (fix: wip)
         run: |
+<<<<<<< HEAD
           run_as_user.sh ctest -V --test-dir ${{ matrix.build_dir }} --output-on-failure \
             -R "^userver-cql-driver_unittest$"
+=======
+          run_as_user.sh ctest \
+            --test-dir ${{ matrix.build_dir }} \
+            -R "^userver-cql-driver_unittest$" \
+            --output-on-failure
+>>>>>>> 43878c5 (fix: wip)
 
 <<<<<<< HEAD
       - name: Benchmarks (release only)
@@ -101,8 +115,6 @@ jobs:
     container:
       image: kostuwan/ubuntu24.04-userver-ci:v3.0-core
 
-    if: github.event_name == 'push'
-
     steps:
       - uses: actions/checkout@v4
 
@@ -114,8 +126,15 @@ jobs:
       - name: Run benchmarks
 >>>>>>> dd0dfca (fix: wip)
         run: |
+<<<<<<< HEAD
           run_as_user.sh ctest -V --test-dir ${{ matrix.build_dir }} --output-on-failure \
             -R "^userver-cql-driver_benchmark$"
+=======
+          run_as_user.sh ctest \
+            --test-dir build_release \
+            -R "^userver-cql-driver_benchmark$" \
+            --output-on-failure
+>>>>>>> 43878c5 (fix: wip)
 
 <<<<<<< HEAD
       - name: Install check (release only)
