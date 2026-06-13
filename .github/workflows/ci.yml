@@ -23,6 +23,7 @@ jobs:
       matrix:
         include:
           - name: debug
+            info: debug clang++-18 + cxx20
             build_dir: build_debug
             cmake_flags: >-
               -DCMAKE_BUILD_TYPE=Debug
@@ -31,6 +32,7 @@ jobs:
 
           - name: release
             build_dir: build_release
+            info: release clang++-18 + cxx20
             cmake_flags: >-
               -DCMAKE_BUILD_TYPE=Release
               -DCASSANDRA_BUILD_SAMPLES=OFF
