@@ -1,8 +1,8 @@
-#include <cassandra/io/protocol/frame.hpp>
-#include <cstdint>
 #include <cassandra/io/buffer_io.hpp>
-#include <cassandra/io/protocol/types.hpp>
 #include <cassandra/io/integral_types.hpp>
+#include <cassandra/io/protocol/frame.hpp>
+#include <cassandra/io/protocol/types.hpp>
+#include <cstdint>
 
 namespace cassandra::io::protocol {
 void FrameHeader::Serialize(RawBuffer& buffer) const {

@@ -1,8 +1,10 @@
 #pragma once
 
+#include <boost/endian/conversion.hpp>
 #include <cassandra/io/buffer_io_base.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/protocol/types.hpp>
+#include <cassandra/io/value.hpp>
 #include <cstddef>
 
 namespace cassandra::io {
@@ -22,7 +24,7 @@ void WriteIntBE(It begin, It end, const T& value) {
     }
     auto tmp = boost::endian::native_to_big(value);
     auto* ptr = reinterpret_cast<std::byte*>(&tmp);
-    // auto* end = ptr + size;
+
     std::memcpy(begin, ptr, size);
 }
 
@@ -52,24 +54,32 @@ struct IntegralBinaryParser : BufferParserBase<T> {
     using BaseType = BufferParserBase<T>;
     using BaseType::BaseType;
 
-    void operator()(std::span<const std::byte> data, size_t& offset) {
+    void operator()(protocol::RawBufferView data, size_t& offset) {
         this->value = ReadIntBE<T>(data, offset);
     }
 
     void operator()(const Bytes& buffer) {
+        const auto& raw_buffer_payload =
+            std::get<Bytes::UnderlyingType>(buffer.payload);
         size_t offset = 0;
-        this->value = ReadIntBE<T>(buffer.GetUnderlying(), offset);
+        this->value = ReadIntBE<T>(raw_buffer_payload, offset);
     }
 };
 
 template <typename T>
-struct IntegralBinaryFormatter {
+struct IntegralBinaryFormatter : ValueFormattingMixin<IntegralBinaryFormatter<T>> {
+    using Mixin = ValueFormattingMixin<IntegralBinaryFormatter<T>>;
+
+    using Mixin::operator();
+
     T value;
     explicit IntegralBinaryFormatter(T value) : value(value) {}
     void operator()(protocol::RawBuffer& buffer) { WriteIntBE(buffer, this->value); }
 
     void operator()(Bytes& buffer) {
-        WriteIntBE(buffer.GetUnderlying(), this->value);
+        Bytes::UnderlyingType raw_buffer;
+        WriteIntBE(raw_buffer, this->value);
+        buffer.payload = std::move(raw_buffer);
     }
 };
 }  // namespace detail

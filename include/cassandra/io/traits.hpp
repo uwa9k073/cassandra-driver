@@ -11,7 +11,6 @@ template <typename T, typename Enable = userver::utils::void_t<>>
 struct BufferFormatter;
 
 namespace traits {
-
 template <class T>
 struct Input {
     using type = BufferParser<T>;
@@ -28,5 +27,4 @@ struct IO {
     using FormatterType = typename Output<T>::type;
 };
 }  // namespace traits
-
 }  // namespace cassandra::io
