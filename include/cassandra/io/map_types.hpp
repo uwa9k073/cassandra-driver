@@ -28,52 +28,7 @@ struct MapLenBySize<4> {
     using type = Int;
 };
 
-template <typename T>
-concept MapConcept =
-    requires(T container) {
-        typename T::value_type;
-        typename T::key_type;
-        typename T::mapped_type;
-
-        typename T::iterator;
-        typename T::const_iterator;
-        typename T::size_type;
-
-        { container.begin() } -> std::same_as<typename T::iterator>;
-        { container.end() } -> std::same_as<typename T::iterator>;
-        { container.cbegin() } -> std::same_as<typename T::const_iterator>;
-        { container.cend() } -> std::same_as<typename T::const_iterator>;
-        { container.size() } -> std::convertible_to<typename T::size_type>;
-        { container.empty() } -> std::convertible_to<bool>;
-        {
-            typename T::value_type{}
-        } -> std::convertible_to<
-              std::pair<const typename T::key_type, typename T::mapped_type>>;
-    } &&
-    (
-        // --- Emplace Logic: OR Condition ---
-        // Case 1: Associative Maps (returns iterator)
-        requires(T container) {
-            {
-                container.emplace(
-                    std::declval<typename T::key_type>(),
-                    std::declval<typename T::mapped_type>()
-                )
-            } -> std::same_as<typename T::iterator>;
-        } ||
-        // Case 2: Unordered Associative Maps (returns pair<iterator,
-        // bool>)
-        requires(T container) {
-            {
-                container.emplace(
-                    std::declval<typename T::key_type>(),
-                    std::declval<typename T::mapped_type>()
-                )
-            } -> std::same_as<std::pair<typename T::iterator, bool>>;
-        }
-    );
-
-template <MapConcept Map, size_t Size = sizeof(Int)>
+template <concepts::MapConcept Map, size_t Size = sizeof(Int)>
 struct MapBinaryParser : BufferParserBase<Map> {
     using BaseType = BufferParserBase<Map>;
     using BaseType::BaseType;
@@ -93,7 +48,7 @@ struct MapBinaryParser : BufferParserBase<Map> {
     }
 };
 
-template <MapConcept Map, size_t Size = sizeof(Int)>
+template <concepts::MapConcept Map, size_t Size = sizeof(Int)>
 struct MapBinaryFormatter {
     using LenType = typename ListLenBySize<Size>::type;
     using KeyType = typename Map::key_type;
@@ -133,12 +88,12 @@ struct Output<StringMultiMap> {
     using type = detail::MapBinaryFormatter<StringMultiMap, 2>;
 };
 
-template <detail::MapConcept Map>
+template <concepts::MapConcept Map>
 struct Input<Map> {
     using type = detail::MapBinaryParser<Map>;
 };
 
-template <detail::MapConcept Map>
+template <concepts::MapConcept Map>
 struct Output<Map> {
     using type = detail::MapBinaryFormatter<Map>;
 };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassandra/io/buffer_io.hpp>
 #include <cassandra/io/buffer_io_base.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/integral_types.hpp>
@@ -7,7 +8,7 @@
 #include <cstddef>
 #include <cstring>
 #include <userver/utils/strong_typedef.hpp>
-#include <cassandra/io/buffer_io.hpp>
+#include "cassandra/io/value.hpp"
 
 namespace cassandra::io {
 namespace detail {
@@ -48,12 +49,14 @@ struct CommonStringBinaryParser : BufferParserBase<std::string> {
     }
 
     void operator()(const Bytes& buffer) {
-        auto size = buffer.size();
+        const auto& raw_buffer_payload =
+            std::get<Bytes::UnderlyingType>(buffer.payload);
+        auto size = raw_buffer_payload.size();
         this->value.reserve(size);
         this->value.resize(size);
         std::memcpy(
             this->value.data(),
-            reinterpret_cast<const char*>(buffer.GetUnderlying().data()),
+            reinterpret_cast<const char*>(raw_buffer_payload.data()),
             size
         );
     }
@@ -79,11 +82,15 @@ struct StringBinaryFormatter {
     }
 };
 
-struct CommonStringBinaryFormatter {
+struct CommonStringBinaryFormatter
+    : BufferFormatterBase<std::string>,
+      ValueFormattingMixin<CommonStringBinaryFormatter> {
     using SizeType = Short;
-    std::string value;
-    explicit CommonStringBinaryFormatter(const std::string& val)
-        : value(val.data(), val.size()) {}
+    using BaseType = BufferFormatterBase<std::string>;
+    using BaseType::BaseType;
+
+    using Mixin = ValueFormattingMixin<CommonStringBinaryFormatter>;
+    using Mixin::operator();
 
     void operator()(protocol::RawBuffer& buffer) const {
         auto size = static_cast<SizeType>(value.size());
@@ -107,7 +114,7 @@ struct CommonStringBinaryFormatter {
             reinterpret_cast<const std::byte*>(value.data()),
             value.size()
         );
-        buffer = Bytes{std::move(dest)};
+        buffer.payload = std::move(dest);
     }
 };
 }  // namespace detail

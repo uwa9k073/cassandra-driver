@@ -53,13 +53,13 @@ jobs:
 
       - name: Unit tests
         run: |
-          run_as_user.sh ctest --test-dir ${{ matrix.build_dir }} --output-on-failure \
+          run_as_user.sh ctest -V --test-dir ${{ matrix.build_dir }} --output-on-failure \
             -R "^userver-cql-driver_unittest$"
 
       - name: Benchmarks (release only)
         if: matrix.build_dir == 'build_release'
         run: |
-          run_as_user.sh ctest --test-dir ${{ matrix.build_dir }} --output-on-failure \
+          run_as_user.sh -V --test-dir ${{ matrix.build_dir }} --output-on-failure \
             -R "^userver-cql-driver_benchmark$"
 
       - name: Install check (release only)

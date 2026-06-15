@@ -1,3 +1,4 @@
+#include <cassandra/batch_query.hpp>
 #include <cassandra/detail/query_parameters.hpp>
 #include <cassandra/io/buffer_writer.hpp>
 #include <cassandra/io/cassandra_types.hpp>
@@ -10,7 +11,6 @@
 #include <unordered_map>
 #include <userver/logging/log.hpp>
 #include <vector>
-#include <cassandra/batch_query.hpp>
 
 namespace cassandra::io::protocol {
 class RequestMessage : public Message {

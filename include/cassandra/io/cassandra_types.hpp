@@ -32,10 +32,8 @@ using Date = userver::utils::datetime::Date;
 // any sequence of bytes
 using Blob = std::vector<std::byte>;
 
-// we highly recommend usage of this types for cassandra string fields
-// and rows cause they have protocol accurate IO-operations
-using ShortBytes = userver::utils::StrongTypedef<Short, std::vector<std::byte>>;
-using Bytes = userver::utils::StrongTypedef<Int, std::vector<std::byte>>;
+struct Bytes;
+struct ShortBytes;
 
 using String = userver::utils::StrongTypedef<Short, std::string>;
 using LongString = userver::utils::StrongTypedef<Int, std::string>;
@@ -46,4 +44,6 @@ using StringMap = std::unordered_map<String, String>;
 using StringMultiMap = std::unordered_map<String, StringList>;
 
 using BytesMap = std::unordered_map<String, Bytes>;
+
+struct Value;
 }  // namespace cassandra::io

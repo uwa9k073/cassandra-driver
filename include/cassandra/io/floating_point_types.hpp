@@ -60,13 +60,24 @@ struct FloatingPointBinaryParser : detail::BufferParserBase<T> {
 };
 
 template <class T>
-struct FloatingPointBinaryFormatter {
-    T value_;
+struct FloatingPointBinaryFormatter
+    : ValueFormattingMixin<IntegralBinaryFormatter<T>> {
+    using Mixin = ValueFormattingMixin<IntegralBinaryFormatter<T>>;
 
-    explicit FloatingPointBinaryFormatter(T value) : value_(value) {}
+    using Mixin::operator();
+
+    T _value;
+
+    explicit FloatingPointBinaryFormatter(T value) : _value(value) {}
 
     void operator()(protocol::RawBuffer& buf) {
-        FloatingPointBySizeFormatter<sizeof(T)>::FormatBuffer(buf, value_);
+        FloatingPointBySizeFormatter<sizeof(T)>::FormatBuffer(buf, _value);
+    }
+
+    void operator()(Bytes& buffer) {
+        Bytes::UnderlyingType buf;
+        FloatingPointBySizeFormatter<sizeof(T)>::FormatBuffer(buf, _value);
+        buffer.payload = std::move(buf);
     }
 };
 }  // namespace detail

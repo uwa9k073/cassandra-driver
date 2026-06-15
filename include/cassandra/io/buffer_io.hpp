@@ -1,6 +1,5 @@
 #pragma once
 
-#include <boost/endian/conversion.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/protocol/types.hpp>
 #include <cassandra/io/traits.hpp>
@@ -40,6 +39,13 @@ void WriteBuffer(protocol::RawBuffer& data, const T& value) {
 
 template <class T>
 void WriteBuffer(Bytes& data, const T& value) {
+    using Formatter = typename traits::IO<T>::FormatterType;
+    Formatter formatter(value);
+    formatter(data);
+}
+
+template <class T>
+void WriteBuffer(Value& data, const T& value) {
     using Formatter = typename traits::IO<T>::FormatterType;
     Formatter formatter(value);
     formatter(data);
