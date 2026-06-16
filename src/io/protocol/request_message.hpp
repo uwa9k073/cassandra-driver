@@ -113,7 +113,7 @@ public:
             writer.Write<Short>(params.Size());
             auto* buffers = params.ParamBuffers();
             for (std::size_t i = 0; i < params.Size(); ++i) {
-                writer.Write<io::Bytes>(buffers[i]);
+                writer.Write<io::Value>(buffers[i]);
             }
         }
     }
@@ -162,7 +162,7 @@ public:
             writer.Write<Short>(_params.Size());
             auto* buffers = _params.ParamBuffers();
             for (std::size_t i = 0; i < _params.Size(); ++i) {
-                writer.Write<io::Bytes>(buffers[i]);
+                writer.Write<io::Value>(buffers[i]);
             }
         }
     }
@@ -205,7 +205,7 @@ public:
                 const auto* buffers = batch_query.params.ParamBuffers();
                 for (std::size_t i = 0; i < batch_query.params.Size(); ++i) {
                     LOG_DEBUG("WRITING PARAM: {}", i);
-                    writer.Write<io::Bytes>(buffers[i]);
+                    writer.Write<io::Value>(buffers[i]);
                 }
             }
         }

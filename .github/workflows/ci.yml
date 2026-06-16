@@ -25,7 +25,6 @@ jobs:
             build_dir: build_debug
             os: ubuntu-24.04
             cmake_flags: >-
-              -DUSERVER_FEATURE_STACK_USAGE_MONITOR=OFF
               -DCMAKE_BUILD_TYPE=Debug
               -DUSERVER_SANITIZE="addr ub"
               -DCASSANDRA_BUILD_SAMPLES=OFF
@@ -35,7 +34,6 @@ jobs:
             id: ubuntu_clang18_cxx20
             os: ubuntu-24.04
             cmake_flags: >-
-              -DUSERVER_FEATURE_STACK_USAGE_MONITOR=OFF
               -DCMAKE_BUILD_TYPE=Release
               -DCASSANDRA_BUILD_SAMPLES=OFF
               -DCMAKE_CXX_FLAGS_RELEASE="-O3"
