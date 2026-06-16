@@ -23,14 +23,14 @@ public:
     template <class ParamsHolder>
     explicit QueryParameters(ParamsHolder& ph)
         : _size(ph.Size()), _values(ph.ParamBuffers()) {}
-    const io::Bytes* ParamBuffers() const { return _values; }
+    const io::Value* ParamBuffers() const { return _values; }
 
     bool Empty() const { return !_size; }
     std::size_t Size() const { return _size; }
 
 private:
     std::size_t _size = 0;
-    const io::Bytes* _values = {};
+    const io::Value* _values = {};
 };
 
 namespace detail {
@@ -44,7 +44,7 @@ public:
     StaticQueryParameters& operator=(const StaticQueryParameters&) = delete;
     StaticQueryParameters& operator=(StaticQueryParameters&&) = delete;
 
-    const io::Bytes* ParamBuffers() { return _args.data(); }
+    const io::Value* ParamBuffers() { return _args.data(); }
     std::size_t Size() const { return ParamsCount; }
 
     // i need also bind paramter names
@@ -71,14 +71,14 @@ public:
     }
 
 private:
-    std::array<io::Bytes, ParamsCount> _args;
+    std::array<io::Value, ParamsCount> _args;
 };
 
 template <>
 class StaticQueryParameters<0> {
 public:
     static std::size_t Size() { return 0; }
-    static const io::Bytes* ParamBuffers() { return nullptr; }
+    static const io::Value* ParamBuffers() { return nullptr; }
 
     static void Write() {}
 };
@@ -91,10 +91,10 @@ public:
     DynamicQueryParameters& operator=(const DynamicQueryParameters&) = delete;
     DynamicQueryParameters& operator=(DynamicQueryParameters&&) = delete;
 
-    const io::Bytes* ParamBuffers() { return _args->data(); }
+    const io::Value* ParamBuffers() { return _args->data(); }
     std::size_t Size() const { return _args->size(); }
 
-    std::shared_ptr<std::vector<io::Bytes>> ParamHolder() { return _args; }
+    std::shared_ptr<std::vector<io::Value>> ParamHolder() { return _args; }
     template <typename T>
     void Write(std::size_t index, const T& arg) {
         // add some checks for parameter type mapping
@@ -109,8 +109,8 @@ public:
     }
 
 private:
-    std::shared_ptr<std::vector<io::Bytes>> _args =
-        std::make_shared<std::vector<io::Bytes>>();
+    std::shared_ptr<std::vector<io::Value>> _args =
+        std::make_shared<std::vector<io::Value>>();
 };
 }  // namespace detail
 }  // namespace cassandra

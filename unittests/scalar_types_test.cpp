@@ -1,6 +1,3 @@
-#include <list>
-#include <map>
-#include <unordered_map>
 #include <userver/utest/utest.hpp>
 
 #include <gmock/gmock.h>
