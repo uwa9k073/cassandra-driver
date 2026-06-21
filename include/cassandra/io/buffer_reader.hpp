@@ -7,6 +7,7 @@
 #include <cassandra/io/bytes.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/floating_point_types.hpp>
+#include <cassandra/io/inet.hpp>
 #include <cassandra/io/integral_types.hpp>
 #include <cassandra/io/list_types.hpp>
 #include <cassandra/io/map_types.hpp>

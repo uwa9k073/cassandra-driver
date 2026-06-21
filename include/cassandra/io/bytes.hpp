@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cassandra/io/buffer_io.hpp>
+#include <cassandra/io/buffer_io_base.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/protocol/types.hpp>
 #include <cstring>
 #include <type_traits>
-#include "cassandra/io/buffer_io.hpp"
-#include "cassandra/io/buffer_io_base.hpp"
+#include "cassandra/exception.hpp"
 
 namespace cassandra::io {
 

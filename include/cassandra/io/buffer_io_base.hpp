@@ -10,6 +10,7 @@
 namespace cassandra::io::detail {
 template <typename T>
 struct BufferParserBase {
+    using BaseType = BufferParserBase<T>;
     using ValueType = T;
 
     ValueType& value;
@@ -18,6 +19,7 @@ struct BufferParserBase {
 
 template <typename T>
 struct BufferParserBase<T&&> {
+    using BaseType = BufferParserBase<T&&>;
     using ValueType = T;
 
     ValueType value;
@@ -26,6 +28,7 @@ struct BufferParserBase<T&&> {
 
 template <typename T>
 struct BufferFormatterBase {
+    using BaseType = BufferFormatterBase<T>;
     using ValueType = T;
     const ValueType& value;
     explicit BufferFormatterBase(const ValueType& v) : value{v} {}
