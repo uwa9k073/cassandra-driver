@@ -25,6 +25,7 @@ namespace detail {
 
 template <typename Derived>
 struct ValueFormattingMixin {
+    using Mixin = ValueFormattingMixin<Derived>;
     void operator()(Value& value) {
         Bytes payload;
         static_cast<Derived&>(*this)(payload);

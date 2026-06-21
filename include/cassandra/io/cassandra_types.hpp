@@ -13,7 +13,9 @@
 // map and etc described in the protocol notations
 namespace cassandra::io {
 using BigInt = std::int64_t;
+using UBigInt = std::uint64_t;
 using Int = std::int32_t;
+using UInt = std::uint32_t;
 using SmallInt = std::int16_t;
 using TinyInt = std::int8_t;
 
@@ -25,7 +27,8 @@ using Boolean = bool;
 using Double = double;
 using Float = float;
 
-using Inet = userver::utils::ip::InetNetwork;
+using InetV4 = userver::utils::ip::AddressV4;
+using InetV6 = userver::utils::ip::AddressV6;
 
 using Date = userver::utils::datetime::Date;
 

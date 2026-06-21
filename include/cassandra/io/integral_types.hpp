@@ -6,6 +6,7 @@
 #include <cassandra/io/protocol/types.hpp>
 #include <cassandra/io/value.hpp>
 #include <cstddef>
+#include "cassandra/io/traits.hpp"
 
 namespace cassandra::io {
 namespace detail {
@@ -152,6 +153,24 @@ struct BufferParser<Short> : detail::IntegralBinaryParser<Short> {
 template <>
 struct BufferFormatter<Short> : detail::IntegralBinaryFormatter<Short> {
     explicit BufferFormatter(Short val) : IntegralBinaryFormatter(val) {}
+};
+
+template <>
+struct BufferParser<UInt> : detail::IntegralBinaryParser<UInt> {
+    explicit BufferParser(UInt& val) : IntegralBinaryParser(val) {}
+};
+template <>
+struct BufferFormatter<UInt> : detail::IntegralBinaryFormatter<UInt> {
+    explicit BufferFormatter(UInt val) : IntegralBinaryFormatter(val) {}
+};
+
+template <>
+struct BufferParser<UBigInt> : detail::IntegralBinaryParser<UBigInt> {
+    explicit BufferParser(UBigInt& val) : IntegralBinaryParser(val) {}
+};
+template <>
+struct BufferFormatter<UBigInt> : detail::IntegralBinaryFormatter<UBigInt> {
+    explicit BufferFormatter(UBigInt val) : IntegralBinaryFormatter(val) {}
 };
 
 }  // namespace cassandra::io
