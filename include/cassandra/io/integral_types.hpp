@@ -1,37 +1,89 @@
 #pragma once
 
+#include <boost/endian/conversion.hpp>
 #include <cassandra/io/buffer_io_base.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/protocol/types.hpp>
+#include <cassandra/io/value.hpp>
 #include <cstddef>
+#include "cassandra/io/traits.hpp"
 
-namespace cassandra::io::detail {
+namespace cassandra::io {
+namespace detail {
+
+inline void EnsureSize(size_t offset, size_t required, size_t data_size) {
+    if (offset + required > data_size) {
+        throw std::runtime_error("Buffer underread");
+    }
+}
+
+template <class It, class T>
+void WriteIntBE(It begin, It end, const T& value) {
+    size_t size = sizeof(T);
+    if ((size_t)(end - begin) < size) {
+        throw std::out_of_range("buffer is too small");
+    }
+    auto tmp = boost::endian::native_to_big(value);
+    auto* ptr = reinterpret_cast<std::byte*>(&tmp);
+
+    std::memcpy(begin, ptr, size);
+}
+
+template <std::integral T>
+[[nodiscard]] T ReadIntBE(protocol::RawBufferView data, size_t& offset) {
+    EnsureSize(offset, sizeof(T), data.size());
+    T value;
+    std::memcpy(&value, data.data() + offset, sizeof(T));
+    offset += sizeof(T);
+    return boost::endian::big_to_native(value);
+}
+
+template <std::integral T>
+void WriteIntBE(protocol::RawBuffer& data, T value) {
+    auto size = sizeof(T);
+    if (data.capacity() < data.size() + size) {
+        data.reserve(data.size() + size);
+    }
+    auto tmp = boost::endian::native_to_big(value);
+    auto* ptr = reinterpret_cast<std::byte*>(&tmp);
+    auto* end = ptr + size;
+    std::copy(ptr, end, std::back_inserter(data));
+}
 
 template <typename T>
 struct IntegralBinaryParser : BufferParserBase<T> {
     using BaseType = BufferParserBase<T>;
     using BaseType::BaseType;
 
-    void operator()(std::span<const std::byte> data, size_t& offset) {
+    void operator()(protocol::RawBufferView data, size_t& offset) {
         this->value = ReadIntBE<T>(data, offset);
     }
 
     void operator()(const Bytes& buffer) {
+        const auto& raw_buffer_payload =
+            std::get<Bytes::UnderlyingType>(buffer.payload);
         size_t offset = 0;
-        this->value = ReadIntBE<T>(buffer.GetUnderlying(), offset);
+        this->value = ReadIntBE<T>(raw_buffer_payload, offset);
     }
 };
 
 template <typename T>
-struct IntegralBinaryFormatter {
+struct IntegralBinaryFormatter : ValueFormattingMixin<IntegralBinaryFormatter<T>> {
+    using Mixin = ValueFormattingMixin<IntegralBinaryFormatter<T>>;
+
+    using Mixin::operator();
+
     T value;
     explicit IntegralBinaryFormatter(T value) : value(value) {}
     void operator()(protocol::RawBuffer& buffer) { WriteIntBE(buffer, this->value); }
 
     void operator()(Bytes& buffer) {
-        WriteIntBE(buffer.GetUnderlying(), this->value);
+        Bytes::UnderlyingType raw_buffer;
+        WriteIntBE(raw_buffer, this->value);
+        buffer.payload = std::move(raw_buffer);
     }
 };
+}  // namespace detail
 
 template <>
 struct BufferParser<Boolean> : detail::IntegralBinaryParser<Boolean> {
@@ -103,4 +155,22 @@ struct BufferFormatter<Short> : detail::IntegralBinaryFormatter<Short> {
     explicit BufferFormatter(Short val) : IntegralBinaryFormatter(val) {}
 };
 
-}  // namespace cassandra::io::detail
+template <>
+struct BufferParser<UInt> : detail::IntegralBinaryParser<UInt> {
+    explicit BufferParser(UInt& val) : IntegralBinaryParser(val) {}
+};
+template <>
+struct BufferFormatter<UInt> : detail::IntegralBinaryFormatter<UInt> {
+    explicit BufferFormatter(UInt val) : IntegralBinaryFormatter(val) {}
+};
+
+template <>
+struct BufferParser<UBigInt> : detail::IntegralBinaryParser<UBigInt> {
+    explicit BufferParser(UBigInt& val) : IntegralBinaryParser(val) {}
+};
+template <>
+struct BufferFormatter<UBigInt> : detail::IntegralBinaryFormatter<UBigInt> {
+    explicit BufferFormatter(UBigInt val) : IntegralBinaryFormatter(val) {}
+};
+
+}  // namespace cassandra::io

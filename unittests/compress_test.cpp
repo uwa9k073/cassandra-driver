@@ -1,11 +1,11 @@
-#include <gtest/gtest.h>
 #include <cassandra/io/buffer_reader.hpp>
 #include <cassandra/io/buffer_writer.hpp>
 #include <cassandra/io/cassandra_types.hpp>
 #include <cassandra/io/protocol/lz4_utils.hpp>
 #include <cassandra/io/protocol/types.hpp>
+#include <userver/utest/utest.hpp>
 
-TEST(Lz4Compressor, Compress) {
+UTEST(Lz4Compressor, Compress) {
     cassandra::io::String input("Hello, World!");
     cassandra::io::protocol::RawBuffer input_buffer, output_buffer;
     cassandra::io::BufferWriter writer(input_buffer);
@@ -21,7 +21,7 @@ TEST(Lz4Compressor, Compress) {
     EXPECT_EQ(compressed_size, input_buffer.size());
 }
 
-TEST(Lz4Compressor, Decompress) {
+UTEST(Lz4Compressor, Decompress) {
     cassandra::io::String input("Hello, World!");
     cassandra::io::protocol::RawBuffer input_buffer, output_buffer;
     cassandra::io::BufferWriter writer(input_buffer);

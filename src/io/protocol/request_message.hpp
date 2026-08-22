@@ -1,3 +1,4 @@
+#include <cassandra/batch_query.hpp>
 #include <cassandra/detail/query_parameters.hpp>
 #include <cassandra/io/buffer_writer.hpp>
 #include <cassandra/io/cassandra_types.hpp>
@@ -9,9 +10,7 @@
 #include <cstdint>
 #include <unordered_map>
 #include <userver/logging/log.hpp>
-#include <variant>
 #include <vector>
-#include "cassandra/batch_query.hpp"
 
 namespace cassandra::io::protocol {
 class RequestMessage : public Message {
@@ -114,7 +113,7 @@ public:
             writer.Write<Short>(params.Size());
             auto* buffers = params.ParamBuffers();
             for (std::size_t i = 0; i < params.Size(); ++i) {
-                writer.Write<io::Bytes>(buffers[i]);
+                writer.Write<io::Value>(buffers[i]);
             }
         }
     }
@@ -163,7 +162,7 @@ public:
             writer.Write<Short>(_params.Size());
             auto* buffers = _params.ParamBuffers();
             for (std::size_t i = 0; i < _params.Size(); ++i) {
-                writer.Write<io::Bytes>(buffers[i]);
+                writer.Write<io::Value>(buffers[i]);
             }
         }
     }
@@ -206,7 +205,7 @@ public:
                 const auto* buffers = batch_query.params.ParamBuffers();
                 for (std::size_t i = 0; i < batch_query.params.Size(); ++i) {
                     LOG_DEBUG("WRITING PARAM: {}", i);
-                    writer.Write<io::Bytes>(buffers[i]);
+                    writer.Write<io::Value>(buffers[i]);
                 }
             }
         }

@@ -8,6 +8,7 @@
 #include <cassandra/io/protocol/types.hpp>
 #include <cstring>
 #include <userver/logging/log.hpp>
+#include "cassandra/io/integral_types.hpp"
 
 namespace cassandra::io::protocol {
 

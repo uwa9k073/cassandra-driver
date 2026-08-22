@@ -1,0 +1,69 @@
+name: Ubuntu
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - develop
+      - 'feature/**'
+
+env:
+  CC: clang-18
+  CXX: clang++-18
+
+jobs:
+  test:
+    container:
+      image: kostuwan/ubuntu24.04-userver-ci:v3.0-core
+
+    strategy:
+      matrix:
+        include:
+          - info: debug + clang++-18 + cxx20
+            id: ubuntu_clang18_cxx20
+            build_dir: build_debug
+            os: ubuntu-24.04
+            cmake_flags: >-
+              -DCMAKE_BUILD_TYPE=Debug
+              -DUSERVER_SANITIZE="addr ub"
+              -DCASSANDRA_BUILD_SAMPLES=OFF
+
+          - build_dir: build_release
+            info: release + clang++-18 + cxx20
+            id: ubuntu_clang18_cxx20
+            os: ubuntu-24.04
+            cmake_flags: >-
+              -DCMAKE_BUILD_TYPE=Release
+              -DCASSANDRA_BUILD_SAMPLES=OFF
+              -DCMAKE_CXX_FLAGS_RELEASE="-O3"
+
+    name: '${{matrix.os}}: ${{matrix.info}}'
+    runs-on: ${{matrix.os}}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: |
+          run_as_user.sh cmake -B ${{ matrix.build_dir }} -GNinja ${{ matrix.cmake_flags }}
+
+      - name: Build
+        run: |
+          run_as_user.sh cmake --build ${{ matrix.build_dir }} --parallel
+
+      - name: Unit tests
+        run: |
+          run_as_user.sh ctest -V --test-dir ${{ matrix.build_dir }} --output-on-failure \
+            -R "^userver-cql-driver_unittest$"
+
+      - name: Benchmarks (release only)
+        if: matrix.build_dir == 'build_release'
+        run: |
+          run_as_user.sh ctest -V --test-dir ${{ matrix.build_dir }} --output-on-failure \
+            -R "^userver-cql-driver_benchmark$"
+
+      - name: Install check (release only)
+        if: matrix.build_dir == 'build_release'
+        run: |
+          run_as_user.sh cmake --install build_release --prefix install
+          test -f install/lib/cmake/userver-cql-driver/userver-cql-driverConfig.cmake
