@@ -5,6 +5,9 @@
 #include <cassandra/io/integral_types.hpp>
 #include <cassandra/io/list_types.hpp>
 #include <cassandra/io/string_types.hpp>
+#include "cassandra/io/buffer_io.hpp"
+#include "cassandra/io/bytes.hpp"
+#include "cassandra/io/protocol/types.hpp"
 
 namespace cassandra::io {
 
@@ -37,13 +40,27 @@ struct MapBinaryParser : BufferParserBase<Map> {
     using MappedType = typename Map::mapped_type;
     using LenType = typename MapLenBySize<Size>::type;
 
-    void operator()(std::span<const std::byte> data, size_t& offset) {
+    void operator()(protocol::RawBufferView data, size_t& offset) {
         size_t count = ReadBuffer<LenType>(data, offset);
 
         for (size_t i = 0; i < count; ++i) {
             auto key = ReadBuffer<KeyType>(data, offset);
             auto value = ReadBuffer<MappedType>(data, offset);
             this->value.emplace(std::move(key), std::move(value));
+        }
+    }
+
+    void operator()(const Bytes& bytes) {
+        protocol::RawBufferView payload = std::get<1>(bytes.payload);
+        std::size_t offset = 0;
+        auto size = ReadBuffer<LenType>(payload, offset);
+
+        for (size_t i = 0; i < size; ++i) {
+            auto key = ReadBuffer<Bytes>(payload, offset);
+            auto value = ReadBuffer<Bytes>(payload, offset);
+            this->value.emplace(
+                ReadBuffer<KeyType>(key), ReadBuffer<MappedType>(value)
+            );
         }
     }
 };
