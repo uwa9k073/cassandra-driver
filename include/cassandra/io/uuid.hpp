@@ -21,6 +21,7 @@ struct UuidParser : BufferParserBase<boost::uuids::uuid> {
             std::get<Bytes::UnderlyingType>(buffer.payload);
 
         auto size = boost::uuids::uuid::static_size();
+        boost::uuids::uuid::version_time_based;
 
         if (view.size() != size) {
             throw std::exception();

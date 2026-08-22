@@ -6,6 +6,7 @@
 #include <cassandra/io/protocol/types.hpp>
 #include <cassandra/io/string_types.hpp>
 #include <concepts>
+#include "cassandra/io/bytes.hpp"
 namespace cassandra::io {
 
 //  [list]          A [int] n indicating the number of elements in the
@@ -39,13 +40,34 @@ struct ListBinaryParser : BufferParserBase<Container> {
     using BaseType::BaseType;
 
     using ElementType = typename Container::value_type;
-    using LenType = typename ListLenBySize<Size>::type;
-
+    using SizeType = typename ListLenBySize<Size>::type;
+    // Notation list:
     void operator()(protocol::RawBufferView data, size_t& offset) {
-        size_t count = ReadBuffer<LenType>(data, offset);
+        size_t count = ReadBuffer<SizeType>(data, offset);
         // this->value.reserve(count);
         for (size_t i = 0; i < count; ++i) {
             this->value.push_back(ReadBuffer<ElementType>(data, offset));
+        }
+    }
+
+    // Column list:
+    // A [int] n indicating the number of elements in the list, followed by n
+    // elements.  Each element is [bytes] representing the serialized value.
+    void operator()(const Bytes& buffer) {
+        protocol::RawBufferView payload = std::get<1>(buffer.payload);
+        std::size_t offset = 0;
+        auto count = ReadBuffer<SizeType>(payload, offset);
+        this->value.reserve(count);
+        for (std::size_t i = 0; i < count; ++i) {
+            // each element is [bytes] representing the serialized value
+            //  so we read len of [bytes] and then memcpy the needed data by that
+            //  length to cassandra::io::Bytes, and after that we read element from
+            //  [bytes]
+            auto element_size = ReadBuffer<SizeType>(payload, offset);
+            this->value.push_back(ReadBuffer<ElementType>(
+                Bytes{.payload = payload.subspan(offset, element_size)}
+            ));
+            offset += element_size;
         }
     }
 };
@@ -73,6 +95,9 @@ struct ListBinaryFormatter : BufferFormatterBase<Container> {
         }
     }
 
+    // Column list:
+    // A [int] n indicating the number of elements in the list, followed by n
+    // elements.  Each element is [bytes] representing the serialized value.
     void operator()(Bytes& buffer) {
         Bytes::UnderlyingType underlying;
         WriteBuffer<SizeType>(underlying, this->value.size());
