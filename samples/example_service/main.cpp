@@ -144,7 +144,7 @@ userver::formats::json::Value Cassandra::HandleRequestJsonThrow(
     RequestContext& /*context*/
 ) const {
     if (_session_ptr) {
-        auto id = request_json["id"].As<int>();
+        auto id = userver::utils::generators::
         auto name = request_json["name"].As<std::string>();
 
         auto result = _session_ptr->Execute(
