@@ -10,7 +10,7 @@
 
 namespace cassandra {
 Session::Session(
-    std::vector<NodeDescription> node_description,
+    std::span<NodeDescription> node_description,
     userver::clients::dns::Resolver* resolver,
     userver::engine::TaskProcessor& task_processor,
     SessionSettings session_settings,

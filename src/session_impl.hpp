@@ -3,6 +3,7 @@
 #include <cassandra/options.hpp>
 #include <cassandra/session.hpp>
 #include <detail/connection_pool.hpp>
+#include <detail/routing/routing_base.hpp>
 #include <memory>
 #include <userver/rcu/rcu.hpp>
 
@@ -10,7 +11,7 @@ namespace cassandra::detail {
 class SessionImpl {
 public:
     SessionImpl(
-        std::vector<NodeDescription> node_description,
+        std::span<NodeDescription> node_description,
         userver::clients::dns::Resolver* resolver,
         userver::engine::TaskProcessor& task_processor,
         SessionSettings session_settings,
@@ -30,7 +31,7 @@ public:
 
 private:
     std::shared_ptr<ConnectionPool> FindPool();
-    void CreateTopology(std::vector<NodeDescription> node_description);
+    void CreateTopology(std::span<NodeDescription> node_description);
     userver::clients::dns::Resolver* resolver_{};
     userver::engine::TaskProcessor& bg_task_processor_;
     userver::rcu::Variable<SessionSettings> _session_settings;
@@ -39,6 +40,8 @@ private:
     // const error_injection::Settings ei_settings_;
     USERVER_NAMESPACE::utils::statistics::MetricsStoragePtr metrics_;
 
-    std::vector<std::shared_ptr<ConnectionPool>> _pools;
+    // std::vector<std::shared_ptr<ConnectionPool>> _pools;
+    //
+    std::unique_ptr<cassandra::detail::routing::PolicyBase> _routing_policy;
 };
 }  // namespace cassandra::detail

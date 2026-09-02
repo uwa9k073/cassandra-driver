@@ -133,6 +133,7 @@ Cassandra::Cassandra(
 
     cassandra::SessionSettings session_settings{
         .keyspace_name = keyspace,
+        .load_balancing_policy = "RoundRobin",
         .pool_settings = pool_settings,
         .connection_settings = connection_settings
     };

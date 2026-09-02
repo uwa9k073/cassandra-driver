@@ -163,7 +163,7 @@ void ConnectionPool::Init(InitMode init_mode) {
 userver::engine::TaskWithResult<bool> ConnectionPool::Connect(
     userver::engine::SemaphoreLock lock, ConnectionSettings&& conn_settings
 ) {
-    return userver::engine::AsyncNoSpan([this,
+    return userver::engine::AsyncNoTracing([this,
                                          size_lock = std::move(lock),
                                          conn_settings =
                                              std::move(conn_settings)]() mutable {
