@@ -156,7 +156,7 @@ userver::engine::Task ConnectionImpl::Close() {
     userver::engine::io::Socket tmp_sock = std::exchange(_socket, {});
 
     // NOLINTNEXTLINE(cppcoreguidelines-slicing)
-    return userver::engine::CriticalAsyncNoSpan(
+    return userver::engine::CriticalAsyncNoTracing(
         _bg_task_processor,
         [socket = std::move(tmp_sock),
          sl = std::move(_pool_size_lock),
@@ -180,7 +180,7 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessageAsy
     StreamGuard guard(_stream_pool);
     message->SetStreamId(guard.GetStreamId());
 
-    auto task = userver::engine::CriticalAsyncNoSpan(
+    auto task = userver::engine::CriticalAsyncNoTracing(
         _bg_task_processor,
         [this, request = std::move(message), deadline]() mutable {
             SendMessage(std::move(request), deadline);
@@ -213,7 +213,7 @@ std::shared_ptr<io::protocol::ResponseMessage> ConnectionImpl::ExecuteMessage(
 }
 
 void ConnectionImpl::StartReceiverLoop() {
-    _receiver_task = userver::engine::CriticalAsyncNoSpan(
+    _receiver_task = userver::engine::CriticalAsyncNoTracing(
         _bg_task_processor, [this]() { ReceiverLoop(); }
     );
 }

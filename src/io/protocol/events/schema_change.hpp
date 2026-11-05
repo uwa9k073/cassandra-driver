@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassandra/io/buffer_reader.hpp>
+#include <variant>
 
 namespace cassandra::io::protocol::events {
 
