@@ -24,7 +24,7 @@
 namespace cassandra::detail {
 class ConnectionImpl {
     using RecvMessageQueue = userver::concurrent::SpscQueue<
-        std::shared_ptr<io::protocol::ResponseMessage>>;
+        std::unique_ptr<io::protocol::ResponseMessage>>;
 
 public:
     ConnectionImpl(
@@ -104,16 +104,16 @@ private:
         std::unique_ptr<io::protocol::RequestMessage> message,
         userver::engine::Deadline deadline
     );
-    std::shared_ptr<io::protocol::ResponseMessage> ReadFrame(
+    std::unique_ptr<io::protocol::ResponseMessage> ReadFrame(
         userver::engine::Deadline deadline,
         io::protocol::Compressor* compressor = nullptr
     );
 
-    std::shared_ptr<io::protocol::ResponseMessage> ExecuteMessage(
+    std::unique_ptr<io::protocol::ResponseMessage> ExecuteMessage(
         io::protocol::RequestMessage&& message, userver::engine::Deadline deadline
     );
 
-    std::shared_ptr<io::protocol::ResponseMessage> ExecuteMessageAsync(
+    std::unique_ptr<io::protocol::ResponseMessage> ExecuteMessageAsync(
         std::unique_ptr<io::protocol::RequestMessage> message,
         userver::engine::Deadline deadline
     );
