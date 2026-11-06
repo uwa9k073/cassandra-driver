@@ -15,7 +15,7 @@ env:
 jobs:
   test:
     container:
-      image: kostuwan/ubuntu24.04-userver-ci:v3.0-core
+      image: kostuwan/ubuntu24.04-userver-ci:v3.2-core
 
     strategy:
       matrix:
