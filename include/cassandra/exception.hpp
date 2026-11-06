@@ -9,6 +9,23 @@ class Error : public std::runtime_error {
     using runtime_error::runtime_error;
 };
 
+class LogicError : public Error {
+    using Error::Error;
+};
+
+class ResultSetError : public LogicError {
+public:
+    ResultSetError(std::string msg);
+
+    void AddMsgSuffix(std::string_view str) { _msg += str; };
+    void AddMsgPrefix(std::string_view str) { _msg.insert(0, str); };
+
+    const char* what() const noexcept override { return _msg.c_str(); }
+
+private:
+    std::string _msg;
+};
+
 class RuntimeError : public Error {
     using Error::Error;
 };

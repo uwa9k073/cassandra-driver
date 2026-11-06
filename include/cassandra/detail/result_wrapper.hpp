@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassandra/cassandra_fwd.hpp>
+#include <cassandra/io/bytes.hpp>
 #include <cassandra/io/protocol/types.hpp>
 
 namespace cassandra::detail {

@@ -9,6 +9,7 @@
 #include <userver/utils/string_literal.hpp>
 #include <userver/utils/zstring_view.hpp>
 #include <utility>
+#include "cassandra/io/value.hpp"
 
 namespace cassandra {
 
@@ -180,7 +181,7 @@ private:
 
     /// @brief Shared pointer holding the parameter data for proper lifetime
     /// management
-    std::shared_ptr<std::vector<io::Bytes>> _params_holder;
+    std::shared_ptr<std::vector<io::Value>> _params_holder;
 };
 
 /**
