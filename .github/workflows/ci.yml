@@ -20,18 +20,8 @@ jobs:
     strategy:
       matrix:
         include:
-<<<<<<< HEAD
-<<<<<<< HEAD
           - info: debug + clang++-18 + cxx20
             id: ubuntu_clang18_cxx20
-=======
-          - name: debug
-            info: debug clang++-18 + cxx20
->>>>>>> dbdf39e (fix: wip)
-=======
-          - info: debug + clang++-18 + cxx20
-            id: ubuntu_clang18_cxx20
->>>>>>> a5bcdd2 (fix: wip)
             build_dir: build_debug
             os: ubuntu-24.04
             cmake_flags: >-
@@ -39,22 +29,10 @@ jobs:
               -DUSERVER_SANITIZE="addr ub"
               -DCASSANDRA_BUILD_SAMPLES=OFF
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> a5bcdd2 (fix: wip)
           - build_dir: build_release
             info: release + clang++-18 + cxx20
             id: ubuntu_clang18_cxx20
             os: ubuntu-24.04
-<<<<<<< HEAD
-=======
-          - name: release
-            build_dir: build_release
-            info: release clang++-18 + cxx20
->>>>>>> dbdf39e (fix: wip)
-=======
->>>>>>> a5bcdd2 (fix: wip)
             cmake_flags: >-
               -DCMAKE_BUILD_TYPE=Release
               -DCASSANDRA_BUILD_SAMPLES=OFF
@@ -76,7 +54,6 @@ jobs:
       - name: Unit tests
         run: |
           run_as_user.sh ctest -V --test-dir ${{ matrix.build_dir }} --output-on-failure \
-<<<<<<< HEAD
             -R "^userver-cql-driver_unittest$"
 
       - name: Benchmarks (release only)
@@ -90,22 +67,3 @@ jobs:
         run: |
           run_as_user.sh cmake --install build_release --prefix install
           test -f install/lib/cmake/userver-cql-driver/userver-cql-driverConfig.cmake
-      - name: Unit tests
-        run: |
-          run_as_user.sh ctest --test-dir ${{ matrix.build_dir }} --output-on-failure \
-=======
->>>>>>> 8133db2 (fix: wip)
-            -R "^userver-cql-driver_unittest$"
-
-      - name: Benchmarks (release only)
-        if: matrix.build_dir == 'build_release'
-        run: |
-          run_as_user.sh ctest -V --test-dir ${{ matrix.build_dir }} --output-on-failure \
-            -R "^userver-cql-driver_benchmark$"
-
-      - name: Install check (release only)
-        if: matrix.build_dir == 'build_release'
-        run: |
-          run_as_user.sh cmake --install build_release --prefix install
-          test -f install/lib/cmake/userver-cql-driver/userver-cql-driverConfig.cmake
-
