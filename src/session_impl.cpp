@@ -1,13 +1,15 @@
 #include <cassandra/exception.hpp>
 #include <cassandra/options.hpp>
 #include <detail/connection_pool.hpp>
+#include <detail/routing/round_robin_routing.hpp>
 #include <memory>
 #include <session_impl.hpp>
+#include "cassandra/exception.hpp"
 
 namespace cassandra::detail {
 
 SessionImpl::SessionImpl(
-    std::vector<NodeDescription> node_description,
+    std::span<NodeDescription> node_description,
     userver::clients::dns::Resolver* resolver,
     userver::engine::TaskProcessor& task_processor,
     SessionSettings session_settings,
@@ -20,7 +22,7 @@ SessionImpl::SessionImpl(
     CreateTopology(node_description);
 }
 
-void SessionImpl::CreateTopology(std::vector<NodeDescription> node_description) {
+void SessionImpl::CreateTopology(std::span<NodeDescription> node_description) {
     if (node_description.empty()) {
         throw exceptions::SessionError{
             "Cannont create session from an empty node list"
@@ -31,9 +33,9 @@ void SessionImpl::CreateTopology(std::vector<NodeDescription> node_description) 
 
     LOG_DEBUG("Starting pools initialization");
 
-    for (const auto& node : node_description) {
-        auto pool = ConnectionPool::Create(
-            node,
+    if (session_settings->load_balancing_policy == "RoundRobin") {
+        this->_routing_policy = std::make_unique<routing::RoundRobinPolicy>(
+            node_description,
             resolver_,
             bg_task_processor_,
             session_settings->keyspace_name,
@@ -42,13 +44,15 @@ void SessionImpl::CreateTopology(std::vector<NodeDescription> node_description) 
             session_settings->connection_settings,
             metrics_
         );
-
-        _pools.emplace_back(pool);
+    } else {
+        throw exceptions::SessionError("invalid load_balancing_policy");
     }
     LOG_DEBUG("Pool initialize");
 }
 
-std::shared_ptr<ConnectionPool> SessionImpl::FindPool() { return _pools.front(); }
+std::shared_ptr<ConnectionPool> SessionImpl::FindPool() {
+    return _routing_policy->FindPool();
+}
 
 ResultSet SessionImpl::Execute(
     Consistency level,

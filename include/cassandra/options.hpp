@@ -609,7 +609,7 @@ struct SessionSettings {
      * @endcode
      */
     std::string keyspace_name;
-
+    std::string load_balancing_policy;
     /**
      * @brief Connection pool settings
      *

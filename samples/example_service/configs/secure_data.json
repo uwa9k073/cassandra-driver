@@ -9,6 +9,20 @@
                         "allow-all": true,
                         "contact-point": "localhost",
                         "port": 9042
+                    },
+                    {
+                        "use-ssl": false,
+                        "use-compression": false,
+                        "allow-all": true,
+                        "contact-point": "localhost",
+                        "port": 9043
+                    },
+                    {
+                        "use-ssl": false,
+                        "use-compression": false,
+                        "allow-all": true,
+                        "contact-point": "localhost",
+                        "port": 9044
                     }
                 ]
             }
