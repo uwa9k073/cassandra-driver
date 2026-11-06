@@ -6,6 +6,7 @@
 #include <cassandra/io/protocol/types.hpp>
 #include <cstring>
 #include <type_traits>
+#include <variant>
 #include "cassandra/exception.hpp"
 
 namespace cassandra::io {

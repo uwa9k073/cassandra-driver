@@ -1,7 +1,6 @@
 #pragma once
 
 #include <bits/chrono.h>
-#include <date/date.h>
 #include <cassandra/io/buffer_io.hpp>
 #include <cassandra/io/buffer_io_base.hpp>
 #include <cassandra/io/bytes.hpp>
