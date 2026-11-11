@@ -124,7 +124,7 @@ std::unique_ptr<Connection> Connection::Connect(
     auto resolved = TryResolveContactPoint(
         description.contact_point, description.port, resolver, deadline
     );
-    conn->_pimpl->AsyncConnect(resolved, description.use_compression, deadline);
+    conn->_pimpl->AsyncConnect(resolved, description.use_compression, description.password_authetificator, deadline);
 
     return conn;
 }

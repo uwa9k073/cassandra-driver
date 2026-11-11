@@ -218,7 +218,49 @@ void ConnectionImpl::StartReceiverLoop() {
     );
 }
 
-void ConnectionImpl::CqlHandshake(bool use_compression) {
+namespace {
+enum class AuthentificatorType { kAllowAll, kPassword };
+
+constexpr userver::utils::TrivialBiMap kAuthentificatorTypeToString =
+    [](auto selector) {
+        return selector()
+            .Case(
+                AuthentificatorType::kAllowAll,
+                "org.apache.cassandra.auth.AllowAllAuthentificator"
+            )
+            .Case(
+                AuthentificatorType::kPassword,
+                "org.apache.cassandra.auth.PasswordAuthentificator"
+            );
+    };
+}  // namespace
+
+void ConnectionImpl::Authentificate(
+    std::shared_ptr<io::protocol::ResponseMessage> message,  std::optional<PasswordAuthentificator> password_data
+) {
+    auto authentificator =
+        dynamic_cast<io::protocol::AuthentificateMessage*>(message.get())
+            ->GetAuthChallenge();
+
+    auto auth_type_optional = kAuthentificatorTypeToString.TryFind(authentificator);
+
+    if(auth_type_optional.has_value()){
+        auto auth = auth_type_optional.value();
+        switch (auth) {
+            case AuthentificatorType::kAllowAll: {
+                break;
+            }
+            case AuthentificatorType::kPassword:{
+                ExecuteMessage(io::protocol::RequestMessage &&message, userver::engine::Deadline::FromDuration(std::chrono::seconds{10})
+            }
+        }
+    }else{
+        LOG_ERROR("Unkown Authorizer");
+        MarkBroken();
+    }
+}
+
+void ConnectionImpl::CqlHandshake(bool use_compression, std::optional<PasswordAuthentificator> password_data) {
     auto support_message = ExecuteMessage(
         io::protocol::OptionsMessage{},
         userver::engine::Deadline::FromDuration(std::chrono::seconds{1})
@@ -245,10 +287,16 @@ void ConnectionImpl::CqlHandshake(bool use_compression) {
         );
     }
 
-    if (message.get()->GetOpcode() != io::protocol::Opcode::kReady) {
-        LOG_ERROR("RECEIVED UNEXPECTED MESSAGE");
-        MarkBroken();
-        throw std::runtime_error("Unexpected message received");
+    switch (message->GetOpcode()) {
+        case io::protocol::Opcode::kReady:
+            break;
+        case io::protocol::Opcode::kAuthenticate:
+            Authentificate(message, password_data);
+        default: {
+            LOG_ERROR("RECEIVED UNEXPECTED MESSAGE");
+            MarkBroken();
+            throw std::runtime_error("Unexpected message received");
+        }
     }
 }
 
@@ -280,11 +328,12 @@ void ConnectionImpl::TcpConnect(
 void ConnectionImpl::AsyncConnect(
     userver::clients::dns::AddrVector addresses,
     bool use_compression,
+    std::optional<PasswordAuthentificator> password_data,
     userver::engine::Deadline deadline
 ) {
     TcpConnect(addresses, deadline);
 
-    CqlHandshake(use_compression);
+    CqlHandshake(use_compression, password_data);
 
     StartReceiverLoop();
 }
