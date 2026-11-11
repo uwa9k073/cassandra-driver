@@ -164,9 +164,9 @@ userver::engine::TaskWithResult<bool> ConnectionPool::Connect(
     userver::engine::SemaphoreLock lock, ConnectionSettings&& conn_settings
 ) {
     return userver::engine::AsyncNoTracing([this,
-                                         size_lock = std::move(lock),
-                                         conn_settings =
-                                             std::move(conn_settings)]() mutable {
+                                            size_lock = std::move(lock),
+                                            conn_settings =
+                                                std::move(conn_settings)]() mutable {
         if (!size_lock) {
             size_lock =
                 userver::engine::SemaphoreLock{_size_semaphore, kConnectingTimeout};

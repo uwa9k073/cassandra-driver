@@ -222,4 +222,5 @@ private:
     Byte flags = 0;
 };
 
+class
 }  // namespace cassandra::io::protocol

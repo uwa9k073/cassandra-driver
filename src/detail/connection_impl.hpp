@@ -38,6 +38,7 @@ public:
     void AsyncConnect(
         userver::clients::dns::AddrVector addresses,
         bool use_compression,
+        std::optional<PasswordAuthentificator> password_data,
         userver::engine::Deadline deadline
     );
 
@@ -93,7 +94,8 @@ private:
         const userver::clients::dns::AddrVector& addresses,
         userver::engine::Deadline deadline
     );
-    void CqlHandshake(bool use_compression);
+    void CqlHandshake(bool use_compression, std::optional<PasswordAuthentificator> password_data);
+    void Authentificate(std::shared_ptr<io::protocol::ResponseMessage> message, std::optional<PasswordAuthentificator> password_data);
     void StartReceiverLoop();
 
     void SendMessage(

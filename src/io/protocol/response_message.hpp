@@ -10,6 +10,7 @@
 #include <io/protocol/column_option.hpp>
 #include <io/protocol/events/schema_change.hpp>
 #include <memory>
+#include <string_view>
 #include <userver/logging/log.hpp>
 #include <utility>
 #include <variant>
@@ -18,7 +19,7 @@
 namespace cassandra::io::protocol {
 class ResponseMessage : public Message {
 public:
-    ResponseMessage(FrameHeader&& header) : Message(std::move(header)) {};
+    ResponseMessage(FrameHeader&& header) : Message(std::move(header)){};
 
     static FrameHeader ParseHeader(RawBufferView data) {
         FrameHeader header;
@@ -41,7 +42,7 @@ public:
 
 class ErrorMessage : public ResponseMessage {
 public:
-    ErrorMessage(FrameHeader&& header) : ResponseMessage(std::move(header)) {};
+    ErrorMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
 
     ErrorCode GetErrorCode() const { return error_code; }
     String GetErrorMessage() const { return error_message; }
@@ -59,7 +60,7 @@ private:
 
 class ReadyMessage : public ResponseMessage {
 public:
-    ReadyMessage(FrameHeader&& header) : ResponseMessage(std::move(header)) {};
+    ReadyMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
 
     // Ready message does not have a body
     void DoParseBody(RawBufferView /*buffer*/) override {}
@@ -68,11 +69,13 @@ public:
 class AuthentificateMessage : public ResponseMessage {
 public:
     AuthentificateMessage(FrameHeader&& header)
-        : ResponseMessage(std::move(header)) {};
+        : ResponseMessage(std::move(header)){};
 
     void DoParseBody(RawBufferView buffer) override {
         auth_challenge = BufferReader<BufferView>{buffer}.Read<String>();
     }
+
+    std::string_view GetAuthChallenge() { return auth_challenge.GetUnderlying(); }
 
 private:
     String auth_challenge;
@@ -80,7 +83,7 @@ private:
 
 class SupportMessage : public ResponseMessage {
 public:
-    SupportMessage(FrameHeader&& header) : ResponseMessage(std::move(header)) {};
+    SupportMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
 
     StringMultiMap GetOptions() const { return options; }
 
@@ -209,7 +212,7 @@ class ResultMessage : public ResponseMessage {
     }
 
 public:
-    ResultMessage(FrameHeader&& header) : ResponseMessage(std::move(header)) {};
+    ResultMessage(FrameHeader&& header) : ResponseMessage(std::move(header)){};
 
     void DoParseBody(RawBufferView buffer) override {
         auto reader = BufferReader<BufferView>{buffer};
