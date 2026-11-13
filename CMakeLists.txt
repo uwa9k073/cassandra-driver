@@ -40,6 +40,23 @@ install(
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
+set(CASSANDRA_TESTSUITE_INSTALL_DIR
+    "${CMAKE_INSTALL_LIBDIR}/cmake/${CASSANDRA_ROOT_PROJECT_NAME}/testsuite")
+
+
+set(userver-cql-driver_TESTSUITE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/testsuite")
+set(userver-cql-driver_TESTSUITE_REQUIREMENTS "${CMAKE_CURRENT_SOURCE_DIR}/testsuite/requirements-cassandra.txt")
+
+install(
+  FILES testsuite/requirements-cassandra.txt
+  DESTINATION "${CASSANDRA_TESTSUITE_INSTALL_DIR}"
+)
+
+install(
+  DIRECTORY testsuite/
+  DESTINATION "${CASSANDRA_TESTSUITE_INSTALL_DIR}"
+)
+
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(
@@ -47,6 +64,12 @@ install(
   FILE ${CASSANDRA_ROOT_PROJECT_NAME}Targets.cmake
   NAMESPACE userver::
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CASSANDRA_ROOT_PROJECT_NAME}
+)
+
+file(RELATIVE_PATH
+  CASSANDRA_TESTSUITE_RELATIVE_DIR
+  "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/cmake/${CASSANDRA_ROOT_PROJECT_NAME}"
+  "${CMAKE_INSTALL_PREFIX}/${CASSANDRA_TESTSUITE_INSTALL_DIR}"
 )
 
 configure_package_config_file(
@@ -62,10 +85,9 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${CASSANDRA_ROOT_PROJECT_NAME}Config.
 option(CASSANDRA_BUILD_SAMPLES "Build userver samples" OFF)
 option(CASSANDRA_BUILD_TESTS "Build userver tests" ON)
 
+
 if(CASSANDRA_BUILD_SAMPLES)
     add_subdirectory(samples)
-    # add_subdirectory(samples/example_service)
-    # add_subdirectory(samples/bench_service)
 endif()
 
 if(CASSANDRA_BUILD_TESTS)
