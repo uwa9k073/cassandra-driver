@@ -11,7 +11,7 @@ DEFAULT_CASSANDRA_PORT = 19042
 DEFAULT_CASSANDRA_STORAGE_PORT = 17000
 
 SERVICE_SCRIPT_PATH = pathlib.Path(__file__).parent.joinpath(
-    "scripts/service-cassandra",
+    "scripts/service-cassandra.sh",
 )
 
 
