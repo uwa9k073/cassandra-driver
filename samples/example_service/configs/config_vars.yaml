@@ -9,4 +9,4 @@ is-testing: false
 server-port: 8080
 
 # secdist-path: /configs/secure_data.json
-cassandra-keyspace: store
+cassandra-keyspace: benchmark_ks

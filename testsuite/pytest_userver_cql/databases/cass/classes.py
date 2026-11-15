@@ -42,5 +42,5 @@ class Control:
     @property
     def session(self) -> cluster.Session:
         if not self._enabled or self._session is None:
-            raise CassandraDisabledError
+            raise CassandraDisabledError("Cassandra is disabled")
         return self._session

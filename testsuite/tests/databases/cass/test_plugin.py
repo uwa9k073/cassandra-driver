@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from pytest_plugins.pytest_infra.databases.cassandra import classes, plugin, service
+from pytest_plugins.pytest_userver_cql.databases.cass import classes, plugin, service
 
 
 def test_get_connection_info_uses_cli_url():

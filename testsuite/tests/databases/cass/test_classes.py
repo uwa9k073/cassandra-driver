@@ -1,5 +1,5 @@
 import pytest
-from pytest_plugins.pytest_infra.databases.cassandra import classes
+from pytest_plugins.pytest_userver_cql.databases.cass import classes
 
 
 def test_connection_info_get_uri_single_host():

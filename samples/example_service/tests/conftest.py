@@ -5,38 +5,38 @@ import pytest
 pytest_plugins = [
     'pytest_userver.plugins.core',
     # Подключаем ваш плагин так же, как это сделает внешний пользователь
-    'pytest_userver_cql.plugins.cassandra',
+    'pytest_userver_cql.plugins.cass',
 ]
 
 
-@pytest.fixture(scope='session')
-def service_secdist_path(tmp_path_factory) -> pathlib.Path:
-    """Создает временный файл secdist.json для запуска сервиса."""
-    secdist_data = {
-        "cassandra_settings": {
-            "keyspaces": {
-                "store": {
-                    "nodes": [
-                        {
-                            "use-ssl": False,
-                            "use-compression": False,
-                            "allow-all": True,
-                            "contact-point": "localhost",
-                            "port": 9042,
-                        }
-                    ]
-                }
-            }
-        }
-    }
-    secdist_file = tmp_path_factory.mktemp('secdist') / 'secure_data.json'
-    secdist_file.write_text(json.dumps(secdist_data, indent=4))
-    return secdist_file
+USERVER_CONFIG_HOOKS = ["config_patch"]
 
 
-@pytest.fixture(scope='session')
-def service_env(service_secdist_path):
-    """Передает путь к файлу в переменную окружения SECDIST_PATH при старте сервиса."""
-    return {
-        'SECDIST_PATH': str(service_secdist_path),
-    }
+@pytest.fixture(scope="session", name="root_dir")
+def _root_dir():
+    """Path to root directory service."""
+    return pathlib.Path(__file__).parent.parent
+
+
+
+@pytest.fixture(scope="session")
+def config_patch(root_dir):
+
+    def patch_config(config, _):
+        components = config["components_manager"]["components"]
+        components["default-secdist-provider"]["config"] = str(
+            root_dir / "configs/secure_data.json"
+        )
+
+    return patch_config
+
+
+import pathlib
+import pytest
+
+@pytest.fixture(scope="session")
+def cassandra_schema_paths(root_dir) -> list[pathlib.Path]:
+    return [
+        root_dir / "cassandra/schemas/keyspace.cql",
+        root_dir / "cassandra/schemas/table.cql",
+    ]

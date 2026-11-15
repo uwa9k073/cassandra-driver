@@ -306,6 +306,10 @@ ResultSet ConnectionPool::Execute(
 ) {
     auto conn = Acquire(userver::engine::Deadline{});
 
+    if(!conn) {
+        throw exceptions::PoolError("Cant connect");
+    }
+
     if (CanPrepareStatement(statement_cmd_ctl, _prepared_statements_cache_enabled)) {
         if (statement_cmd_ctl.has_value()) {
             LOG_DEBUG(

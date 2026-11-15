@@ -1,5 +1,5 @@
 import pytest
-from pytest_plugins.pytest_infra.databases.cassandra import classes, service
+from pytest_plugins.pytest_userver_cql.databases.cass import classes, service
 from testsuite.environment import service as env_service
 
 
