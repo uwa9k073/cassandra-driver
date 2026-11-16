@@ -18,3 +18,4 @@ venv
 .history
 docs/html
 .ropeproject
+pytest.log
