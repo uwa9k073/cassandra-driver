@@ -15,7 +15,7 @@ env:
 jobs:
   test:
     container:
-      image: kostuwan/ubuntu24.04-userver-ci:v3.2-core
+      image: kostuwan/ubuntu24.04-userver-ci:v3.2-cassandra
 
     strategy:
       matrix:
@@ -61,6 +61,10 @@ jobs:
         run: |
           run_as_user.sh ctest -V --test-dir ${{ matrix.build_dir }} --output-on-failure \
             -R "^userver-cql-driver_benchmark$"
+
+      - name: Functional  tests
+        run: |
+              run_as_user.sh ctest -V --test-dir ${{ matrix.build_dir }} --output-on-failure -R "^testsuite-"
 
       - name: Install check (release only)
         if: matrix.build_dir == 'build_release'

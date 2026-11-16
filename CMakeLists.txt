@@ -86,12 +86,13 @@ option(CASSANDRA_BUILD_SAMPLES "Build userver samples" OFF)
 option(CASSANDRA_BUILD_TESTS "Build userver tests" ON)
 
 
-if(CASSANDRA_BUILD_SAMPLES)
-    add_subdirectory(samples)
-endif()
 
 if(CASSANDRA_BUILD_TESTS)
     enable_testing()
     add_subdirectory(unittests)
     add_subdirectory(benchmarks)
+endif()
+
+if(CASSANDRA_BUILD_SAMPLES)
+    add_subdirectory(samples)
 endif()
