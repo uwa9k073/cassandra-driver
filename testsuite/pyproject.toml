@@ -1,0 +1,21 @@
+[project]
+name = "cassandra-driver-testsuite"
+version = "0.0.1"
+description = ""
+requires-python = ">=3.10"
+readme = "README.md"
+dependencies = [
+    "yandex-taxi-testsuite",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=9", "yandex-taxi-testsuite>=0.4.5"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["testsuite"]
+addopts = "-ra"
+
+[tool.uv]
+managed = true
+package = false

@@ -38,7 +38,7 @@ build-debug build-release: build-%: cmake-%
 .PHONY: test-debug test-release
 test-debug test-release: test-%: build-%
 	@cmake --build build_$* -j $(NPROCS) --target userver-cql-driver_unittest
-	# @cmake --build build_$* -j $(NPROCS) --target userver-cql-driver_benchmark
+	@cmake --build build_$* -j $(NPROCS) --target userver-cql-driver_benchmark
 	@cd build_$* && ((test -t 1 && GTEST_COLOR=1 PYTEST_ADDOPTS="--color=yes" ctest -V) || ctest -V)
 
 

@@ -91,7 +91,7 @@ components_manager:
       dns_resolver: async
       min-pool-size: 5
       max-pool-size: 100
-      sync-start: false
+      sync-start: true
       persistent-prepared-statements: true
       max-ttl-sec: 3600
       prepared-statement-cache-ways: 16
