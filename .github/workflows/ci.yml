@@ -27,7 +27,7 @@ jobs:
             cmake_flags: >-
               -DCMAKE_BUILD_TYPE=Debug
               -DUSERVER_SANITIZE="addr ub"
-              -DCASSANDRA_BUILD_SAMPLES=OFF
+              -DCASSANDRA_BUILD_SAMPLES=ON
 
           - build_dir: build_release
             info: release + clang++-18 + cxx20
@@ -35,7 +35,7 @@ jobs:
             os: ubuntu-24.04
             cmake_flags: >-
               -DCMAKE_BUILD_TYPE=Release
-              -DCASSANDRA_BUILD_SAMPLES=OFF
+              -DCASSANDRA_BUILD_SAMPLES=ON
               -DCMAKE_CXX_FLAGS_RELEASE="-O3"
 
     name: '${{matrix.os}}: ${{matrix.info}}'
